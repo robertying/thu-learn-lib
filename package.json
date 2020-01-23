@@ -25,6 +25,7 @@
     "cheerio-without-node-native": "0.20.2",
     "cross-fetch": "^3.0.4",
     "entities": "^2.0.0",
+    "es6-denodeify": "^0.1.5",
     "form-data": "^3.0.0",
     "js-base64": "^2.5.1",
     "real-isomorphic-fetch": "^3.0.0",
