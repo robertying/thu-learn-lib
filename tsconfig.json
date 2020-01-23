@@ -1,11 +1,18 @@
 {
-    "compilerOptions": {
-      "target": "ES2016",
-      "module": "commonjs",
-      "declaration": true,
-      "outDir": "./lib",
-      "strict": true
-    },
-    "include": ["src"],
-    "exclude": ["node_modules", "**/__tests__/*"]
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["esnext"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "target": "es6",
+    "outDir": "lib",
+    "importHelpers": true,
+    "inlineSourceMap": true
+  },
+  "include": ["src/**/*", "@types/**/*"]
 }

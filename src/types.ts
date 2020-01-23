@@ -1,4 +1,6 @@
-export type Fetch = <Args extends any[], Data extends any>(...args: Args) => Promise<Data>;
+export type Fetch = <Args extends any[], Data extends any>(
+  ...args: Args
+) => Promise<Data>;
 export type Credential = { username: string; password: string };
 export type CredentialProvider = () => Credential | Promise<Credential>;
 export type HelperConfig = {
@@ -7,18 +9,18 @@ export type HelperConfig = {
 };
 
 export enum SemesterType {
-  FALL = '秋季学期',
-  SPRING = '春季学期',
-  SUMMER = '夏季学期',
-  UNKNOWN = '',
+  FALL = "秋季学期",
+  SPRING = "春季学期",
+  SUMMER = "夏季学期",
+  UNKNOWN = ""
 }
 
 export enum ContentType {
-  NOTIFICATION = 'notification',
-  FILE = 'file',
-  HOMEWORK = 'homework',
-  DISCUSSION = 'discussion',
-  QUESTION = 'question',
+  NOTIFICATION = "notification",
+  FILE = "file",
+  HOMEWORK = "homework",
+  DISCUSSION = "discussion",
+  QUESTION = "question"
 }
 
 interface ISemesterInfo {
@@ -33,8 +35,8 @@ interface ISemesterInfo {
 export type SemesterInfo = ISemesterInfo;
 
 export enum CourseType {
-  STUDENT = 'student',
-  TEACHER = 'teacher',
+  STUDENT = "student",
+  TEACHER = "teacher"
 }
 
 interface ICourseInfo {
