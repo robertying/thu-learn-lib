@@ -140,8 +140,8 @@ export class Learn2018Helper {
     const result = (await response.json()).result;
     return {
       id: result.id,
-      startDate: new Date(result.kssj),
-      endDate: new Date(result.jssj),
+      startDate: result.kssj,
+      endDate: result.jssj,
       startYear: Number(result.xnxq.slice(0, 4)),
       endYear: Number(result.xnxq.slice(5, 9)),
       type: parseSemesterType(Number(result.xnxq.slice(10, 11)))
@@ -242,7 +242,7 @@ export class Learn2018Helper {
           publisher: n.fbrxm,
           hasRead: n.sfyd === "是",
           markedImportant: n.sfqd === "1",
-          publishTime: new Date(n.fbsjStr)
+          publishTime: n.fbsjStr
         };
         let detail: INotificationDetail = {};
         if (n.fjmc !== null) {
@@ -288,7 +288,7 @@ export class Learn2018Helper {
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: new Date(f.scsj),
+          uploadTime: f.scsj,
           downloadUrl: URL.LEARN_FILE_DOWNLOAD(f.wjid, courseType, courseID),
           isNew: f.isNew,
           markedImportant: f.sfqd === 1,
@@ -392,14 +392,14 @@ export class Learn2018Helper {
           studentHomeworkId: h.xszyid,
           title: decodeHTML(h.bt),
           url: URL.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.zyid, h.xszyid),
-          deadline: new Date(h.jzsj),
+          deadline: h.jzsj,
           submitUrl: URL.LEARN_HOMEWORK_SUBMIT(h.wlkcid, h.xszyid),
-          submitTime: h.scsj === null ? undefined : new Date(h.scsj),
+          submitTime: h.scsj === null ? undefined : h.scsj,
           grade: h.cj === null ? undefined : h.cj,
           gradeLevel: mapGradeToLevel(h.cj),
           graderName: trimAndDefine(h.jsm),
           gradeContent: trimAndDefine(h.pynr),
-          gradeTime: h.pysj === null ? undefined : new Date(h.pysj),
+          gradeTime: h.pysj === null ? undefined : h.pysj,
           submittedAttachmentUrl:
             h.zyfjid === ""
               ? undefined
@@ -501,8 +501,8 @@ export class Learn2018Helper {
       id: d.id,
       title: decodeHTML(d.bt),
       publisherName: d.fbrxm,
-      publishTime: new Date(d.fbsj),
-      lastReplyTime: new Date(d.zhhfsj),
+      publishTime: d.fbsj,
+      lastReplyTime: d.zhhfsj,
       lastReplierName: d.zhhfrxm,
       visitCount: d.djs ?? 0, // teacher cannot fetch this
       replyCount: d.hfcs

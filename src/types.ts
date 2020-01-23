@@ -25,8 +25,8 @@ export enum ContentType {
 
 interface ISemesterInfo {
   id: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   startYear: number;
   endYear: number;
   type: SemesterType;
@@ -61,7 +61,7 @@ export interface INotification {
   hasRead: boolean;
   url: string;
   markedImportant: boolean;
-  publishTime: Date;
+  publishTime: string;
   publisher: string;
   attachmentName?: string;
 }
@@ -78,7 +78,7 @@ interface IFile {
   size: string; // like '1M'
   title: string;
   description: string;
-  uploadTime: Date;
+  uploadTime: string;
   downloadUrl: string;
   isNew: boolean;
   markedImportant: boolean;
@@ -98,14 +98,14 @@ export interface IHomework extends IHomeworkStatus {
   id: string;
   studentHomeworkId: string;
   title: string;
-  deadline: Date;
+  deadline: string;
   url: string;
   submitUrl: string;
-  submitTime?: Date;
+  submitTime?: string;
   submittedAttachmentUrl?: string;
   grade?: number;
   gradeLevel?: string; // some homework has levels but not grades, like A/B/.../F
-  gradeTime?: Date;
+  gradeTime?: string;
   graderName?: string;
   gradeContent?: string;
 }
@@ -129,9 +129,9 @@ export interface IDiscussionBase {
   id: string;
   title: string;
   publisherName: string;
-  publishTime: Date;
+  publishTime: string;
   lastReplierName: string;
-  lastReplyTime: Date;
+  lastReplyTime: string;
   visitCount: number;
   replyCount: number;
 }
