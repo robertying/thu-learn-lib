@@ -12,7 +12,9 @@
     "target": "es6",
     "outDir": "lib",
     "importHelpers": true,
-    "inlineSourceMap": true
+    "inlineSourceMap": true,
+    "declaration": true,
+    "declarationDir": "lib"
   },
   "include": ["src/**/*", "@types/**/*"]
 }
