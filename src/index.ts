@@ -289,7 +289,11 @@ export class Learn2018Helper {
           rawSize: f.wjdx,
           size: f.fileSize,
           uploadTime: f.scsj,
-          downloadUrl: URL.LEARN_FILE_DOWNLOAD(f.wjid, courseType, courseID),
+          downloadUrl: URL.LEARN_FILE_DOWNLOAD(
+            courseType === CourseType.STUDENT ? f.wjid : f.id,
+            courseType,
+            courseID
+          ),
           isNew: f.isNew,
           markedImportant: f.sfqd === 1,
           visitCount: f.llcs ?? 0,
