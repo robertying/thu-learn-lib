@@ -8,6 +8,15 @@ export declare type HelperConfig = {
     provider?: CredentialProvider;
     cookieJar?: any;
 };
+export declare enum FailReason {
+    NO_CREDENTIAL = "no credential provided",
+    ERROR_FETCH_FROM_ID = "could not fetch ticket from id.tsinghua.edu.cn",
+    BAD_CREDENTIAL = "bad credential",
+    ERROR_ROAMING = "could not roam to learn.tsinghua.edu.cn",
+    NOT_LOGGED_IN = "not logged in or login timeout",
+    NOT_IMPLEMENTED = "not implemented",
+    INVALID_RESPONSE = "invalid response"
+}
 export declare enum SemesterType {
     FALL = "\u79CB\u5B63\u5B66\u671F",
     SPRING = "\u6625\u5B63\u5B66\u671F",
@@ -64,7 +73,9 @@ export interface INotificationDetail {
 export declare type Notification = INotification & INotificationDetail;
 interface IFile {
     id: string;
+    /** size in byte */
     rawSize: number;
+    /** inaccurate size description (like '1M') */
     size: string;
     title: string;
     description: string;
@@ -91,6 +102,7 @@ export interface IHomework extends IHomeworkStatus {
     submitTime?: string;
     submittedAttachmentUrl?: string;
     grade?: number;
+    /** some homework has levels but not grades, like A/B/.../F */
     gradeLevel?: string;
     gradeTime?: string;
     graderName?: string;

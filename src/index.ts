@@ -53,7 +53,7 @@ export class Learn2018Helper {
   constructor(config?: HelperConfig) {
     this.cookieJar = config?.cookieJar ?? new tough.CookieJar();
     this.provider = config?.provider;
-    this.rawFetch = new IsomorphicFetch(fetch, this.cookieJar);
+    this.rawFetch = new IsomorphicFetch(fetch, this.cookieJar) as any;
     this.myFetch = this.provider
       ? this.withReAuth(this.rawFetch)
       : async (...args) => {
@@ -326,7 +326,7 @@ export class Learn2018Helper {
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: new Date(f.scsj),
+          uploadTime: f.scsj,
           downloadUrl: URL.LEARN_FILE_DOWNLOAD(
             courseType === CourseType.STUDENT ? f.wjid : f.id,
             courseType,

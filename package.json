@@ -27,7 +27,7 @@
     "entities": "^2.0.0",
     "es6-denodeify": "^0.1.5",
     "form-data": "^3.0.0",
-    "js-base64": "^2.5.1",
+    "js-base64": "^2.5.2",
     "real-isomorphic-fetch": "^3.0.0",
     "tough-cookie-no-native": "^2.4.1",
     "tslib": "^1.10.0",
@@ -37,10 +37,10 @@
     "@types/cheerio": "^0.22.15",
     "@types/js-base64": "^2.3.1",
     "@types/tough-cookie": "^2.3.6",
-    "@typescript-eslint/eslint-plugin": "^2.17.0",
-    "@typescript-eslint/parser": "^2.17.0",
+    "@typescript-eslint/eslint-plugin": "^2.19.2",
+    "@typescript-eslint/parser": "^2.19.2",
     "eslint": "^6.8.0",
-    "eslint-config-prettier": "^6.9.0",
+    "eslint-config-prettier": "^6.10.0",
     "prettier": "^1.19.1",
     "typescript": "^3.7.5"
   }
