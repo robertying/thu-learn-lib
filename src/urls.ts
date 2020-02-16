@@ -35,7 +35,7 @@ export const LEARN_CURRENT_SEMESTER = () => {
 };
 
 export const LEARN_COURSE_LIST = (semester: string, courseType: CourseType) => {
-  if (courseType == CourseType.STUDENT) {
+  if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xkb_kcb_extend/student/loadCourseBySemesterId/${semester}`;
   } else {
     return `${LEARN_PREFIX}/b/kc/v_wlkc_kcb/queryAsorCoCourseList/${semester}/0`;
@@ -55,7 +55,7 @@ export const LEARN_TEACHER_COURSE_URL = (courseID: string) => {
 };
 
 export const LEARN_FILE_LIST = (courseID: string, courseType: CourseType) => {
-  if (courseType == CourseType.STUDENT) {
+  if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxbByWlkcidAndSizeForStudent?wlkcid=${courseID}&size=${MAX_SIZE}`;
   } else {
     return `${LEARN_PREFIX}/b/wlxt/kj/v_kjxxb_wjwjb/teacher/queryByWlkcid?wlkcid=${courseID}&size=${MAX_SIZE}`;
@@ -67,7 +67,7 @@ export const LEARN_FILE_DOWNLOAD = (
   courseType: CourseType,
   courseID: string
 ) => {
-  if (courseType == CourseType.STUDENT) {
+  if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/downloadFile?sfgk=0&wjid=${fileID}`;
   } else {
     return `${LEARN_PREFIX}/f/wlxt/kj/wlkc_kjxxb/teacher/beforeView?id=${fileID}&wlkcid=${courseID}`;
@@ -78,7 +78,7 @@ export const LEARN_NOTIFICATION_LIST = (
   courseID: string,
   courseType: CourseType
 ) => {
-  if (courseType == CourseType.STUDENT) {
+  if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/student/kcggListXs?wlkcid=${courseID}&size=${MAX_SIZE}`;
   } else {
     return `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/teacher/kcggList?wlkcid=${courseID}&size=${MAX_SIZE}`;
@@ -90,7 +90,7 @@ export const LEARN_NOTIFICATION_DETAIL = (
   notificationID: string,
   courseType: CourseType
 ) => {
-  if (courseType == CourseType.STUDENT) {
+  if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/student/beforeViewXs?wlkcid=${courseID}&id=${notificationID}`;
   } else {
     return `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/teacher/beforeViewJs?wlkcid=${courseID}&id=${notificationID}`;
@@ -186,7 +186,7 @@ export const LEARN_QUESTION_DETAIL = (
   questionID: string,
   courseType: CourseType
 ) => {
-  if (courseType == CourseType.STUDENT) {
+  if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/student/viewDyById?wlkcid=${courseID}&id=${questionID}`;
   } else {
     return `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/teacher/beforeEditDy?wlkcid=${courseID}&id=${questionID}`;

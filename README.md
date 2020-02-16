@@ -17,7 +17,9 @@ This project is licensed under MIT License.
 
 The library uses `cross-fetch` and `real-isomorphic-fetch`, which provides cookie and redirection support in both browsers and JS engines (like node).
 
-I don't like polyfill. In case of any problems, just upgrade your browser / Node.
+I don't like polyfill. In case of any syntax problems, just upgrade your browser / Node.
+
+Version 2.0.0 breaks `login` and `logout` API compatibility, which do not return a promise any more.
 
 ## Installation
 
@@ -69,13 +71,17 @@ const helper = new Learn2018Helper({
 // So we strongly recommend using this method.
 
 // If you do not provide a cookie jar or CredentialProvider, you must log in manually. Otherwise you do not need to call login explicitly.
-const loginSuccess = await helper.login("user", "pass");
+try {
+  await helper.login("user", "pass");
+} catch (e) {
+  // e is a FailReason
+}
 
 // You can also take out cookies (e.g. for file download), which will not work in browsers.
 console.log(helper.cookieJar);
 
 // Logout if you want, but the cookie jar will not be cleared.
-const logoutSuccess = await helper.logout();
+await helper.logout();
 ```
 
 ### Content related
@@ -123,7 +129,7 @@ According to security strategies (CORS, CORB) of browsers, you might need to run
 
 ## Typing
 
-See `lib/types.d.ts` for type definitions.
+See `lib/types.d.ts` for type definitions. Note that `FailReason` represents all strings that will be used as the reason of rejected Promises.
 
 ## Testing
 
@@ -133,6 +139,21 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
 
 ## Changelog
 
+- v2.0.0
+
+  - Use ES2018 in generated library
+  - Add `FailReason` to represent all strings that will be used as the reason of rejected Promises
+  - `login` and `logout` no longer return Promises
+
+- v1.2.2
+
+  - Fix a function signature to keep compatibility
+
+- v1.2.1
+
+  - Support TA version of many APIs (see above for usage)
+  - Fix some wrong URLs in fetched data
+
 - v1.2.0
 
   - Support getting course calendars from academic.tsinghua.edu.cn (thanks to robertying)
@@ -141,96 +162,49 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
   - Filter out `null` values in `getSemesterIdList` API
   - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
 
-- v1.1.4
+  * Decode the HTML entities in the `description` field of homework
 
-  - Return empty array if any content module is disabled
-  - Add `getTACourseList` to get TA's course list (temporarily can not be used by other functions)
-
-- v1.1.3
-
-  - Emergency fix of wrongly decoded base64 string, add `js-base64` back
-
-- v1.1.2
-
-  - Switch to `Base64.js` instead of `js-base64`, which uses evil `eval`
-
-- v1.1.1
-
-  - Decode HTML entities in the title of disscussions (the last one, I promise!)
-
-- v1.1.0
-
-  - Fix an typo in grade level mapping
-  - Bump to a new minor version
-
-- v1.0.16 (no v1.0.15 due to some publishing issues)
-
-  - Switch to `yarn`
-  - Add parsing of grade levels of homework (A+/A/.../F)
-
-- v1.0.14
-
-  - Add prefix for `attachmentUrl` filed of Notification
-  - Deprecate all old versions
-
-- v1.0.13
-
-  - Decode HTML entities whenever possible
-
-- v1.0.12
-
-  - Add `url` for Course
-  - Fix `url` for Question (to display correct section name)
-
-- v1.0.11
-
-  - Fix `url` error in Question
-
-- v1.0.10
-
-  - Decode the HTML entities in the `description` field of homework
-
-- v1.0.9
+* v1.0.9
 
   - Use `entities` to decode HTML entities
 
-- v1.0.8
+* v1.0.8
 
   - Export type CourseContent
 
-- v1.0.7
+* v1.0.7
 
   - No change made to code, update README
 
-- v1.0.6
+* v1.0.6
 
   - Add API to fetching content for a list of courses
 
-- v1.0.5
+* v1.0.5
 
   - Fix HTML entity replacement.
 
-- v1.0.4
+* v1.0.4
 
   - No change made to code
   - Remove unused build commands
   - Fix multiple typos in README
 
-- v1.0.3
+* v1.0.3
 
   - Add real logout API (thank @zhaofeng-shu33)
 
-- v1.0.2
+* v1.0.2
 
   - Add API to get IDs of all semesters (thank @jiegec)
 
-- v1.0.1
+* v1.0.1
 
   - Expose CookieJar in helper class
   - Fix some HTML entity decoding problems
   - **Rename of some APIs** (break compatibility before we have actual users)
 
-- v1.0.0
+* v1.0.0
   - First release
   - Support parsing of notification, homework, file, discussion and **answered** questions
 

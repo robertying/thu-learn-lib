@@ -13,6 +13,7 @@ import {
   CourseContent,
   CourseInfo,
   Discussion,
+  FailReason,
   File,
   Homework,
   IDiscussionBase,
@@ -39,6 +40,8 @@ const $ = (html: string) => {
   return cheerio.load(html, CHEERIO_CONFIG);
 };
 
+const noLogin = (url: string) => url.includes("login_timeout");
+
 export class Learn2018Helper {
   public readonly cookieJar: any;
   private readonly provider?: CredentialProvider;
@@ -48,27 +51,33 @@ export class Learn2018Helper {
   constructor(config?: HelperConfig) {
     this.cookieJar = config?.cookieJar ?? new tough.CookieJar();
     this.provider = config?.provider;
-    this.rawFetch = new IsomorphicFetch(fetch, this.cookieJar) as Fetch;
+    this.rawFetch = new IsomorphicFetch(fetch, this.cookieJar);
     this.myFetch = this.provider
       ? this.withReAuth(this.rawFetch)
-      : this.rawFetch;
+      : async (...args) => {
+          const result = await this.rawFetch(...args);
+          if (noLogin(result.url))
+            return Promise.reject(FailReason.NOT_LOGGED_IN);
+          return result;
+        };
   }
 
   private withReAuth(rawFetch: Fetch): Fetch {
-    const login = this.login.bind(this); // avoid `this` change inside arrow function
-    return async function wrappedFetch(...args: any[]) {
-      const noLogin = (url: string) => url.includes("login_timeout");
-      const retryAfterLogin = async () =>
-        await login().then(() => rawFetch(...args));
+    const login = this.login.bind(this);
+    return async function wrappedFetch(...args) {
+      const retryAfterLogin = async () => {
+        await login();
+        return await rawFetch(...args);
+      };
       return await rawFetch(...args).then(res =>
         noLogin(res.url) ? retryAfterLogin() : res
       );
     };
   }
 
-  public async login(username?: string, password?: string): Promise<boolean> {
+  public async login(username?: string, password?: string) {
     if (!username || !password) {
-      if (!this.provider) throw new Error("No credential provided");
+      if (!this.provider) return Promise.reject(FailReason.NO_CREDENTIAL);
       const credential = await this.provider();
       username = credential.username;
       password = credential.password;
@@ -78,20 +87,24 @@ export class Learn2018Helper {
       method: "POST"
     });
     if (!ticketResponse.ok) {
-      throw new Error("Error fetching ticket from id.tsinghua.edu.cn");
+      return Promise.reject(FailReason.ERROR_FETCH_FROM_ID);
     }
+    // check response from id.tsinghua.edu.cn
     const ticketResult = await ticketResponse.text();
     const body = $(ticketResult);
     const targetURL = body("a").attr("href") as string;
     const ticket = targetURL.split("=").slice(-1)[0];
-
+    if (ticket === "BAD_CREDENTIALS") {
+      return Promise.reject(FailReason.BAD_CREDENTIAL);
+    }
     const loginResponse = await this.rawFetch(URL.LEARN_AUTH_ROAM(ticket));
-    return loginResponse.ok;
+    if (loginResponse.ok !== true) {
+      return Promise.reject(FailReason.ERROR_ROAMING);
+    }
   }
 
   public async logout() {
     await this.rawFetch(URL.LEARN_LOGOUT(), { method: "POST" });
-    return true;
   }
 
   public async getCalendar(
@@ -262,7 +275,7 @@ export class Learn2018Helper {
 
   public async getFileList(
     courseID: string,
-    courseType: CourseType
+    courseType: CourseType = CourseType.STUDENT
   ): Promise<File[]> {
     const json = await (
       await this.myFetch(URL.LEARN_FILE_LIST(courseID, courseType))
@@ -288,7 +301,7 @@ export class Learn2018Helper {
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: f.scsj,
+          uploadTime: new Date(f.scsj),
           downloadUrl: URL.LEARN_FILE_DOWNLOAD(
             courseType === CourseType.STUDENT ? f.wjid : f.id,
             courseType,
@@ -311,7 +324,7 @@ export class Learn2018Helper {
     courseType: CourseType = CourseType.STUDENT
   ): Promise<Homework[]> {
     if (courseType === CourseType.TEACHER) {
-      throw Error("not implemented");
+      return Promise.reject(FailReason.NOT_IMPLEMENTED);
     }
 
     const allHomework: Homework[] = [];
@@ -427,7 +440,7 @@ export class Learn2018Helper {
     );
     const result = $(await response.text());
     let path = "";
-    if (courseType == CourseType.STUDENT) {
+    if (courseType === CourseType.STUDENT) {
       path = result(".ml-10").attr("href")!;
     } else {
       path = result("#wjid").attr("href")!;
