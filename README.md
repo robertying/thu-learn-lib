@@ -121,8 +121,13 @@ const questions = await helper.getAnsweredQuestionList(course.id);
 // where Content = Notification | File | Homework | Discussion | Question
 const homeworks = await helper.getAllContents([1, 2, 3], ContentType.HOMEWORK);
 
-// get course calendar
-const calendar = await helper.getCalendar("20191001", "20191201");
+// get course calendar in a period
+try {
+  const calendar = await helper.getCalendar("20191001", "20191201");
+} catch (e) {
+  // if calendar API returns error, FailReason.INVALID_RESPONSE will be thrown here
+  // you might want to check your date format or shrink the range (currently we observe a limit of 29 days)
+}
 ```
 
 According to security strategies (CORS, CORB) of browsers, you might need to run the code in the page context of `https://learn.tsinghua.edu.cn` and `https://id.tsinghua.edu.cn`. The simplest way is to run the code as a browser extension (an example is in `demo/`).
@@ -138,6 +143,11 @@ Run `yarn test` for testing. It requires your personal credential since we don't
 It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms timeout...` error when running tests, rerun tests may resolve this problem. If you hate this, just add the third argument `timeout` to every testcase `it("should...", async () => void, timeout)` and make sure it's greater than 5000.
 
 ## Changelog
+
+- v2.1.0
+
+  - Catch errors returned by calendar API and throw user-defined error
+  - Add documentation for all public APIs
 
 - v2.0.0
 
@@ -162,49 +172,75 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
   - Filter out `null` values in `getSemesterIdList` API
   - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
 
+- v1.1.4
+
+  - Return empty array if any content module is disabled
+  - Add `getTACourseList` to get TA's course list (temporarily can not be used by other functions)
+
+  * Use ES2018 in generated library
+  * Add `FailReason` to represent all strings that will be used as the reason of rejected Promises
+  * `login` and `logout` no longer return Promises
+
+* v1.2.2
+
+  - Fix a function signature to keep compatibility
+
+* v1.2.1
+
+  - Support TA version of many APIs (see above for usage)
+  - Fix some wrong URLs in fetched data
+
+* v1.2.0
+
+  - Support getting course calendars from academic.tsinghua.edu.cn (thanks to robertying)
+  - Automatic retry logging in when fetching failed and `CredentialProvider` is provided (thanks to mayeths)
+  - Add unit tests using `jest` (thanks to mayeths)
+  - Filter out `null` values in `getSemesterIdList` API
+  - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
+
   * Decode the HTML entities in the `description` field of homework
 
-* v1.0.9
+- v1.0.9
 
   - Use `entities` to decode HTML entities
 
-* v1.0.8
+- v1.0.8
 
   - Export type CourseContent
 
-* v1.0.7
+- v1.0.7
 
   - No change made to code, update README
 
-* v1.0.6
+- v1.0.6
 
   - Add API to fetching content for a list of courses
 
-* v1.0.5
+- v1.0.5
 
   - Fix HTML entity replacement.
 
-* v1.0.4
+- v1.0.4
 
   - No change made to code
   - Remove unused build commands
   - Fix multiple typos in README
 
-* v1.0.3
+- v1.0.3
 
   - Add real logout API (thank @zhaofeng-shu33)
 
-* v1.0.2
+- v1.0.2
 
   - Add API to get IDs of all semesters (thank @jiegec)
 
-* v1.0.1
+- v1.0.1
 
   - Expose CookieJar in helper class
   - Fix some HTML entity decoding problems
   - **Rename of some APIs** (break compatibility before we have actual users)
 
-* v1.0.0
+- v1.0.0
   - First release
   - Support parsing of notification, homework, file, discussion and **answered** questions
 

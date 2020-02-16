@@ -9,12 +9,13 @@ export type HelperConfig = {
 };
 
 export enum FailReason {
-  NO_CREDENTIAL = 'no credential provided',
-  ERROR_FETCH_FROM_ID = 'could not fetch ticket from id.tsinghua.edu.cn',
-  BAD_CREDENTIAL = 'bad credential',
-  ERROR_ROAMING = 'could not roam to learn.tsinghua.edu.cn',
-  NOT_LOGGED_IN = 'not logged in or login timeout',
-  NOT_IMPLEMENTED = 'not implemented',
+  NO_CREDENTIAL = "no credential provided",
+  ERROR_FETCH_FROM_ID = "could not fetch ticket from id.tsinghua.edu.cn",
+  BAD_CREDENTIAL = "bad credential",
+  ERROR_ROAMING = "could not roam to learn.tsinghua.edu.cn",
+  NOT_LOGGED_IN = "not logged in or login timeout",
+  NOT_IMPLEMENTED = "not implemented",
+  INVALID_RESPONSE = "invalid response"
 }
 
 export enum SemesterType {
@@ -83,8 +84,10 @@ export type Notification = INotification & INotificationDetail;
 
 interface IFile {
   id: string;
-  rawSize: number; // in byte
-  size: string; // like '1M'
+  /** size in byte */
+  rawSize: number;
+  /** inaccurate size description (like '1M') */
+  size: string;
   title: string;
   description: string;
   uploadTime: string;
@@ -113,7 +116,8 @@ export interface IHomework extends IHomeworkStatus {
   submitTime?: string;
   submittedAttachmentUrl?: string;
   grade?: number;
-  gradeLevel?: string; // some homework has levels but not grades, like A/B/.../F
+  /** some homework has levels but not grades, like A/B/.../F */
+  gradeLevel?: string;
   gradeTime?: string;
   graderName?: string;
   gradeContent?: string;

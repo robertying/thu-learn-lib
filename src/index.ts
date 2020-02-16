@@ -42,12 +42,14 @@ const $ = (html: string) => {
 
 const noLogin = (url: string) => url.includes("login_timeout");
 
+/** the main helper class */
 export class Learn2018Helper {
   public readonly cookieJar: any;
   private readonly provider?: CredentialProvider;
   private readonly rawFetch: Fetch;
   private readonly myFetch: Fetch;
 
+  /** you can provide a CookieJar and / or CredentialProvider in the configuration */
   constructor(config?: HelperConfig) {
     this.cookieJar = config?.cookieJar ?? new tough.CookieJar();
     this.provider = config?.provider;
@@ -75,6 +77,7 @@ export class Learn2018Helper {
     };
   }
 
+  /** login is necessary if you do not provide a `CredentialProvider` */
   public async login(username?: string, password?: string) {
     if (!username || !password) {
       if (!this.provider) return Promise.reject(FailReason.NO_CREDENTIAL);
@@ -103,10 +106,19 @@ export class Learn2018Helper {
     }
   }
 
+  /**  logout (to make everyone happy) */
   public async logout() {
     await this.rawFetch(URL.LEARN_LOGOUT(), { method: "POST" });
   }
 
+  /**
+   * Get calendar items during the specified period (in yyyymmdd format).
+   * @param startDate start date (inclusive)
+   * @param endDate end date (inclusive)
+   * If the API returns any error, this function will throw `FailReason.INVALID_RESPONSE`,
+   * and we currently observe a limit of no more that 29 days.
+   * Otherwise it will return the parsed data (might be empty if the period is too far away from now)
+   */
   public async getCalendar(
     startDate: string,
     endDate: string
@@ -121,24 +133,30 @@ export class Learn2018Helper {
 
     await this.myFetch(URL.REGISTRAR_AUTH(ticket));
 
+    const extractData = (raw: any[]) =>
+      raw.map<CalendarEvent>(i => ({
+        location: i.dd,
+        status: i.fl,
+        startTime: i.kssj,
+        endTime: i.jssj,
+        date: i.nq,
+        courseName: i.nr
+      }));
+
     const response = await this.myFetch(
-      URL.REGISTRAR_CALENDAR(startDate, endDate)
+      URL.REGISTRAR_CALENDAR(startDate, endDate, extractData.name)
     );
 
-    let calendarString = (await response.text()) as string;
-    calendarString = calendarString.substring(15, calendarString.length - 1);
+    if (!response.ok) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
+    }
 
-    const rawCalendar = JSON.parse(calendarString) as any[];
-    const calendar = rawCalendar.map<CalendarEvent>(i => ({
-      location: i.dd,
-      status: i.fl,
-      startTime: i.kssj,
-      endTime: i.jssj,
-      date: i.nq,
-      courseName: i.nr
-    }));
+    let calendarJSONP = (await response.text()) as string;
 
-    return calendar;
+    if (!calendarJSONP.startsWith(extractData.name)) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
+    }
+    return eval(calendarJSONP);
   }
 
   public async getSemesterIdList(): Promise<string[]> {
@@ -161,6 +179,7 @@ export class Learn2018Helper {
     };
   }
 
+  /** get all courses in the specified semester */
   public async getCourseList(
     semesterID: string,
     courseType: CourseType = CourseType.STUDENT
@@ -193,6 +212,10 @@ export class Learn2018Helper {
     return courses;
   }
 
+  /**
+   * Get certain type of content of all specified courses.
+   * It actually wraps around other `getXXX` functions
+   */
   public async getAllContents(
     courseIDs: string[],
     type: ContentType,
@@ -231,6 +254,7 @@ export class Learn2018Helper {
     return contents;
   }
 
+  /** Get all notifications （课程公告） of the specified course. */
   public async getNotificationList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT
@@ -273,6 +297,7 @@ export class Learn2018Helper {
     return notifications;
   }
 
+  /** Get all files （课程文件） of the specified course. */
   public async getFileList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT
@@ -319,6 +344,7 @@ export class Learn2018Helper {
     return files;
   }
 
+  /** Get all homeworks （课程作业） of the specified course (support student version only). */
   public async getHomeworkList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT
@@ -339,6 +365,7 @@ export class Learn2018Helper {
     return allHomework;
   }
 
+  /** Get all discussions （课程讨论） of the specified course. */
   public async getDiscussionList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT
@@ -365,6 +392,10 @@ export class Learn2018Helper {
     return discussions;
   }
 
+  /**
+   * Get all notifications （课程答疑） of the specified course.
+   * The student version supports only answered questions, while the teacher version supports all questions.
+   */
   public async getAnsweredQuestionList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT
