@@ -4,3 +4,4 @@ export declare function trimAndDefine(text: string | undefined | null): string |
 export declare function mapGradeToLevel(grade: number | null): string | undefined;
 export declare const JSONP_EXTRACTOR_NAME = "thu_learn_lib_jsonp_extractor";
 export declare function extractJSONPResult(jsonp: string): any;
+export declare const removeStrangeCharacters: (text?: string | undefined) => string;

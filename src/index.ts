@@ -32,7 +32,8 @@ import {
   parseSemesterType,
   trimAndDefine,
   JSONP_EXTRACTOR_NAME,
-  extractJSONPResult
+  extractJSONPResult,
+  removeStrangeCharacters
 } from "./utils";
 
 import IsomorphicFetch from "real-isomorphic-fetch";
@@ -273,7 +274,7 @@ export class Learn2018Helper {
       result.map(async n => {
         const notification: INotification = {
           id: n.ggid,
-          content: decodeHTML(Base64.decode(n.ggnr)),
+          content: removeStrangeCharacters(decodeHTML(Base64.decode(n.ggnr))),
           title: decodeHTML(n.bt),
           url: URL.LEARN_NOTIFICATION_DETAIL(courseID, n.ggid, courseType),
           publisher: n.fbrxm,
@@ -492,10 +493,12 @@ export class Learn2018Helper {
     const fileDivs = result("div.list.fujian.clearfix");
 
     return {
-      description: trimAndDefine(
-        result("div.list.calendar.clearfix>div.fl.right>div.c55")
-          .slice(0, 1)
-          .html()
+      description: removeStrangeCharacters(
+        trimAndDefine(
+          result("div.list.calendar.clearfix>div.fl.right>div.c55")
+            .slice(0, 1)
+            .html()
+        )
       ),
       answerContent: trimAndDefine(
         result("div.list.calendar.clearfix>div.fl.right>div.c55")

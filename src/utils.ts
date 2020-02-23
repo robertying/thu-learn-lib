@@ -72,3 +72,13 @@ export function extractJSONPResult(jsonp: string): any {
     `"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`
   )();
 }
+
+export const removeStrangeCharacters = (text?: string) => {
+  return text
+    ? text.startsWith("\xC2\x9E\xC3\xA9\x65")
+      ? text.substr(5)
+      : text.startsWith("\x9E\xE9\x65")
+      ? text.substr(3)
+      : text
+    : "";
+};
