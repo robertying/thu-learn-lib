@@ -1,10 +1,8 @@
 import { HelperConfig, ContentType, CourseContent, CourseInfo, Discussion, File, Homework, Notification, Question, SemesterInfo, CourseType, CalendarEvent } from "./types";
 /** the main helper class */
 export declare class Learn2018Helper {
+    #private;
     readonly cookieJar: any;
-    private readonly provider?;
-    private readonly rawFetch;
-    private readonly myFetch;
     /** you can provide a CookieJar and / or CredentialProvider in the configuration */
     constructor(config?: HelperConfig);
     private withReAuth;

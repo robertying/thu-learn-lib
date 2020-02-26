@@ -1,4 +1,4 @@
-import { decodeHTML } from "entities";
+import { decodeHTML as _decodeHTML } from "entities";
 
 import { SemesterType, FailReason } from "./types";
 
@@ -12,6 +12,16 @@ export function parseSemesterType(n: number): SemesterType {
   } else {
     return SemesterType.UNKNOWN;
   }
+}
+
+export function decodeHTML(html: string): string {
+  const text = _decodeHTML(html);
+  // remove strange prefixes returned by web learning
+  return text.startsWith("\xC2\x9E\xC3\xA9\x65")
+    ? text.substr(5)
+    : text.startsWith("\x9E\xE9\x65")
+    ? text.substr(3)
+    : text;
 }
 
 export function trimAndDefine(
@@ -72,13 +82,3 @@ export function extractJSONPResult(jsonp: string): any {
     `"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`
   )();
 }
-
-export const removeStrangeCharacters = (text?: string) => {
-  return text
-    ? text.startsWith("\xC2\x9E\xC3\xA9\x65")
-      ? text.substr(5)
-      : text.startsWith("\x9E\xE9\x65")
-      ? text.substr(3)
-      : text
-    : "";
-};

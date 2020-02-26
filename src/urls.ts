@@ -74,6 +74,16 @@ export const LEARN_FILE_DOWNLOAD = (
   }
 };
 
+export const LEARN_FILE_PREVIEW = (
+  fileID: string,
+  courseType: CourseType,
+  firstPageOnly: boolean
+) => {
+  return `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=mk_kcwj&browser=-1&sfgk=0&pageType=${
+    firstPageOnly ? "first" : "all"
+  }`;
+};
+
 export const LEARN_NOTIFICATION_LIST = (
   courseID: string,
   courseType: CourseType
