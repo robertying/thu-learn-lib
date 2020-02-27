@@ -220,7 +220,10 @@ export const REGISTRAR_AUTH = (ticket: string) => {
 export const REGISTRAR_CALENDAR = (
   startDate: string,
   endDate: string,
+  graduate = false,
   callbackName = "unknown"
 ) => {
-  return `${REGISTRAR_PREFIX}/jxmh_out.do?m=bks_jxrl_all&p_start_date=${startDate}&p_end_date=${endDate}&jsoncallback=${callbackName}`;
+  return `${REGISTRAR_PREFIX}/jxmh_out.do?m=${
+    graduate ? "yjs" : "bks"
+  }_jxrl_all&p_start_date=${startDate}&p_end_date=${endDate}&jsoncallback=${callbackName}`;
 };
