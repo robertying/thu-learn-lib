@@ -18,7 +18,7 @@ export declare class Learn2018Helper {
      * and we currently observe a limit of no more that 29 days.
      * Otherwise it will return the parsed data (might be empty if the period is too far away from now)
      */
-    getCalendar(startDate: string, endDate: string): Promise<CalendarEvent[]>;
+    getCalendar(startDate: string, endDate: string, graduate?: boolean): Promise<CalendarEvent[]>;
     getSemesterIdList(): Promise<string[]>;
     getCurrentSemester(): Promise<SemesterInfo>;
     /** get all courses in the specified semester */

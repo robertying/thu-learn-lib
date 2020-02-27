@@ -37,4 +37,4 @@ export declare const LEARN_QUESTION_DETAIL: (courseID: string, questionID: strin
 export declare const REGISTRAR_TICKET_FORM_DATA: () => FormData;
 export declare const REGISTRAR_TICKET: () => string;
 export declare const REGISTRAR_AUTH: (ticket: string) => string;
-export declare const REGISTRAR_CALENDAR: (startDate: string, endDate: string, callbackName?: string) => string;
+export declare const REGISTRAR_CALENDAR: (startDate: string, endDate: string, graduate?: boolean, callbackName?: string) => string;
