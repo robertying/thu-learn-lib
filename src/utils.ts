@@ -61,7 +61,7 @@ const GRADE_LEVEL_MAP = new Map([
   [-51, "I"],
   [-50, "缓考"],
   [-31, "NA"],
-  [-30, "F"]
+  [-30, "F"],
 ]);
 
 export function mapGradeToLevel(grade: number | null): string | undefined {

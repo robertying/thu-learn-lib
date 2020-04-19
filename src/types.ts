@@ -15,14 +15,14 @@ export enum FailReason {
   ERROR_ROAMING = "could not roam to learn.tsinghua.edu.cn",
   NOT_LOGGED_IN = "not logged in or login timeout",
   NOT_IMPLEMENTED = "not implemented",
-  INVALID_RESPONSE = "invalid response"
+  INVALID_RESPONSE = "invalid response",
 }
 
 export enum SemesterType {
   FALL = "秋季学期",
   SPRING = "春季学期",
   SUMMER = "夏季学期",
-  UNKNOWN = ""
+  UNKNOWN = "",
 }
 
 export enum ContentType {
@@ -30,7 +30,7 @@ export enum ContentType {
   FILE = "file",
   HOMEWORK = "homework",
   DISCUSSION = "discussion",
-  QUESTION = "question"
+  QUESTION = "question",
 }
 
 interface ISemesterInfo {
@@ -46,7 +46,7 @@ export type SemesterInfo = ISemesterInfo;
 
 export enum CourseType {
   STUDENT = "student",
-  TEACHER = "teacher"
+  TEACHER = "teacher",
 }
 
 interface ICourseInfo {

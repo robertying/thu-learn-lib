@@ -63,7 +63,7 @@ const helper = new Learn2018Helper();
 const helper = new Learn2018Helper({
   provider: () => {
     return { username: "xxx", password: "xxx" };
-  }
+  },
 });
 
 // Note that by using the following two methods you may encounter problems like login time out.

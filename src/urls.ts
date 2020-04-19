@@ -125,23 +125,23 @@ export const LEARN_HOMEWORK_LIST_SOURCE = (courseID: string) => {
       url: LEARN_HOMEWORK_LIST_NEW(courseID),
       status: {
         submitted: false,
-        graded: false
-      }
+        graded: false,
+      },
     },
     {
       url: LEARN_HOMEWORK_LIST_SUBMITTED(courseID),
       status: {
         submitted: true,
-        graded: false
-      }
+        graded: false,
+      },
     },
     {
       url: LEARN_HOMEWORK_LIST_GRADED(courseID),
       status: {
         submitted: true,
-        graded: true
-      }
-    }
+        graded: true,
+      },
+    },
   ];
 };
 
