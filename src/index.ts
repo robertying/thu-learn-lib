@@ -1,5 +1,4 @@
 import cheerio from "cheerio-without-node-native";
-import { decodeHTML } from "entities";
 import { Base64 } from "js-base64";
 
 import fetch from "cross-fetch";
@@ -28,6 +27,7 @@ import {
   CalendarEvent,
 } from "./types";
 import {
+  decodeHTML,
   mapGradeToLevel,
   parseSemesterType,
   trimAndDefine,
