@@ -263,8 +263,8 @@ export class Learn2018Helper {
     const json = await (
       await this.#myFetch(URL.LEARN_NOTIFICATION_LIST(courseID, courseType))
     ).json();
-    if (json.result !== "success") {
-      return [];
+    if (json.result !== "success" || json.msg !== null) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
     }
 
     const result = (json.object.aaData ?? json.object.resultsList) as any[];
@@ -306,11 +306,11 @@ export class Learn2018Helper {
     const json = await (
       await this.#myFetch(URL.LEARN_FILE_LIST(courseID, courseType))
     ).json();
-    if (json.result !== "success") {
-      return [];
+    if (json.result !== "success" || json.msg !== null) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
     }
     let result: any[];
-    if (json?.object?.resultsList) {
+    if (json.object?.resultsList) {
       // teacher
       result = json.object.resultsList;
     } else {
@@ -375,8 +375,8 @@ export class Learn2018Helper {
     const json = await (
       await this.#myFetch(URL.LEARN_DISCUSSION_LIST(courseID, courseType))
     ).json();
-    if (json.result !== "success") {
-      return [];
+    if (json.result !== "success" || json.msg !== null) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
     }
     const result = json.object.resultsList as any[];
     const discussions: Discussion[] = [];
@@ -407,8 +407,8 @@ export class Learn2018Helper {
         URL.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType)
       )
     ).json();
-    if (json.result !== "success") {
-      return [];
+    if (json.result !== "success" || json.msg !== null) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
     }
     const result = json.object.resultsList as any[];
     const questions: Question[] = [];
@@ -431,8 +431,8 @@ export class Learn2018Helper {
     status: IHomeworkStatus
   ): Promise<Homework[]> {
     const json = await (await this.#myFetch(url)).json();
-    if (json.result !== "success") {
-      return [];
+    if (json.result !== "success" || json.msg !== null) {
+      return Promise.reject(FailReason.INVALID_RESPONSE);
     }
     const result = json.object.aaData as any[];
     const homeworks: Homework[] = [];
