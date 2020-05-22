@@ -144,6 +144,10 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
 
 ## Changelog
 
+- v2.2.3
+
+  - Add workaround for some strange behaviors in teacher mode (thanks to @MashPlant)
+
 - v2.2.2
 
   - Return error when API return any non-success result
@@ -161,18 +165,16 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
 - v2.1.2
 
   - Fix problem in invoking JSONP callback (because some engines might do JIT)
+  - Support TA version of many APIs (see above for usage)
+  - Fix some wrong URLs in fetched data
 
-- v2.1.1
+- v1.2.0
 
-  - Remove usage of `eval` in `getCalendar`
-
-- v2.1.0
-
-  - Catch errors returned by calendar API and throw user-defined error
-  - Add documentation for all public APIs
-
-- v2.0.0
-
+  - Support getting course calendars from academic.tsinghua.edu.cn (thanks to robertying)
+  - Automatic retry logging in when fetching failed and `CredentialProvider` is provided (thanks to mayeths)
+  - Add unit tests using `jest` (thanks to mayeths)
+  - Filter out `null` values in `getSemesterIdList` API
+  - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
   - Use ES2018 in generated library
   - Add `FailReason` to represent all strings that will be used as the reason of rejected Promises
   - `login` and `logout` no longer return Promises
@@ -194,35 +196,13 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
   - Filter out `null` values in `getSemesterIdList` API
   - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
 
-  * Use ES2018 in generated library
-  * Add `FailReason` to represent all strings that will be used as the reason of rejected Promises
-  * `login` and `logout` no longer return Promises
-
-* v1.2.2
-
-  - Fix a function signature to keep compatibility
-
-* v1.2.1
-
-  - Support TA version of many APIs (see above for usage)
-  - Fix some wrong URLs in fetched data
-
-* v1.2.0
-
-  - Support getting course calendars from academic.tsinghua.edu.cn (thanks to robertying)
-  - Automatic retry logging in when fetching failed and `CredentialProvider` is provided (thanks to mayeths)
-  - Add unit tests using `jest` (thanks to mayeths)
-  - Filter out `null` values in `getSemesterIdList` API
-  - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
-
-* v1.1.4
+- v1.1.4
 
   - Return empty array if any content module is disabled
   - Add `getTACourseList` to get TA's course list (temporarily can not be used by other functions)
-
-  * Use ES2018 in generated library
-  * Add `FailReason` to represent all strings that will be used as the reason of rejected Promises
-  * `login` and `logout` no longer return Promises
+  - Use ES2018 in generated library
+  - Add `FailReason` to represent all strings that will be used as the reason of rejected Promises
+  - `login` and `logout` no longer return Promises
 
 - v1.2.2
 
@@ -240,50 +220,49 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
   - Add unit tests using `jest` (thanks to mayeths)
   - Filter out `null` values in `getSemesterIdList` API
   - Switch to `https://learn.tsinghua.edu.cn/` from `learn2018` permanently
+  - Decode the HTML entities in the `description` field of homework
 
-  * Decode the HTML entities in the `description` field of homework
-
-* v1.0.9
+- v1.0.9
 
   - Use `entities` to decode HTML entities
 
-* v1.0.8
+- v1.0.8
 
   - Export type CourseContent
 
-* v1.0.7
+- v1.0.7
 
   - No change made to code, update README
 
-* v1.0.6
+- v1.0.6
 
   - Add API to fetching content for a list of courses
 
-* v1.0.5
+- v1.0.5
 
   - Fix HTML entity replacement.
 
-* v1.0.4
+- v1.0.4
 
   - No change made to code
   - Remove unused build commands
   - Fix multiple typos in README
 
-* v1.0.3
+- v1.0.3
 
   - Add real logout API (thank @zhaofeng-shu33)
 
-* v1.0.2
+- v1.0.2
 
   - Add API to get IDs of all semesters (thank @jiegec)
 
-* v1.0.1
+- v1.0.1
 
   - Expose CookieJar in helper class
   - Fix some HTML entity decoding problems
   - **Rename of some APIs** (break compatibility before we have actual users)
 
-* v1.0.0
+- v1.0.0
   - First release
   - Support parsing of notification, homework, file, discussion and **answered** questions
 

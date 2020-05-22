@@ -50,6 +50,23 @@ const noLogin = (url: string) => url.includes("login_timeout");
 
 /** the main helper class */
 export class Learn2018Helper {
+  readonly #provider?: CredentialProvider;
+  readonly #rawFetch: Fetch;
+  readonly #myFetch: Fetch;
+
+  readonly #withReAuth = (rawFetch: Fetch): Fetch => {
+    const login = this.login.bind(this);
+    return async function wrappedFetch(...args) {
+      const retryAfterLogin = async () => {
+        await login();
+        return await rawFetch(...args);
+      };
+      return await rawFetch(...args).then((res) =>
+        noLogin(res.url) ? retryAfterLogin() : res
+      );
+    };
+  };
+
   public readonly cookieJar: any;
   readonly #provider?: CredentialProvider;
   readonly #rawFetch: Fetch;
@@ -204,7 +221,7 @@ export class Learn2018Helper {
           teacherName: c.jsm ?? "", // teacher can not fetch this
           teacherNumber: c.jsh,
           courseNumber: c.kch,
-          courseIndex: c.kxh,
+          courseIndex: Number(c.kxh), // c.kxh could be string (teacher mode) or number (student mode)
           courseType,
         });
       })
@@ -274,17 +291,19 @@ export class Learn2018Helper {
       result.map(async (n) => {
         const notification: INotification = {
           id: n.ggid,
-          content: decodeHTML(Base64.decode(n.ggnr)),
+          content: decodeHTML(Base64.decode(n.ggnr ?? "")),
           title: decodeHTML(n.bt),
           url: URL.LEARN_NOTIFICATION_DETAIL(courseID, n.ggid, courseType),
           publisher: n.fbrxm,
           hasRead: n.sfyd === "是",
-          markedImportant: n.sfqd === "1",
+          markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
           publishTime: n.fbsjStr,
         };
         let detail: INotificationDetail = {};
-        if (n.fjmc !== null) {
-          notification.attachmentName = n.fjmc;
+        const attachmentName =
+          courseType === CourseType.STUDENT ? n.fjmc : n.fjbt;
+        if (attachmentName !== null) {
+          notification.attachmentName = attachmentName;
           detail = await this.parseNotificationDetail(
             courseID,
             notification.id,
