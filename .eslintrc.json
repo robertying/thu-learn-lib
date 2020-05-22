@@ -19,6 +19,8 @@
       "error",
       { "ignoreRestSiblings": true }
     ],
-    "@typescript-eslint/interface-name-prefix": "off"
+    "@typescript-eslint/interface-name-prefix": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-extra-non-null-assertion": "off"
   }
 }
