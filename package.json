@@ -24,24 +24,24 @@
   "dependencies": {
     "cheerio-without-node-native": "0.20.2",
     "cross-fetch": "^3.0.4",
-    "entities": "^2.0.0",
+    "entities": "^2.0.2",
     "es6-denodeify": "^0.1.5",
     "form-data": "^3.0.0",
     "js-base64": "^2.5.2",
     "real-isomorphic-fetch": "^3.0.0",
     "tough-cookie-no-native": "^2.4.1",
-    "tslib": "^1.11.1",
-    "util": "^0.12.2"
+    "tslib": "^2.0.0",
+    "util": "^0.12.3"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.18",
     "@types/js-base64": "^2.3.1",
-    "@types/tough-cookie": "^2.3.7",
-    "@typescript-eslint/eslint-plugin": "^2.29.0",
-    "@typescript-eslint/parser": "^2.29.0",
-    "eslint": "^6.8.0",
+    "@types/tough-cookie": "^4.0.0",
+    "@typescript-eslint/eslint-plugin": "^3.0.0",
+    "@typescript-eslint/parser": "^3.0.0",
+    "eslint": "^7.0.0",
     "eslint-config-prettier": "^6.11.0",
     "prettier": "^2.0.5",
-    "typescript": "^3.8.3"
+    "typescript": "^3.9.3"
   }
 }

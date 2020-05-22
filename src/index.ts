@@ -50,23 +50,6 @@ const noLogin = (url: string) => url.includes("login_timeout");
 
 /** the main helper class */
 export class Learn2018Helper {
-  readonly #provider?: CredentialProvider;
-  readonly #rawFetch: Fetch;
-  readonly #myFetch: Fetch;
-
-  readonly #withReAuth = (rawFetch: Fetch): Fetch => {
-    const login = this.login.bind(this);
-    return async function wrappedFetch(...args) {
-      const retryAfterLogin = async () => {
-        await login();
-        return await rawFetch(...args);
-      };
-      return await rawFetch(...args).then((res) =>
-        noLogin(res.url) ? retryAfterLogin() : res
-      );
-    };
-  };
-
   public readonly cookieJar: any;
   readonly #provider?: CredentialProvider;
   readonly #rawFetch: Fetch;
@@ -76,7 +59,7 @@ export class Learn2018Helper {
   constructor(config?: HelperConfig) {
     this.cookieJar = config?.cookieJar ?? new tough.CookieJar();
     this.#provider = config?.provider;
-    this.#rawFetch = new IsomorphicFetch(fetch, this.cookieJar) as any;
+    this.#rawFetch = new IsomorphicFetch(fetch, this.cookieJar) as Fetch;
     this.#myFetch = this.#provider
       ? this.withReAuth(this.#rawFetch)
       : async (...args) => {
