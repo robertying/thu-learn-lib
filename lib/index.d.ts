@@ -5,7 +5,6 @@ export declare class Learn2018Helper {
     readonly cookieJar: any;
     /** you can provide a CookieJar and / or CredentialProvider in the configuration */
     constructor(config?: HelperConfig);
-    private withReAuth;
     /** login is necessary if you do not provide a `CredentialProvider` */
     login(username?: string, password?: string): Promise<undefined>;
     /**  logout (to make everyone happy) */
