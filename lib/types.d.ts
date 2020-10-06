@@ -17,6 +17,10 @@ export declare enum FailReason {
     NOT_IMPLEMENTED = "not implemented",
     INVALID_RESPONSE = "invalid response"
 }
+export interface ApiError {
+    reason: FailReason;
+    extra?: any;
+}
 export declare enum SemesterType {
     FALL = "\u79CB\u5B63\u5B66\u671F",
     SPRING = "\u6625\u5B63\u5B66\u671F",
