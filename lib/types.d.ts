@@ -34,6 +34,12 @@ export declare enum ContentType {
     DISCUSSION = "discussion",
     QUESTION = "question"
 }
+interface IUserInfo {
+    name: string;
+    department: string;
+    avatarUrl?: string;
+}
+export declare type UserInfo = IUserInfo;
 interface ISemesterInfo {
     id: string;
     startDate: string;

@@ -1,10 +1,11 @@
-import { HelperConfig, ContentType, CourseContent, CourseInfo, Discussion, File, Homework, Notification, Question, SemesterInfo, CourseType, CalendarEvent } from "./types";
+import { HelperConfig, ContentType, CourseContent, CourseInfo, Discussion, File, Homework, Notification, Question, SemesterInfo, CourseType, CalendarEvent, UserInfo } from "./types";
 /** the main helper class */
 export declare class Learn2018Helper {
     #private;
     readonly cookieJar: any;
     /** you can provide a CookieJar and / or CredentialProvider in the configuration */
     constructor(config?: HelperConfig);
+    getUserInfo(courseType?: CourseType): Promise<UserInfo>;
     /** login is necessary if you do not provide a `CredentialProvider` */
     login(username?: string, password?: string): Promise<undefined>;
     /**  logout (to make everyone happy) */

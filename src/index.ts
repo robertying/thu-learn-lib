@@ -26,6 +26,7 @@ import {
   CourseType,
   CalendarEvent,
   ApiError,
+  UserInfo,
 } from "./types";
 import {
   decodeHTML,
@@ -87,6 +88,33 @@ export class Learn2018Helper {
             } as ApiError);
           return result;
         };
+  }
+
+  public async getUserInfo(courseType = CourseType.STUDENT): Promise<UserInfo> {
+    const content = await (
+      await this.#myFetch(URL.LEARN_HOMEPAGE(courseType))
+    ).text();
+
+    const dom = $(content);
+    const name = dom("a.user-log").text().trim();
+    const department = dom(".fl.up-img-info p:nth-child(2) label")
+      .text()
+      .trim();
+
+    let avatarUrl: string | undefined;
+    const avatarMatch = /"\/b\/wlxt\/xt\/v_jsxsxx\/teacher\/queryTxByZjh\?zjh=(.*)"/.exec(
+      content
+    );
+    if (avatarMatch?.[1]) {
+      const zjh = avatarMatch?.[1];
+      avatarUrl = URL.LEARN_AVATAR(zjh);
+    }
+
+    return {
+      name,
+      department,
+      avatarUrl,
+    };
   }
 
   /** login is necessary if you do not provide a `CredentialProvider` */

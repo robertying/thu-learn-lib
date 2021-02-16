@@ -26,6 +26,18 @@ export const LEARN_LOGOUT = () => {
   return `${LEARN_PREFIX}/f/j_spring_security_logout`;
 };
 
+export const LEARN_HOMEPAGE = (courseType: CourseType) => {
+  if (courseType === CourseType.STUDENT) {
+    return `${LEARN_PREFIX}/f/wlxt/index/course/student/`;
+  } else {
+    return `${LEARN_PREFIX}/f/wlxt/index/course/teacher/`;
+  }
+};
+
+export const LEARN_AVATAR = (zjh: string) => {
+  return `${LEARN_PREFIX}/b/wlxt/xt/v_jsxsxx/teacher/queryTxByZjh?zjh=${zjh}`;
+};
+
 export const LEARN_SEMESTER_LIST = () => {
   return `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xktjb_coassb/queryxnxq`;
 };
