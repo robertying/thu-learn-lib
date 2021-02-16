@@ -194,7 +194,7 @@ export class Learn2018Helper {
     const json = await (
       await this.#myFetch(URL.LEARN_CURRENT_SEMESTER())
     ).json();
-    if (json.message != "success") {
+    if (json.message !== "success") {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
@@ -225,7 +225,7 @@ export class Learn2018Helper {
         extra: json,
       } as ApiError);
     }
-    const result = json.resultList as any[];
+    const result = (json.resultList ?? []) as any[];
     const courses: CourseInfo[] = [];
 
     await Promise.all(
@@ -307,7 +307,9 @@ export class Learn2018Helper {
       } as ApiError);
     }
 
-    const result = (json.object.aaData ?? json.object.resultsList) as any[];
+    const result = (json.object?.aaData ??
+      json.object?.resultsList ??
+      []) as any[];
     const notifications: Notification[] = [];
 
     await Promise.all(
@@ -354,11 +356,12 @@ export class Learn2018Helper {
         extra: json,
       } as ApiError);
     }
-    let result: any[];
-    if (json.object?.resultsList) {
+
+    let result: any[] = [];
+    if (Array.isArray(json.object?.resultsList)) {
       // teacher
       result = json.object.resultsList;
-    } else {
+    } else if (Array.isArray(json.object)) {
       // student
       result = json.object;
     }
@@ -429,7 +432,8 @@ export class Learn2018Helper {
         extra: json,
       } as ApiError);
     }
-    const result = json.object.resultsList as any[];
+
+    const result = (json.object?.resultsList ?? []) as any[];
     const discussions: Discussion[] = [];
 
     await Promise.all(
@@ -464,7 +468,8 @@ export class Learn2018Helper {
         extra: json,
       } as ApiError);
     }
-    const result = json.object.resultsList as any[];
+
+    const result = (json.object?.resultsList ?? []) as any[];
     const questions: Question[] = [];
 
     await Promise.all(
@@ -491,7 +496,8 @@ export class Learn2018Helper {
         extra: json,
       } as ApiError);
     }
-    const result = json.object.aaData as any[];
+
+    const result = (json.object?.aaData ?? []) as any[];
     const homeworks: Homework[] = [];
 
     await Promise.all(
@@ -592,7 +598,9 @@ export class Learn2018Helper {
     nameKey: string,
     urlKey: string
   ) {
-    const fileNode = cheerio(".ftitle", fileDiv).children("a")[0];
+    const fileNode = cheerio(".ftitle", fileDiv).children("a")[0] as
+      | cheerio.TagElement
+      | undefined;
     if (fileNode !== undefined) {
       return {
         [nameKey]: fileNode.children[0].data,

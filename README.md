@@ -42,7 +42,7 @@ It **should not** be directly used in browsers.
 
 You can find the bundled version in `dist/`.
 You can install it as an unpacked extension in Chrome and click the `t` icon in extension bar, then execute anything you want in the Console of Chrome Developer Tool.
-The helper class is attached as `window.Learn2018Helper` in this mode.
+The helper class and utility types is attached as `window.LearnHelper` in this mode.
 Or you can just import `index.js` with NodeJS.
 
 Use `yarn run watch-dist` for watching file changes.
@@ -145,6 +145,16 @@ Run `yarn test` for testing. It requires your personal credential since we don't
 It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms timeout...` error when running tests, rerun tests may resolve this problem. If you hate this, just add the third argument `timeout` to every testcase `it("should...", async () => void, timeout)` and make sure it's greater than 5000.
 
 ## Changelog
+
+- v2.4.1
+
+  - Replace `parse5` with `htmlparser2` in Cheerio and remove it from bundled file (replaced with `src/fake-parse5`)
+  - Replace TSLint with ESLint
+
+- v2.4.0
+
+  - Upgrade to TypeScript 4.1 & Webpack 5.15
+  - Add more null checking for disabled functionalities (see [xxr3376/Learn-Project#90](https://github.com/xxr3376/Learn-Project/issues/90))
 
 - v2.3.2
 
@@ -286,3 +296,4 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
 - [jiegec/clone-learn-tsinghua](https://github.com/jiegec/clone-learn-tsinghua)
 - [robertying/learnX](https://github.com/robertying/learnX) (customized fork)
 - [Konano/thu-weblearn-tgbot](https://github.com/Konano/thu-weblearn-tgbot)
+- [Starrah/THUCourseHelper](https://github.com/Starrah/THUCourseHelper)
