@@ -97,6 +97,7 @@ export class Learn2018Helper {
 
     const dom = $(content);
     const name = dom("a.user-log").text().trim();
+    const id = dom("#userid").attr("value")!;
     const department = dom(".fl.up-img-info p:nth-child(2) label")
       .text()
       .trim();
@@ -111,6 +112,7 @@ export class Learn2018Helper {
     }
 
     return {
+      id,
       name,
       department,
       avatarUrl,

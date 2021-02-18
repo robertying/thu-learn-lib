@@ -37,6 +37,7 @@ export enum ContentType {
 }
 
 interface IUserInfo {
+  id: string;
   name: string;
   department: string;
   avatarUrl?: string;

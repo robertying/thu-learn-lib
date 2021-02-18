@@ -35,6 +35,7 @@ export declare enum ContentType {
     QUESTION = "question"
 }
 interface IUserInfo {
+    id: string;
     name: string;
     department: string;
     avatarUrl?: string;
