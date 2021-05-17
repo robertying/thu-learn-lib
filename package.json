@@ -37,11 +37,11 @@
     "@types/cheerio": "^0.22.28",
     "@types/js-base64": "^3.0.0",
     "@types/tough-cookie": "^4.0.0",
-    "@typescript-eslint/eslint-plugin": "^4.22.0",
-    "@typescript-eslint/parser": "^4.22.0",
-    "eslint": "^7.24.0",
-    "eslint-config-prettier": "^8.2.0",
-    "prettier": "^2.2.1",
+    "@typescript-eslint/eslint-plugin": "^4.23.0",
+    "@typescript-eslint/parser": "^4.23.0",
+    "eslint": "^7.26.0",
+    "eslint-config-prettier": "^8.3.0",
+    "prettier": "^2.3.0",
     "typescript": "^4.2.4"
   }
 }
