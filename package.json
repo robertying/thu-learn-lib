@@ -1,6 +1,6 @@
 {
   "name": "thu-learn-lib-no-native",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "a JavaScript library to provide a program-friendly interface to Web Learning (2018) of Tsinghua University",
   "main": "lib/index.js",
   "files": [
@@ -30,18 +30,17 @@
     "js-base64": "^3.6.1",
     "real-isomorphic-fetch": "^3.0.0",
     "tough-cookie-no-native": "^2.4.1",
-    "tslib": "^2.2.0",
-    "util": "^0.12.3"
+    "tslib": "^2.3.0",
+    "util": "^0.12.4"
   },
   "devDependencies": {
-    "@types/cheerio": "^0.22.29",
-    "@types/js-base64": "^3.0.0",
-    "@types/tough-cookie": "^4.0.0",
-    "@typescript-eslint/eslint-plugin": "^4.24.0",
-    "@typescript-eslint/parser": "^4.24.0",
-    "eslint": "^7.27.0",
+    "@types/cheerio": "^0.22.30",
+    "@types/tough-cookie": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^4.28.4",
+    "@typescript-eslint/parser": "^4.28.4",
+    "eslint": "^7.31.0",
     "eslint-config-prettier": "^8.3.0",
-    "prettier": "^2.3.0",
-    "typescript": "^4.2.4"
+    "prettier": "^2.3.2",
+    "typescript": "^4.3.5"
   }
 }
