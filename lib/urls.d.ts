@@ -8,6 +8,7 @@ export declare const LEARN_AUTH_ROAM: (ticket: string) => string;
 export declare const LEARN_LOGOUT: () => string;
 export declare const LEARN_HOMEPAGE: (courseType: CourseType) => string;
 export declare const LEARN_AVATAR: (zjh: string) => string;
+export declare const LEARN_STUDENT_COURSE_LIST_PAGE: () => string;
 export declare const LEARN_SEMESTER_LIST: () => string;
 export declare const LEARN_CURRENT_SEMESTER: () => string;
 export declare const LEARN_COURSE_LIST: (semester: string, courseType: CourseType) => string;
