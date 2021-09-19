@@ -51,6 +51,16 @@ const $ = (html: string) => {
 const noLogin = (res: Response) =>
   res.url.includes("login_timeout") || res.status == 403;
 
+/** add CSRF token to any request URL as parameters */
+export const addCSRFTokenToUrl = (url: string, token: string): string => {
+  if (url.includes("?")) {
+    url += `&_csrf=${token}`;
+  } else {
+    url += `?_csrf=${token}`;
+  }
+  return url;
+};
+
 /** the main helper class */
 export class Learn2018Helper {
   readonly #provider?: CredentialProvider;
@@ -61,13 +71,10 @@ export class Learn2018Helper {
       await this.login();
     }
     const [url, ...remaining] = args;
-    let urlStr = url as string;
-    if (urlStr.includes("?")) {
-      urlStr += `&_csrf=${this.#csrfToken}`;
-    } else {
-      urlStr += `?_csrf=${this.#csrfToken}`;
-    }
-    return this.#myFetch(urlStr, ...remaining);
+    return this.#myFetch(
+      addCSRFTokenToUrl(url as string, this.#csrfToken),
+      ...remaining
+    );
   };
   #csrfToken = "";
 
@@ -147,6 +154,11 @@ export class Learn2018Helper {
       department,
       avatarUrl,
     };
+  }
+
+  /** fetch CSRF token from helper (invalid after login / re-login), might be '' if not logged in */
+  public getCSRFToken(): string {
+    return this.#csrfToken;
   }
 
   /** login is necessary if you do not provide a `CredentialProvider` */

@@ -1,4 +1,6 @@
 import { HelperConfig, ContentType, CourseContent, CourseInfo, Discussion, File, Homework, Notification, Question, SemesterInfo, CourseType, CalendarEvent, UserInfo } from "./types";
+/** add CSRF token to any request URL as parameters */
+export declare const addCSRFTokenToUrl: (url: string, token: string) => string;
 /** the main helper class */
 export declare class Learn2018Helper {
     #private;
@@ -6,6 +8,8 @@ export declare class Learn2018Helper {
     /** you can provide a CookieJar and / or CredentialProvider in the configuration */
     constructor(config?: HelperConfig);
     getUserInfo(courseType?: CourseType): Promise<UserInfo>;
+    /** fetch CSRF token from helper (invalid after login / re-login), might be '' if not logged in */
+    getCSRFToken(): string;
     /** login is necessary if you do not provide a `CredentialProvider` */
     login(username?: string, password?: string): Promise<undefined>;
     /**  logout (to make everyone happy) */
