@@ -417,7 +417,7 @@ export class Learn2018Helper {
           publisher: n.fbrxm,
           hasRead: n.sfyd === "是",
           markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
-          publishTime: n.fbsjStr,
+          publishTime: n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr,
         };
         let detail: INotificationDetail = {};
         const attachmentName =
