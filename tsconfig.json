@@ -9,7 +9,7 @@
     "resolveJsonModule": true,
     "strict": true,
     "skipLibCheck": true,
-    "target": "es6",
+    "target": "esnext",
     "outDir": "lib",
     "importHelpers": true,
     "inlineSourceMap": true,
