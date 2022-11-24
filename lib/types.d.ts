@@ -1,10 +1,10 @@
-export declare type Fetch = <Args extends any[]>(...args: Args) => Promise<any>;
-export declare type Credential = {
+export type Fetch = <Args extends any[]>(...args: Args) => Promise<any>;
+export type Credential = {
     username: string;
     password: string;
 };
-export declare type CredentialProvider = () => Credential | Promise<Credential>;
-export declare type HelperConfig = {
+export type CredentialProvider = () => Credential | Promise<Credential>;
+export type HelperConfig = {
     provider?: CredentialProvider;
     cookieJar?: any;
 };
@@ -41,7 +41,7 @@ interface IUserInfo {
     department: string;
     avatarUrl?: string;
 }
-export declare type UserInfo = IUserInfo;
+export type UserInfo = IUserInfo;
 interface ISemesterInfo {
     id: string;
     startDate: string;
@@ -50,7 +50,7 @@ interface ISemesterInfo {
     endYear: number;
     type: SemesterType;
 }
-export declare type SemesterInfo = ISemesterInfo;
+export type SemesterInfo = ISemesterInfo;
 export declare enum CourseType {
     STUDENT = "student",
     TEACHER = "teacher"
@@ -67,7 +67,7 @@ interface ICourseInfo {
     courseIndex: number;
     courseType: CourseType;
 }
-export declare type CourseInfo = ICourseInfo;
+export type CourseInfo = ICourseInfo;
 export interface INotification {
     id: string;
     title: string;
@@ -82,7 +82,7 @@ export interface INotification {
 export interface INotificationDetail {
     attachmentUrl?: string;
 }
-export declare type Notification = INotification & INotificationDetail;
+export type Notification = INotification & INotificationDetail;
 interface IFile {
     id: string;
     /** size in byte */
@@ -102,7 +102,7 @@ interface IFile {
     downloadCount: number;
     fileType: string;
 }
-export declare type File = IFile;
+export type File = IFile;
 export interface IHomeworkStatus {
     submitted: boolean;
     graded: boolean;
@@ -135,7 +135,7 @@ export interface IHomeworkDetail {
     gradeAttachmentName?: string;
     gradeAttachmentUrl?: string;
 }
-export declare type Homework = IHomework & IHomeworkDetail;
+export type Homework = IHomework & IHomeworkDetail;
 export interface IDiscussionBase {
     id: string;
     title: string;
@@ -150,17 +150,17 @@ interface IDiscussion extends IDiscussionBase {
     url: string;
     boardId: string;
 }
-export declare type Discussion = IDiscussion;
+export type Discussion = IDiscussion;
 interface IQuestion extends IDiscussionBase {
     url: string;
     question: string;
 }
-export declare type Question = IQuestion;
-export declare type Content = Notification | File | Homework | Discussion | Question;
+export type Question = IQuestion;
+export type Content = Notification | File | Homework | Discussion | Question;
 interface ICourseContent {
     [id: string]: Content[];
 }
-export declare type CourseContent = ICourseContent;
+export type CourseContent = ICourseContent;
 export interface CalendarEvent {
     location: string;
     status: string;
