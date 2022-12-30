@@ -68,6 +68,14 @@ interface ICourseInfo {
     courseType: CourseType;
 }
 export type CourseInfo = ICourseInfo;
+interface IRemoteFile {
+    id: string;
+    name: string;
+    downloadUrl: string;
+    previewUrl: string;
+    size: string;
+}
+export type RemoteFile = IRemoteFile;
 export interface INotification {
     id: string;
     title: string;
@@ -77,10 +85,9 @@ export interface INotification {
     markedImportant: boolean;
     publishTime: string;
     publisher: string;
-    attachmentName?: string;
 }
 export interface INotificationDetail {
-    attachmentUrl?: string;
+    attachment?: RemoteFile;
 }
 export type Notification = INotification & INotificationDetail;
 interface IFile {
@@ -101,6 +108,8 @@ interface IFile {
     visitCount: number;
     downloadCount: number;
     fileType: string;
+    /** for compatibility */
+    remoteFile: RemoteFile;
 }
 export type File = IFile;
 export interface IHomeworkStatus {
@@ -115,7 +124,6 @@ export interface IHomework extends IHomeworkStatus {
     url: string;
     submitUrl: string;
     submitTime?: string;
-    submittedAttachmentUrl?: string;
     grade?: number;
     /** some homework has levels but not grades, like A/B/.../F */
     gradeLevel?: string;
@@ -125,15 +133,12 @@ export interface IHomework extends IHomeworkStatus {
 }
 export interface IHomeworkDetail {
     description?: string;
-    attachmentName?: string;
-    attachmentUrl?: string;
+    attachment?: RemoteFile;
     answerContent?: string;
-    answerAttachmentName?: string;
-    answerAttachmentUrl?: string;
+    answerAttachment?: RemoteFile;
     submittedContent?: string;
-    submittedAttachmentName?: string;
-    gradeAttachmentName?: string;
-    gradeAttachmentUrl?: string;
+    submittedAttachment?: RemoteFile;
+    gradeAttachment?: RemoteFile;
 }
 export type Homework = IHomework & IHomeworkDetail;
 export interface IDiscussionBase {

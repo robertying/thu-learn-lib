@@ -1,5 +1,6 @@
 import FormData from "form-data";
-import { CourseType } from "./types";
+import { ContentType, CourseType } from "./types";
+import { getMkFromType } from "./utils";
 
 export const LEARN_PREFIX = "https://learn.tsinghua.edu.cn";
 export const REGISTRAR_PREFIX = "https://zhjw.cic.tsinghua.edu.cn";
@@ -91,13 +92,14 @@ export const LEARN_FILE_DOWNLOAD = (
 };
 
 export const LEARN_FILE_PREVIEW = (
+  type: ContentType,
   fileID: string,
   courseType: CourseType,
-  firstPageOnly: boolean
+  firstPageOnly = false
 ) => {
-  return `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=mk_kcwj&browser=-1&sfgk=0&pageType=${
-    firstPageOnly ? "first" : "all"
-  }`;
+  return `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=${getMkFromType(
+    type
+  )}&browser=-1&sfgk=0&pageType=${firstPageOnly ? "first" : "all"}`;
 };
 
 export const LEARN_NOTIFICATION_LIST = (
@@ -133,6 +135,10 @@ export const LEARN_HOMEWORK_LIST_SUBMITTED = (courseID: string) => {
 
 export const LEARN_HOMEWORK_LIST_GRADED = (courseID: string) => {
   return `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/index/zyListYpg?wlkcid=${courseID}&size=${MAX_SIZE}`;
+};
+
+export const LEARN_NOTIFICATION_EDIT = (courseType: CourseType): string => {
+  return `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/${courseType}/editKcgg`;
 };
 
 export const LEARN_HOMEWORK_LIST_SOURCE = (courseID: string) => {

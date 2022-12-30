@@ -1,5 +1,5 @@
 import FormData from "form-data";
-import { CourseType } from "./types";
+import { ContentType, CourseType } from "./types";
 export declare const LEARN_PREFIX = "https://learn.tsinghua.edu.cn";
 export declare const REGISTRAR_PREFIX = "https://zhjw.cic.tsinghua.edu.cn";
 export declare const ID_LOGIN: () => string;
@@ -17,12 +17,13 @@ export declare const LEARN_COURSE_TIME_LOCATION: (courseID: string) => string;
 export declare const LEARN_TEACHER_COURSE_URL: (courseID: string) => string;
 export declare const LEARN_FILE_LIST: (courseID: string, courseType: CourseType) => string;
 export declare const LEARN_FILE_DOWNLOAD: (fileID: string, courseType: CourseType, courseID: string) => string;
-export declare const LEARN_FILE_PREVIEW: (fileID: string, courseType: CourseType, firstPageOnly: boolean) => string;
+export declare const LEARN_FILE_PREVIEW: (type: ContentType, fileID: string, courseType: CourseType, firstPageOnly?: boolean) => string;
 export declare const LEARN_NOTIFICATION_LIST: (courseID: string, courseType: CourseType) => string;
 export declare const LEARN_NOTIFICATION_DETAIL: (courseID: string, notificationID: string, courseType: CourseType) => string;
 export declare const LEARN_HOMEWORK_LIST_NEW: (courseID: string) => string;
 export declare const LEARN_HOMEWORK_LIST_SUBMITTED: (courseID: string) => string;
 export declare const LEARN_HOMEWORK_LIST_GRADED: (courseID: string) => string;
+export declare const LEARN_NOTIFICATION_EDIT: (courseType: CourseType) => string;
 export declare const LEARN_HOMEWORK_LIST_SOURCE: (courseID: string) => {
     url: string;
     status: {

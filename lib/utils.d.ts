@@ -1,5 +1,6 @@
-import { SemesterType } from "./types";
+import { SemesterType, ContentType } from "./types";
 export declare function parseSemesterType(n: number): SemesterType;
+export declare function getMkFromType(type: ContentType): string;
 export declare function decodeHTML(html: string): string;
 export declare function trimAndDefine(text: string | undefined | null): string | undefined;
 export declare function mapGradeToLevel(grade: number | null): string | undefined;
