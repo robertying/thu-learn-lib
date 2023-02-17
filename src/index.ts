@@ -41,6 +41,13 @@ import {
 import IsomorphicFetch from "real-isomorphic-fetch";
 import tough from "tough-cookie-no-native";
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.tz.setDefault("Asia/Shanghai");
+
 const CHEERIO_CONFIG: cheerio.CheerioParserOptions = {
   decodeEntities: false,
 };
@@ -418,8 +425,9 @@ export class Learn2018Helper {
           publisher: n.fbrxm,
           hasRead: n.sfyd === "是",
           markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
-          publishTime:
-            n.fbsj && typeof n.fbsj === "string" ? n.fbsj : n.fbsjStr,
+          publishTime: dayjs
+            .tz(n.fbsj && typeof n.fbsj === "string" ? n.fbsj : n.fbsjStr)
+            .toDate(),
         };
         let detail: INotificationDetail = {};
         const attachmentName =
@@ -484,7 +492,7 @@ export class Learn2018Helper {
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: f.scsj,
+          uploadTime: dayjs.tz(f.scsj).toDate(),
           downloadUrl,
           previewUrl,
           isNew: f.isNew,
@@ -621,15 +629,15 @@ export class Learn2018Helper {
           studentHomeworkId: h.xszyid,
           title: decodeHTML(h.bt),
           url: URL.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.zyid, h.xszyid),
-          deadline: h.jzsj,
-          publishTime: h.kssj,
+          deadline: dayjs(h.jzsj).toDate(),
+          publishTime: dayjs(h.kssj).toDate(),
           submitUrl: URL.LEARN_HOMEWORK_SUBMIT(h.wlkcid, h.xszyid),
-          submitTime: h.scsj === null ? undefined : h.scsj,
+          submitTime: h.scsj === null ? undefined : dayjs(h.scsj).toDate(),
           grade: h.cj === null ? undefined : h.cj,
           gradeLevel: mapGradeToLevel(h.cj),
           graderName: trimAndDefine(h.jsm),
           gradeContent: trimAndDefine(h.pynr),
-          gradeTime: h.pysj === null ? undefined : h.pysj,
+          gradeTime: h.pysj === null ? undefined : dayjs(h.pysj).toDate(),
           ...status,
           ...(await this.parseHomeworkDetail(h.wlkcid, h.zyid, h.xszyid)),
         });
