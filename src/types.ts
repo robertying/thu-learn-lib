@@ -94,7 +94,7 @@ export interface INotification {
   hasRead: boolean;
   url: string;
   markedImportant: boolean;
-  publishTime: Date;
+  publishTime: string;
   publisher: string;
 }
 
@@ -112,7 +112,7 @@ interface IFile {
   size: string;
   title: string;
   description: string;
-  uploadTime: Date;
+  uploadTime: string;
   /** for teachers, this url will not initiate download directly */
   downloadUrl: string;
   /** preview is not supported on all types of files, check before use */
@@ -137,15 +137,15 @@ export interface IHomework extends IHomeworkStatus {
   id: string;
   studentHomeworkId: string;
   title: string;
-  deadline: Date;
-  publishTime: Date;
+  deadline: string;
+  publishTime: string;
   url: string;
   submitUrl: string;
-  submitTime?: Date;
+  submitTime?: string;
   grade?: number;
   /** some homework has levels but not grades, like A/B/.../F */
   gradeLevel?: string;
-  gradeTime?: Date;
+  gradeTime?: string;
   graderName?: string;
   gradeContent?: string;
 }

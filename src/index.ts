@@ -427,7 +427,7 @@ export class Learn2018Helper {
           markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
           publishTime: dayjs
             .tz(n.fbsj && typeof n.fbsj === "string" ? n.fbsj : n.fbsjStr)
-            .toDate(),
+            .toISOString(),
         };
         let detail: INotificationDetail = {};
         const attachmentName =
@@ -492,7 +492,7 @@ export class Learn2018Helper {
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: dayjs.tz(f.scsj).toDate(),
+          uploadTime: dayjs.tz(f.scsj).toISOString(),
           downloadUrl,
           previewUrl,
           isNew: f.isNew,
@@ -629,15 +629,15 @@ export class Learn2018Helper {
           studentHomeworkId: h.xszyid,
           title: decodeHTML(h.bt),
           url: URL.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.zyid, h.xszyid),
-          deadline: dayjs(h.jzsj).toDate(),
-          publishTime: dayjs(h.kssj).toDate(),
+          deadline: dayjs(h.jzsj).toISOString(),
+          publishTime: dayjs(h.kssj).toISOString(),
           submitUrl: URL.LEARN_HOMEWORK_SUBMIT(h.wlkcid, h.xszyid),
-          submitTime: h.scsj === null ? undefined : dayjs(h.scsj).toDate(),
+          submitTime: h.scsj === null ? undefined : dayjs(h.scsj).toISOString(),
           grade: h.cj === null ? undefined : h.cj,
           gradeLevel: mapGradeToLevel(h.cj),
           graderName: trimAndDefine(h.jsm),
           gradeContent: trimAndDefine(h.pynr),
-          gradeTime: h.pysj === null ? undefined : dayjs(h.pysj).toDate(),
+          gradeTime: h.pysj === null ? undefined : dayjs(h.pysj).toISOString(),
           ...status,
           ...(await this.parseHomeworkDetail(h.wlkcid, h.zyid, h.xszyid)),
         });
