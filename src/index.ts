@@ -311,11 +311,12 @@ export class Learn2018Helper {
   /** get all courses in the specified semester */
   public async getCourseList(
     semesterID: string,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
+    lang: "en" | "zh"
   ): Promise<CourseInfo[]> {
     const json = await (
       await this.#myFetchWithToken(
-        URL.LEARN_COURSE_LIST(semesterID, courseType)
+        URL.LEARN_COURSE_LIST(semesterID, courseType, lang)
       )
     ).json();
     if (json.message !== "success" || !Array.isArray(json.resultList)) {

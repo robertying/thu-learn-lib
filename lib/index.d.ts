@@ -26,7 +26,7 @@ export declare class Learn2018Helper {
     getSemesterIdList(): Promise<string[]>;
     getCurrentSemester(): Promise<SemesterInfo>;
     /** get all courses in the specified semester */
-    getCourseList(semesterID: string, courseType?: CourseType): Promise<CourseInfo[]>;
+    getCourseList(semesterID: string, courseType: CourseType | undefined, lang: "en" | "zh"): Promise<CourseInfo[]>;
     /**
      * Get certain type of content of all specified courses.
      * It actually wraps around other `getXXX` functions
