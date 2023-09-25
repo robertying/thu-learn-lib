@@ -81,7 +81,7 @@ export class Learn2018Helper {
     const [url, ...remaining] = args;
     return this.#myFetch(
       addCSRFTokenToUrl(url as string, this.#csrfToken),
-      ...remaining
+      ...remaining,
     );
   };
   #csrfToken = "";
@@ -110,7 +110,7 @@ export class Learn2018Helper {
         });
       };
       return await rawFetch(...args).then((res: Response) =>
-        noLogin(res) ? retryAfterLogin() : res
+        noLogin(res) ? retryAfterLogin() : res,
       );
     };
   };
@@ -149,7 +149,7 @@ export class Learn2018Helper {
     let avatarUrl: string | undefined;
     const avatarMatch =
       /"\/b\/wlxt\/xt\/v_jsxsxx\/teacher\/queryTxByZjh\?zjh=(.*)"/.exec(
-        content
+        content,
       );
     if (avatarMatch?.[1]) {
       const zjh = avatarMatch?.[1];
@@ -235,14 +235,14 @@ export class Learn2018Helper {
   public async getCalendar(
     startDate: string,
     endDate: string,
-    graduate = false
+    graduate = false,
   ): Promise<CalendarEvent[]> {
     const ticketResponse = await this.#myFetchWithToken(
       URL.REGISTRAR_TICKET(),
       {
         method: "POST",
         body: URL.REGISTRAR_TICKET_FORM_DATA(),
-      }
+      },
     );
 
     let ticket = (await ticketResponse.text()) as string;
@@ -251,7 +251,12 @@ export class Learn2018Helper {
     await this.#myFetch(URL.REGISTRAR_AUTH(ticket));
 
     const response = await this.#myFetch(
-      URL.REGISTRAR_CALENDAR(startDate, endDate, graduate, JSONP_EXTRACTOR_NAME)
+      URL.REGISTRAR_CALENDAR(
+        startDate,
+        endDate,
+        graduate,
+        JSONP_EXTRACTOR_NAME,
+      ),
     );
 
     if (!response.ok) {
@@ -312,11 +317,11 @@ export class Learn2018Helper {
   public async getCourseList(
     semesterID: string,
     courseType: CourseType = CourseType.STUDENT,
-    lang: "en" | "zh"
+    lang: "en" | "zh",
   ): Promise<CourseInfo[]> {
     const json = await (
       await this.#myFetchWithToken(
-        URL.LEARN_COURSE_LIST(semesterID, courseType, lang)
+        URL.LEARN_COURSE_LIST(semesterID, courseType, lang),
       )
     ).json();
     if (json.message !== "success" || !Array.isArray(json.resultList)) {
@@ -336,7 +341,7 @@ export class Learn2018Helper {
           englishName: c.ywkcm,
           timeAndLocation: await (
             await this.#myFetchWithToken(
-              URL.LEARN_COURSE_TIME_LOCATION(c.wlkcid)
+              URL.LEARN_COURSE_TIME_LOCATION(c.wlkcid),
             )
           ).json(),
           url: URL.LEARN_COURSE_URL(c.wlkcid, courseType),
@@ -346,7 +351,7 @@ export class Learn2018Helper {
           courseIndex: Number(c.kxh), // c.kxh could be string (teacher mode) or number (student mode)
           courseType,
         });
-      })
+      }),
     );
 
     return courses;
@@ -359,11 +364,11 @@ export class Learn2018Helper {
   public async getAllContents(
     courseIDs: string[],
     type: ContentType,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
   ): Promise<CourseContent> {
     let fetchFunc: (
       courseID: string,
-      courseType: CourseType
+      courseType: CourseType,
     ) => Promise<Content[]>;
     switch (type) {
       case ContentType.NOTIFICATION:
@@ -388,7 +393,7 @@ export class Learn2018Helper {
     await Promise.all(
       courseIDs.map(async (id) => {
         contents[id] = await fetchFunc.bind(this)(id, courseType);
-      })
+      }),
     );
 
     return contents;
@@ -397,11 +402,11 @@ export class Learn2018Helper {
   /** Get all notifications （课程公告） of the specified course. */
   public async getNotificationList(
     courseID: string,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
   ): Promise<Notification[]> {
     const json = await (
       await this.#myFetchWithToken(
-        URL.LEARN_NOTIFICATION_LIST(courseID, courseType)
+        URL.LEARN_NOTIFICATION_LIST(courseID, courseType),
       )
     ).json();
     if (json.result !== "success") {
@@ -438,11 +443,11 @@ export class Learn2018Helper {
             courseID,
             notification.id,
             courseType,
-            attachmentName
+            attachmentName,
           );
         }
         notifications.push({ ...notification, ...detail });
-      })
+      }),
     );
 
     return notifications;
@@ -451,7 +456,7 @@ export class Learn2018Helper {
   /** Get all files （课程文件） of the specified course. */
   public async getFileList(
     courseID: string,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
   ): Promise<File[]> {
     const json = await (
       await this.#myFetchWithToken(URL.LEARN_FILE_LIST(courseID, courseType))
@@ -479,13 +484,13 @@ export class Learn2018Helper {
         const downloadUrl = URL.LEARN_FILE_DOWNLOAD(
           courseType === CourseType.STUDENT ? f.wjid : f.id,
           courseType,
-          courseID
+          courseID,
         );
         const previewUrl = URL.LEARN_FILE_PREVIEW(
           ContentType.FILE,
           f.wjid,
           courseType,
-          true
+          true,
         );
         files.push({
           id: f.wjid,
@@ -509,7 +514,7 @@ export class Learn2018Helper {
             size: f.fileSize,
           },
         });
-      })
+      }),
     );
 
     return files;
@@ -518,7 +523,7 @@ export class Learn2018Helper {
   /** Get all homeworks （课程作业） of the specified course (support student version only). */
   public async getHomeworkList(
     courseID: string,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
   ): Promise<Homework[]> {
     if (courseType === CourseType.TEACHER) {
       return Promise.reject({
@@ -533,7 +538,7 @@ export class Learn2018Helper {
       URL.LEARN_HOMEWORK_LIST_SOURCE(courseID).map(async (s) => {
         const homeworks = await this.getHomeworkListAtUrl(s.url, s.status);
         allHomework.push(...homeworks);
-      })
+      }),
     );
 
     return allHomework;
@@ -542,11 +547,11 @@ export class Learn2018Helper {
   /** Get all discussions （课程讨论） of the specified course. */
   public async getDiscussionList(
     courseID: string,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
   ): Promise<Discussion[]> {
     const json = await (
       await this.#myFetchWithToken(
-        URL.LEARN_DISCUSSION_LIST(courseID, courseType)
+        URL.LEARN_DISCUSSION_LIST(courseID, courseType),
       )
     ).json();
     if (json.result !== "success") {
@@ -566,7 +571,7 @@ export class Learn2018Helper {
           boardId: d.bqid,
           url: URL.LEARN_DISCUSSION_DETAIL(d.wlkcid, d.bqid, d.id, courseType),
         });
-      })
+      }),
     );
 
     return discussions;
@@ -578,11 +583,11 @@ export class Learn2018Helper {
    */
   public async getAnsweredQuestionList(
     courseID: string,
-    courseType: CourseType = CourseType.STUDENT
+    courseType: CourseType = CourseType.STUDENT,
   ): Promise<Question[]> {
     const json = await (
       await this.#myFetchWithToken(
-        URL.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType)
+        URL.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType),
       )
     ).json();
     if (json.result !== "success") {
@@ -602,7 +607,7 @@ export class Learn2018Helper {
           question: Base64.decode(q.wtnr),
           url: URL.LEARN_QUESTION_DETAIL(q.wlkcid, q.id, courseType),
         });
-      })
+      }),
     );
 
     return questions;
@@ -610,7 +615,7 @@ export class Learn2018Helper {
 
   private async getHomeworkListAtUrl(
     url: string,
-    status: IHomeworkStatus
+    status: IHomeworkStatus,
   ): Promise<Homework[]> {
     const json = await (await this.#myFetchWithToken(url)).json();
     if (json.result !== "success") {
@@ -642,7 +647,7 @@ export class Learn2018Helper {
           ...status,
           ...(await this.parseHomeworkDetail(h.wlkcid, h.zyid, h.xszyid)),
         });
-      })
+      }),
     );
 
     return homeworks;
@@ -652,10 +657,10 @@ export class Learn2018Helper {
     courseID: string,
     id: string,
     courseType: CourseType,
-    attachmentName: string
+    attachmentName: string,
   ): Promise<INotificationDetail> {
     const response = await this.#myFetchWithToken(
-      URL.LEARN_NOTIFICATION_DETAIL(courseID, id, courseType)
+      URL.LEARN_NOTIFICATION_DETAIL(courseID, id, courseType),
     );
     const result = $(await response.text());
     let path = "";
@@ -665,7 +670,7 @@ export class Learn2018Helper {
       path = result("#wjid").attr("href")!;
     }
     const size = trimAndDefine(
-      result('div#attachment > div.fl > span[class^="color"]').first().text()
+      result('div#attachment > div.fl > span[class^="color"]').first().text(),
     )!;
     const params = new URLSearchParams(path.split("?").slice(-1)[0]);
     const attachmentId = params.get("wjid")!;
@@ -680,7 +685,7 @@ export class Learn2018Helper {
         previewUrl: URL.LEARN_FILE_PREVIEW(
           ContentType.NOTIFICATION,
           attachmentId,
-          courseType
+          courseType,
         ),
         size,
       },
@@ -690,10 +695,10 @@ export class Learn2018Helper {
   private async parseHomeworkDetail(
     courseID: string,
     id: string,
-    studentHomeworkID: string
+    studentHomeworkID: string,
   ): Promise<IHomeworkDetail> {
     const response = await this.#myFetchWithToken(
-      URL.LEARN_HOMEWORK_DETAIL(courseID, id, studentHomeworkID)
+      URL.LEARN_HOMEWORK_DETAIL(courseID, id, studentHomeworkID),
     );
     const result = $(await response.text());
 
@@ -703,17 +708,17 @@ export class Learn2018Helper {
       description: trimAndDefine(
         result("div.list.calendar.clearfix > div.fl.right > div.c55")
           .slice(0, 1)
-          .html()
+          .html(),
       ),
       answerContent: trimAndDefine(
         result("div.list.calendar.clearfix > div.fl.right > div.c55")
           .slice(1, 2)
-          .html()
+          .html(),
       ),
       submittedContent: trimAndDefine(
         cheerio("div.right", result("div.boxbox").slice(1, 2))
           .slice(2, 3)
-          .html()
+          .html(),
       ),
       attachment: this.parseHomeworkFile(fileDivs[0]),
       answerAttachment: this.parseHomeworkFile(fileDivs[1]),
@@ -727,10 +732,10 @@ export class Learn2018Helper {
       $(fileDiv)(".fl").children("a")[0]) as cheerio.TagElement;
     if (fileNode !== undefined) {
       const size = trimAndDefine(
-        $(fileDiv)('.fl > span[class^="color"]').first().text()
+        $(fileDiv)('.fl > span[class^="color"]').first().text(),
       )!;
       const params = new URLSearchParams(
-        fileNode.attribs.href.split("?").slice(-1)[0]
+        fileNode.attribs.href.split("?").slice(-1)[0],
       );
       const attachmentId = params.get("fileId")!;
       // so dirty here...
@@ -745,7 +750,7 @@ export class Learn2018Helper {
         previewUrl: URL.LEARN_FILE_PREVIEW(
           ContentType.HOMEWORK,
           attachmentId,
-          CourseType.STUDENT
+          CourseType.STUDENT,
         ),
         size,
       };

@@ -39,7 +39,7 @@ export function decodeHTML(html: string): string {
 }
 
 export function trimAndDefine(
-  text: string | undefined | null
+  text: string | undefined | null,
 ): string | undefined {
   if (text === undefined || text === null) {
     return undefined;
@@ -93,6 +93,6 @@ export function extractJSONPResult(jsonp: string): any {
   }
   // evaluate the result
   return Function(
-    `"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`
+    `"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`,
   )();
 }

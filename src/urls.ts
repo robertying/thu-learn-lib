@@ -54,7 +54,7 @@ export const LEARN_CURRENT_SEMESTER = () => {
 export const LEARN_COURSE_LIST = (
   semester: string,
   courseType: CourseType,
-  lang: "en" | "zh"
+  lang: "en" | "zh",
 ) => {
   if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xkb_kcb_extend/student/loadCourseBySemesterId/${semester}/${lang}`;
@@ -86,7 +86,7 @@ export const LEARN_FILE_LIST = (courseID: string, courseType: CourseType) => {
 export const LEARN_FILE_DOWNLOAD = (
   fileID: string,
   courseType: CourseType,
-  courseID: string
+  courseID: string,
 ) => {
   if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/downloadFile?sfgk=0&wjid=${fileID}`;
@@ -99,16 +99,16 @@ export const LEARN_FILE_PREVIEW = (
   type: ContentType,
   fileID: string,
   courseType: CourseType,
-  firstPageOnly = false
+  firstPageOnly = false,
 ) => {
   return `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=${getMkFromType(
-    type
+    type,
   )}&browser=-1&sfgk=0&pageType=${firstPageOnly ? "first" : "all"}`;
 };
 
 export const LEARN_NOTIFICATION_LIST = (
   courseID: string,
-  courseType: CourseType
+  courseType: CourseType,
 ) => {
   if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/student/kcggListXs?wlkcid=${courseID}&size=${MAX_SIZE}`;
@@ -120,7 +120,7 @@ export const LEARN_NOTIFICATION_LIST = (
 export const LEARN_NOTIFICATION_DETAIL = (
   courseID: string,
   notificationID: string,
-  courseType: CourseType
+  courseType: CourseType,
 ) => {
   if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/student/beforeViewXs?wlkcid=${courseID}&id=${notificationID}`;
@@ -174,28 +174,28 @@ export const LEARN_HOMEWORK_LIST_SOURCE = (courseID: string) => {
 export const LEARN_HOMEWORK_DETAIL = (
   courseID: string,
   homeworkID: string,
-  studentHomeworkID: string
+  studentHomeworkID: string,
 ) => {
   return `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewCj?wlkcid=${courseID}&zyid=${homeworkID}&xszyid=${studentHomeworkID}`;
 };
 
 export const LEARN_HOMEWORK_DOWNLOAD = (
   courseID: string,
-  attachmentID: string
+  attachmentID: string,
 ) => {
   return `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/downloadFile/${courseID}/${attachmentID}`;
 };
 
 export const LEARN_HOMEWORK_SUBMIT = (
   courseID: string,
-  studentHomeworkID: string
+  studentHomeworkID: string,
 ) => {
   return `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${courseID}&xszyid=${studentHomeworkID}`;
 };
 
 export const LEARN_DISCUSSION_LIST = (
   courseID: string,
-  courseType: CourseType
+  courseType: CourseType,
 ) => {
   return `${LEARN_PREFIX}/b/wlxt/bbs/bbs_tltb/${courseType}/kctlList?wlkcid=${courseID}&size=${MAX_SIZE}`;
 };
@@ -205,14 +205,14 @@ export const LEARN_DISCUSSION_DETAIL = (
   boardID: string,
   discussionID: string,
   courseType: CourseType,
-  tabId = 1
+  tabId = 1,
 ) => {
   return `${LEARN_PREFIX}/f/wlxt/bbs/bbs_tltb/${courseType}/viewTlById?wlkcid=${courseID}&id=${discussionID}&tabbh=${tabId}&bqid=${boardID}`;
 };
 
 export const LEARN_QUESTION_LIST_ANSWERED = (
   courseID: string,
-  courseType: CourseType
+  courseType: CourseType,
 ) => {
   return `${LEARN_PREFIX}/b/wlxt/bbs/bbs_tltb/${courseType}/kcdyList?wlkcid=${courseID}&size=${MAX_SIZE}`;
 };
@@ -220,7 +220,7 @@ export const LEARN_QUESTION_LIST_ANSWERED = (
 export const LEARN_QUESTION_DETAIL = (
   courseID: string,
   questionID: string,
-  courseType: CourseType
+  courseType: CourseType,
 ) => {
   if (courseType === CourseType.STUDENT) {
     return `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/student/viewDyById?wlkcid=${courseID}&id=${questionID}`;
@@ -247,7 +247,7 @@ export const REGISTRAR_CALENDAR = (
   startDate: string,
   endDate: string,
   graduate = false,
-  callbackName = "unknown"
+  callbackName = "unknown",
 ) => {
   return `${REGISTRAR_PREFIX}/jxmh_out.do?m=${
     graduate ? "yjs" : "bks"
