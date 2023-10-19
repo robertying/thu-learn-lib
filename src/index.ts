@@ -335,15 +335,18 @@ export class Learn2018Helper {
 
     await Promise.all(
       result.map(async (c) => {
+        let timeAndLocation: string[] = [];
+        try {
+          // see https://github.com/Harry-Chen/Learn-Helper/issues/145
+          timeAndLocation = await (await this.#myFetchWithToken(URL.LEARN_COURSE_TIME_LOCATION(c.wlkcid))).json();
+        } catch (e) {
+          /** ignore */
+        }
         courses.push({
           id: c.wlkcid,
           name: c.kcm,
           englishName: c.ywkcm,
-          timeAndLocation: await (
-            await this.#myFetchWithToken(
-              URL.LEARN_COURSE_TIME_LOCATION(c.wlkcid),
-            )
-          ).json(),
+          timeAndLocation,
           url: URL.LEARN_COURSE_URL(c.wlkcid, courseType),
           teacherName: c.jsm ?? "", // teacher can not fetch this
           teacherNumber: c.jsh,
