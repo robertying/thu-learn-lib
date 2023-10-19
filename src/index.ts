@@ -338,7 +338,11 @@ export class Learn2018Helper {
         let timeAndLocation: string[] = [];
         try {
           // see https://github.com/Harry-Chen/Learn-Helper/issues/145
-          timeAndLocation = await (await this.#myFetchWithToken(URL.LEARN_COURSE_TIME_LOCATION(c.wlkcid))).json();
+          timeAndLocation = await (
+            await this.#myFetchWithToken(
+              URL.LEARN_COURSE_TIME_LOCATION(c.wlkcid),
+            )
+          ).json();
         } catch (e) {
           /** ignore */
         }
