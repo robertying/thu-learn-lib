@@ -268,8 +268,8 @@ export class Learn2018Helper {
     const result = json.result;
     return {
       id: result.id,
-      startDate: new Date(result.kssj),
-      endDate: new Date(result.jssj),
+      startDate: result.kssj,
+      endDate: result.jssj,
       startYear: Number(result.xnxq.slice(0, 4)),
       endYear: Number(result.xnxq.slice(5, 9)),
       type: parseSemesterType(Number(result.xnxq.slice(10, 11))),
@@ -277,10 +277,12 @@ export class Learn2018Helper {
   }
 
   /** get all courses in the specified semester */
-  public async getCourseList(semesterID: string, courseType: CourseType = CourseType.STUDENT): Promise<CourseInfo[]> {
-    const json = await (
-      await this.#myFetchWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, this.#lang))
-    ).json();
+  public async getCourseList(
+    semesterID: string,
+    courseType: CourseType = CourseType.STUDENT,
+    lang = this.#lang,
+  ): Promise<CourseInfo[]> {
+    const json = await (await this.#myFetchWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, lang))).json();
     if (json.message !== 'success' || !Array.isArray(json.resultList)) {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
@@ -398,7 +400,7 @@ export class Learn2018Helper {
           publisher: n.fbrxm,
           hasRead: n.sfyd === '是',
           markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
-          publishTime: new Date(n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr),
+          publishTime: n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr,
         };
         let detail: INotificationDetail = {};
         const attachmentName = courseType === CourseType.STUDENT ? n.fjmc : n.fjbt;
@@ -447,7 +449,7 @@ export class Learn2018Helper {
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: new Date(f.scsj),
+          uploadTime: f.scsj,
           downloadUrl,
           previewUrl,
           isNew: f.isNew,
@@ -497,9 +499,9 @@ export class Learn2018Helper {
             title: decodeHTML(d.bt),
             description: decodeHTML(Base64.decode(d.nr)),
             publisherId: d.fbr,
-            publishTime: new Date(d.fbsj),
-            startTime: new Date(d.kssj),
-            deadline: new Date(d.jzsj),
+            publishTime: d.fbsj,
+            startTime: d.kssj,
+            deadline: d.jzsj,
             url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
             completionType: d.zywcfs,
             submissionType: d.zytjfs,
@@ -602,14 +604,14 @@ export class Learn2018Helper {
           studentHomeworkId: h.xszyid,
           title: decodeHTML(h.bt),
           url: URLS.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.zyid, h.xszyid),
-          deadline: new Date(h.jzsj),
+          deadline: h.jzsj,
           submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
-          submitTime: h.scsj === null ? undefined : new Date(h.scsj),
+          submitTime: h.scsj === null ? undefined : h.scsj,
           grade: h.cj === null ? undefined : h.cj,
           gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
           graderName: trimAndDefine(h.jsm),
           gradeContent: trimAndDefine(h.pynr),
-          gradeTime: h.pysj === null ? undefined : new Date(h.pysj),
+          gradeTime: h.pysj === null ? undefined : h.pysj,
           ...status,
           ...(await this.parseHomeworkDetail(h.wlkcid, h.zyid, h.xszyid)),
         });
@@ -710,8 +712,8 @@ export class Learn2018Helper {
       id: d.id,
       title: decodeHTML(d.bt),
       publisherName: d.fbrxm,
-      publishTime: new Date(d.fbsj),
-      lastReplyTime: new Date(d.zhhfsj),
+      publishTime: d.fbsj,
+      lastReplyTime: d.zhhfsj,
       lastReplierName: d.zhhfrxm,
       visitCount: d.djs ?? 0, // teacher cannot fetch this
       replyCount: d.hfcs,

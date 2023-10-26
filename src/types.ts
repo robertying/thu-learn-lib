@@ -50,8 +50,8 @@ export type UserInfo = IUserInfo;
 
 interface ISemesterInfo {
   id: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   startYear: number;
   endYear: number;
   type: SemesterType;
@@ -97,7 +97,7 @@ export interface INotification {
   hasRead: boolean;
   url: string;
   markedImportant: boolean;
-  publishTime: Date;
+  publishTime: string;
   publisher: string;
 }
 
@@ -115,7 +115,7 @@ interface IFile {
   size: string;
   title: string;
   description: string;
-  uploadTime: Date;
+  uploadTime: string;
   /** for teachers, this url will not initiate download directly */
   downloadUrl: string;
   /** preview is not supported on all types of files, check before use */
@@ -175,14 +175,14 @@ export interface IHomework extends IHomeworkStatus {
   id: string;
   studentHomeworkId: string;
   title: string;
-  deadline: Date;
+  deadline: string;
   url: string;
   submitUrl: string;
-  submitTime?: Date;
+  submitTime?: string;
   grade?: number;
   /** some homework has levels but not grades, like A/B/.../F */
   gradeLevel?: HomeworkGradeLevel;
-  gradeTime?: Date;
+  gradeTime?: string;
   graderName?: string;
   gradeContent?: string;
 }
@@ -219,9 +219,9 @@ export interface IHomeworkTA {
   title: string;
   description: string;
   publisherId: string;
-  publishTime: Date;
-  startTime: Date;
-  deadline: Date;
+  publishTime: string;
+  startTime: string;
+  deadline: string;
   url: string;
   completionType: HomeworkCompletionType;
   submissionType: HomeworkSubmissionType;
@@ -247,9 +247,9 @@ export interface IDiscussionBase {
   id: string;
   title: string;
   publisherName: string;
-  publishTime: Date;
+  publishTime: string;
   lastReplierName: string;
-  lastReplyTime: Date;
+  lastReplyTime: string;
   visitCount: number;
   replyCount: number;
 }

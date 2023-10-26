@@ -3,11 +3,9 @@
   "version": "3.1.3",
   "description": "a JavaScript library to provide a program-friendly interface to Web Learning (2018) of Tsinghua University",
   "type": "module",
-  "module": "lib/index.js",
-  "types": "lib/index.d.ts",
-  "browser": "lib/index.global.js",
-  "unpkg": "lib/index.global.js",
-  "jsdelivr": "lib/index.global.js",
+  "main": "lib/commonjs/index.js",
+  "module": "lib/module/index.js",
+  "types": "lib/typescript/index.d.ts",
   "files": [
     "lib"
   ],
@@ -17,8 +15,17 @@
       "import": "./lib/index.js"
     }
   },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      "commonjs",
+      "module",
+      "typescript"
+    ]
+  },
   "scripts": {
-    "build": "tsup",
+    "build": "bob build",
     "dev": "vite",
     "dev:build": "vite build",
     "format": "prettier --write \"{src,test,demo}/**/*.{ts,html,json}\" \"*.{ts,md,json}\"",
@@ -46,6 +53,7 @@
     "eslint": "^8.49.0",
     "fake-parse5": "^0.0.1",
     "prettier": "^3.0.3",
+    "react-native-builder-bob": "^0.23.1",
     "terser": "^5.20.0",
     "tsup": "^7.2.0",
     "typescript": "^5.2.2",
