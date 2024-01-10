@@ -9,12 +9,6 @@
   "files": [
     "lib"
   ],
-  "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "import": "./lib/index.js"
-    }
-  },
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
