@@ -2589,7 +2589,7 @@ fastq@^1.6.0:
   dependencies:
     reusify "^1.0.4"
 
-fetch-cookie@*, fetch-cookie@^3.0.1:
+fetch-cookie@^3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/fetch-cookie/-/fetch-cookie-3.0.1.tgz#6a77f7495e1a639ae019db916a234db8c85d5963"
   integrity sha512-ZGXe8Y5Z/1FWqQ9q/CrJhkUD73DyBU9VF0hBQmEO/wPHe4A9PKTjplFDLeFX8aOsYypZUcX5Ji/eByn3VCVO3Q==
@@ -3619,15 +3619,7 @@ ncp@~2.0.0:
   resolved "https://registry.yarnpkg.com/ncp/-/ncp-2.0.0.tgz#195a21d6c46e361d2fb1281ba38b91e9df7bdbb3"
   integrity sha512-zIdGUrPRFTUELUvr3Gmc7KZ2Sw/h1PiVM0Af/oHB6zgnV1ikqSfRk+TOufi79aHYCW3NiOXmr1BP5nWbzojLaA==
 
-node-fetch-cookie-native@^0.0.2:
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/node-fetch-cookie-native/-/node-fetch-cookie-native-0.0.2.tgz#138c9987cd5f9edc3d35064b9fbd110980cd0921"
-  integrity sha512-r1lqcBfQDlUcayLhQ1kT9UjQRvc3lRL3zF8Ws2bu6wdBT3SdkiN9a35bkyp7HjVHrifnjP7dLjVHagDzC4C34A==
-  dependencies:
-    fetch-cookie "*"
-    node-fetch-native "*"
-
-node-fetch-native@*, node-fetch-native@^1.6.2:
+node-fetch-native@^1.6.2:
   version "1.6.2"
   resolved "https://registry.yarnpkg.com/node-fetch-native/-/node-fetch-native-1.6.2.tgz#f439000d972eb0c8a741b65dcda412322955e1c6"
   integrity sha512-69mtXOFZ6hSkYiXAVB5SqaRvrbITC/NPyqv7yuu/qw0nmgPyYbIMYYNIDhNtwPrzk0ptrimrLz/hhjvm4w5Z+w==
