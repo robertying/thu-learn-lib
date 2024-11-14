@@ -19,6 +19,7 @@ export enum FailReason {
   NOT_IMPLEMENTED = 'not implemented',
   INVALID_RESPONSE = 'invalid response',
   UNEXPECTED_STATUS = 'unexpected status',
+  OPERATION_FAILED = 'operation failed',
 }
 
 export interface ApiError {
@@ -39,6 +40,7 @@ export enum ContentType {
   HOMEWORK = 'homework',
   DISCUSSION = 'discussion',
   QUESTION = 'question',
+  QUESTIONNAIRE = 'questionnaire',
 }
 
 interface IUserInfo {
@@ -99,6 +101,8 @@ export interface INotification {
   markedImportant: boolean;
   publishTime: string;
   publisher: string;
+  isFavorite: boolean;
+  comment?: string;
 }
 
 export interface INotificationDetail {
@@ -107,8 +111,21 @@ export interface INotificationDetail {
 
 export type Notification = INotification & INotificationDetail;
 
-interface IFile {
+interface IFileCategory {
   id: string;
+  title: string;
+  creationTime: Date;
+}
+
+export type FileCategory = IFileCategory;
+
+interface IFile {
+  /** previously `id2` */
+  id: string;
+  /** previously `id` */
+  fileId: string;
+  /** note: will be unset when calling `getFileListByCategory` */
+  category?: FileCategory;
   /** size in byte */
   rawSize: number;
   /** inaccurate size description (like '1M') */
@@ -116,7 +133,7 @@ interface IFile {
   title: string;
   description: string;
   uploadTime: string;
-  /** for teachers, this url will not initiate download directly */
+  publishTime: string;
   downloadUrl: string;
   /** preview is not supported on all types of files, check before use */
   previewUrl: string;
@@ -127,6 +144,9 @@ interface IFile {
   fileType: string;
   /** for compatibility */
   remoteFile: RemoteFile;
+  /** could not get favorite or comment info when using `getFileList` or in TA mode */
+  isFavorite?: boolean;
+  comment?: string;
 }
 
 export type File = IFile;
@@ -173,7 +193,9 @@ export enum HomeworkGradeLevel {
 
 export interface IHomework extends IHomeworkStatus {
   id: string;
+  /** @deprecated use `id` */
   studentHomeworkId: string;
+  baseId: string;
   title: string;
   deadline: string;
   url: string;
@@ -185,6 +207,9 @@ export interface IHomework extends IHomeworkStatus {
   gradeTime?: string;
   graderName?: string;
   gradeContent?: string;
+  isFavorite: boolean;
+  favoriteTime?: string;
+  comment?: string;
 }
 
 export interface IHomeworkDetail {
@@ -237,12 +262,6 @@ export interface IHomeworkSubmitAttachment {
   content: Blob;
 }
 
-export interface IHomeworkSubmitResult {
-  result: 'success' | 'error';
-  msg: string;
-  object: unknown;
-}
-
 export interface IDiscussionBase {
   id: string;
   title: string;
@@ -252,6 +271,8 @@ export interface IDiscussionBase {
   lastReplyTime: string;
   visitCount: number;
   replyCount: number;
+  isFavorite: boolean;
+  comment?: string;
 }
 
 interface IDiscussion extends IDiscussionBase {
@@ -268,19 +289,99 @@ interface IQuestion extends IDiscussionBase {
 
 export type Question = IQuestion;
 
+export enum QuestionnaireDetailType {
+  SINGLE = 'dnx',
+  MULTI = 'dox',
+  TEXT = 'wd',
+}
+
+export interface QuestionnaireDetail {
+  id: string;
+  index: number;
+  type: QuestionnaireDetailType;
+  required: boolean;
+  title: string;
+  score?: number;
+  options?: {
+    id: string;
+    index: number;
+    title: string;
+  }[];
+}
+
+export enum QuestionnaireType {
+  VOTE = 'tp',
+  FORM = 'tb',
+  SURVEY = 'wj',
+}
+
+export interface IQuestionnaire {
+  id: string;
+  type: QuestionnaireType;
+  title: string;
+  startTime: string;
+  endTime: string;
+  uploadTime: string;
+  uploaderId: string;
+  uploaderName: string;
+  submitTime?: string;
+  isFavorite: boolean;
+  comment?: string;
+  url: string;
+  detail: QuestionnaireDetail[];
+}
+
+export type Questionnaire = IQuestionnaire;
+
 export type ContentTypeMap = {
   [ContentType.NOTIFICATION]: Notification;
   [ContentType.FILE]: File;
   [ContentType.HOMEWORK]: Homework;
   [ContentType.DISCUSSION]: Discussion;
   [ContentType.QUESTION]: Question;
+  [ContentType.QUESTIONNAIRE]: Questionnaire;
 };
 
 interface ICourseContent<T extends ContentType> {
   [id: string]: ContentTypeMap[T][];
 }
 
-export type CourseContent<T extends ContentType> = ICourseContent<T>;
+export type CourseContent<T extends ContentType = ContentType> = ICourseContent<T>;
+
+interface IFavoriteItem {
+  id: string;
+  type: ContentType;
+  title: string;
+  time: string;
+  state: string;
+  /** extra message. For homework, this will be deadline (plus score if graded). It's too flexible and hard to parse so we leave it as is. */
+  extra?: string;
+  semesterId: string;
+  courseId: string;
+  pinned: boolean;
+  pinnedTime?: string;
+  comment?: string;
+  addedTime: string;
+  /** for reference */
+  itemId: string;
+}
+
+export type FavoriteItem = IFavoriteItem;
+
+interface ICommentItem {
+  id: string;
+  type: ContentType;
+  content: string;
+  contentHTML: string;
+  title: string;
+  semesterId: string;
+  courseId: string;
+  commentTime: string;
+  /** for reference */
+  itemId: string;
+}
+
+export type CommentItem = ICommentItem;
 
 export interface CalendarEvent {
   location: string;

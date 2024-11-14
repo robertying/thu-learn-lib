@@ -1,6 +1,6 @@
 import { decodeHTML as _decodeHTML } from 'entities';
 
-import { SemesterType, FailReason, ContentType, HomeworkGradeLevel } from './types';
+import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types';
 
 export function parseSemesterType(n: number): SemesterType {
   if (n === 1) {
@@ -14,16 +14,17 @@ export function parseSemesterType(n: number): SemesterType {
   }
 }
 
-const CONTENT_TYPE_MK_MAP = new Map([
-  [ContentType.NOTIFICATION, 'kcgg'],
-  [ContentType.FILE, 'kcwj'],
-  [ContentType.HOMEWORK, 'kczy'],
-  [ContentType.DISCUSSION, ''],
-  [ContentType.QUESTION, ''],
-]);
+const CONTENT_TYPE_MK_MAP = {
+  [ContentType.NOTIFICATION]: 'kcgg',
+  [ContentType.FILE]: 'kcwj',
+  [ContentType.HOMEWORK]: 'kczy',
+  [ContentType.DISCUSSION]: '',
+  [ContentType.QUESTION]: '',
+  [ContentType.QUESTIONNAIRE]: '',
+};
 
 export function getMkFromType(type: ContentType): string {
-  return 'mk_' + (CONTENT_TYPE_MK_MAP.get(type) ?? 'UNKNOWN');
+  return 'mk_' + (CONTENT_TYPE_MK_MAP[type] ?? 'UNKNOWN');
 }
 
 export function decodeHTML(html: string): string {
@@ -84,3 +85,35 @@ export function extractJSONPResult(jsonp: string): any {
   // evaluate the result
   return Function(`"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`)();
 }
+
+export function formatFileSize(size: number): string {
+  // this logic is extracted from `judgeSize` function from Web Learning
+  if (size < 1024) return size + 'B';
+  if (size < 1024 * 1024) return (size / 1024).toFixed(2) + 'K';
+  if (size < 1024 * 1024 * 1024) return (size / 1024 / 1024).toFixed(2) + 'M';
+  return (size / 1024 / 1024 / 1024).toFixed(2) + 'G';
+}
+
+export const CONTENT_TYPE_MAP = new Map([
+  [ContentType.NOTIFICATION, 'KCGG'],
+  [ContentType.FILE, 'KCKJ'],
+  [ContentType.HOMEWORK, 'KCZY'],
+  [ContentType.DISCUSSION, 'KCTL'],
+  [ContentType.QUESTION, 'KCDY'],
+  [ContentType.QUESTIONNAIRE, 'KCWJ'],
+  // omitted: 课表(KCKB)
+]);
+export const CONTENT_TYPE_MAP_REVERSE = new Map([
+  [CONTENT_TYPE_MAP.get(ContentType.NOTIFICATION)!, ContentType.NOTIFICATION],
+  [CONTENT_TYPE_MAP.get(ContentType.FILE)!, ContentType.FILE],
+  [CONTENT_TYPE_MAP.get(ContentType.HOMEWORK)!, ContentType.HOMEWORK],
+  [CONTENT_TYPE_MAP.get(ContentType.DISCUSSION)!, ContentType.DISCUSSION],
+  [CONTENT_TYPE_MAP.get(ContentType.QUESTION)!, ContentType.QUESTION],
+  [CONTENT_TYPE_MAP.get(ContentType.QUESTIONNAIRE)!, ContentType.QUESTIONNAIRE],
+]);
+
+export const QNR_TYPE_MAP = new Map([
+  ['投票', QuestionnaireType.VOTE],
+  ['填表', QuestionnaireType.FORM],
+  ['问卷', QuestionnaireType.SURVEY],
+]);

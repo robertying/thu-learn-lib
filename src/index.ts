@@ -1,65 +1,65 @@
 import * as cheerio from 'cheerio';
 import type * as DOM from 'domhandler';
 import { Base64 } from 'js-base64';
-import { fetch } from 'node-fetch-native';
-import fetchCookie from 'fetch-cookie';
-import type { CookieJar } from 'tough-cookie';
+import makeFetch from 'node-fetch-cookie-native';
 
-import * as URLS from './urls';
 import {
-  CredentialProvider,
-  Fetch,
-  HelperConfig,
+  ApiError,
+  CalendarEvent,
+  CommentItem,
   ContentType,
+  ContentTypeMap,
   CourseContent,
   CourseInfo,
+  CourseType,
+  CredentialProvider,
   Discussion,
   FailReason,
+  FavoriteItem,
+  Fetch,
   File,
+  FileCategory,
+  HelperConfig,
   Homework,
+  HomeworkTA,
   IDiscussionBase,
   IHomeworkDetail,
   IHomeworkStatus,
+  IHomeworkSubmitAttachment,
   INotification,
   INotificationDetail,
-  Notification,
-  Question,
-  SemesterInfo,
-  CourseType,
-  CalendarEvent,
-  ApiError,
-  RemoteFile,
-  IHomeworkSubmitAttachment,
-  IHomeworkSubmitResult,
   Language,
-  HomeworkTA,
+  Notification,
+  Questionnaire,
+  QuestionnaireDetail,
+  QuestionnaireType,
+  Question,
+  RemoteFile,
+  SemesterInfo,
   UserInfo,
-  ContentTypeMap,
 } from './types';
+import * as URLS from './urls';
 import {
+  CONTENT_TYPE_MAP_REVERSE,
+  GRADE_LEVEL_MAP,
+  JSONP_EXTRACTOR_NAME,
+  QNR_TYPE_MAP,
   decodeHTML,
+  extractJSONPResult,
+  formatFileSize,
   parseSemesterType,
   trimAndDefine,
-  JSONP_EXTRACTOR_NAME,
-  extractJSONPResult,
-  GRADE_LEVEL_MAP,
 } from './utils';
 
-function makeFetch(jar?: CookieJar): typeof fetch {
-  return fetchCookie(fetch, jar);
-}
-
-const CHEERIO_CONFIG: cheerio.CheerioOptions = {
-  // _useHtmlParser2
-  xml: true,
-  decodeEntities: false,
-};
+const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
 
 const $ = (html: string | DOM.Element | DOM.Element[]): cheerio.CheerioAPI => {
   return cheerio.load(html, CHEERIO_CONFIG);
 };
 
 const noLogin = (res: Response) => res.url.includes('login_timeout') || res.status == 403;
+
+const YES = '是';
 
 /** add CSRF token to any request URL as parameters */
 export const addCSRFTokenToUrl = (url: string, token: string): string => {
@@ -132,6 +132,11 @@ export class Learn2018Helper {
   /** fetch CSRF token from helper (invalid after login / re-login), might be '' if not logged in */
   public getCSRFToken(): string {
     return this.#csrfToken;
+  }
+
+  /** manually set CSRF token (useful when you want to reuse previous token) */
+  public setCSRFToken(csrfToken: string): void {
+    this.#csrfToken = csrfToken;
   }
 
   /** login is necessary if you do not provide a `CredentialProvider` */
@@ -296,18 +301,15 @@ export class Learn2018Helper {
       } as ApiError);
     }
     const result = (json.resultList ?? []) as any[];
-    const courses: CourseInfo[] = [];
 
-    await Promise.all(
+    return Promise.all(
       result.map(async (c) => {
         let timeAndLocation: string[] = [];
         try {
           // see https://github.com/Harry-Chen/Learn-Helper/issues/145
           timeAndLocation = await (await this.#myFetchWithToken(URLS.LEARN_COURSE_TIME_LOCATION(c.wlkcid))).json();
-        } catch (e) {
-          /** ignore */
-        }
-        courses.push({
+        } catch (e) {}
+        return {
           id: c.wlkcid,
           name: decodeHTML(c.zywkcm),
           chineseName: decodeHTML(c.kcm),
@@ -319,11 +321,9 @@ export class Learn2018Helper {
           courseNumber: c.kch,
           courseIndex: Number(c.kxh), // c.kxh could be string (teacher mode) or number (student mode)
           courseType,
-        });
+        } satisfies CourseInfo;
       }),
     );
-
-    return courses;
   }
 
   /**
@@ -348,6 +348,8 @@ export class Learn2018Helper {
           return this.getDiscussionList(id, courseType) as Promise<ContentTypeMap[T][]>;
         case ContentType.QUESTION:
           return this.getAnsweredQuestionList(id, courseType) as Promise<ContentTypeMap[T][]>;
+        case ContentType.QUESTIONNAIRE:
+          return this.getQuestionnaireList(id) as Promise<ContentTypeMap[T][]>;
         default:
           return Promise.reject({
             reason: FailReason.NOT_IMPLEMENTED,
@@ -394,9 +396,8 @@ export class Learn2018Helper {
     }
 
     const result = (json.object?.aaData ?? json.object?.resultsList ?? []) as any[];
-    const notifications: Notification[] = [];
 
-    await Promise.all(
+    return Promise.all(
       result.map(async (n) => {
         const notification: INotification = {
           id: n.ggid,
@@ -404,20 +405,20 @@ export class Learn2018Helper {
           title: decodeHTML(n.bt),
           url: URLS.LEARN_NOTIFICATION_DETAIL(courseID, n.ggid, courseType),
           publisher: n.fbrxm,
-          hasRead: n.sfyd === '是',
+          hasRead: n.sfyd === YES,
           markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
           publishTime: n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr,
+          isFavorite: n.sfsc === YES,
+          comment: n.bznr ?? undefined,
         };
         let detail: INotificationDetail = {};
         const attachmentName = courseType === CourseType.STUDENT ? n.fjmc : n.fjbt;
         if (attachmentName) {
           detail = await this.parseNotificationDetail(courseID, notification.id, courseType, attachmentName);
         }
-        notifications.push({ ...notification, ...detail });
+        return { ...notification, ...detail } satisfies Notification;
       }),
     );
-
-    return notifications;
   }
 
   /** Get all files （课程文件） of the specified course. */
@@ -438,43 +439,172 @@ export class Learn2018Helper {
       // student
       result = json.object;
     }
-    const files: File[] = [];
 
-    await Promise.all(
-      result.map(async (f) => {
+    const categories = new Map((await this.getFileCategoryList(courseID, courseType)).map((c) => [c.id, c]));
+
+    return result.map((f) => {
+      const title = decodeHTML(f.bt);
+      const fileId = f.wjid;
+      const uploadTime = f.scsj;
+      const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
+      const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, this.previewFirstPage);
+      return {
+        id: f.kjxxid,
+        fileId,
+        category: categories.get(f.kjflid),
+        title,
+        description: decodeHTML(f.ms),
+        rawSize: f.wjdx,
+        size: f.fileSize,
+        uploadTime,
+        publishTime: uploadTime,
+        downloadUrl,
+        previewUrl,
+        isNew: f.isNew ?? false,
+        markedImportant: f.sfqd === 1,
+        visitCount: f.xsllcs ?? f.llcs ?? 0,
+        downloadCount: f.xzcs ?? 0,
+        fileType: f.wjlx,
+        remoteFile: {
+          id: fileId,
+          name: title,
+          downloadUrl,
+          previewUrl,
+          size: f.fileSize,
+        },
+      } satisfies File;
+    });
+  }
+
+  /** Get file categories of the specified course. */
+  public async getFileCategoryList(
+    courseID: string,
+    courseType: CourseType = CourseType.STUDENT,
+  ): Promise<FileCategory[]> {
+    const json = await (await this.#myFetchWithToken(URLS.LEARN_FILE_CATEGORY_LIST(courseID, courseType))).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.INVALID_RESPONSE,
+        extra: json,
+      } as ApiError);
+    }
+
+    const result = (json.object?.rows ?? []) as any[];
+
+    return result.map(
+      (c) =>
+        ({
+          id: c.kjflid,
+          title: decodeHTML(c.bt),
+          creationTime: c.czsj,
+        }) satisfies FileCategory,
+    );
+  }
+
+  /**
+   * Get all files of the specified category of the specified course.
+   * Note: this cannot get correct `visitCount` and `downloadCount` for student
+   */
+  public async getFileListByCategory(
+    courseID: string,
+    categoryId: string,
+    courseType: CourseType = CourseType.STUDENT,
+  ): Promise<File[]> {
+    if (courseType === CourseType.STUDENT) {
+      const json = await (
+        await this.#myFetchWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT(courseID, categoryId))
+      ).json();
+      if (json.result !== 'success') {
+        return Promise.reject({
+          reason: FailReason.INVALID_RESPONSE,
+          extra: json,
+        } as ApiError);
+      }
+
+      const result = (json.object ?? []) as any[];
+
+      return result.map((f) => {
+        const fileId = f[7];
+        const title = decodeHTML(f[1]);
+        const rawSize = f[9];
+        const size = formatFileSize(rawSize);
+        const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
+        const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, this.previewFirstPage);
+        return {
+          id: f[0],
+          fileId,
+          title,
+          description: decodeHTML(f[5]),
+          rawSize,
+          size,
+          uploadTime: f[6],
+          publishTime: f[10],
+          downloadUrl,
+          previewUrl,
+          isNew: f[8] === 1,
+          markedImportant: f[2] === 1,
+          visitCount: 0,
+          downloadCount: 0,
+          fileType: f[13],
+          remoteFile: {
+            id: fileId,
+            name: title,
+            downloadUrl,
+            previewUrl,
+            size,
+          },
+          isFavorite: f[11],
+          comment: f[14] ?? undefined,
+        } satisfies File;
+      });
+    } else {
+      const json = await (
+        await this.#myFetchWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER, {
+          method: 'POST',
+          body: URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA(courseID, categoryId),
+        })
+      ).json();
+      if (json.result !== 'success') {
+        return Promise.reject({
+          reason: FailReason.INVALID_RESPONSE,
+          extra: json,
+        } as ApiError);
+      }
+
+      const result = (json.object.aaData ?? []) as any[];
+
+      return result.map((f) => {
         const title = decodeHTML(f.bt);
-        const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(
-          courseType === CourseType.STUDENT ? f.wjid : f.id,
-          courseType,
-          courseID,
-        );
-        const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, f.wjid, courseType, this.previewFirstPage);
-        files.push({
-          id: f.wjid,
-          title: decodeHTML(f.bt),
+        const fileId = f.wjid;
+        const uploadTime = f.scsj;
+        const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
+        const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, this.previewFirstPage);
+        return {
+          id: f.kjxxid,
+          fileId,
+          title,
           description: decodeHTML(f.ms),
           rawSize: f.wjdx,
           size: f.fileSize,
-          uploadTime: f.scsj,
+          uploadTime,
+          publishTime: uploadTime,
           downloadUrl,
           previewUrl,
-          isNew: f.isNew,
+          isNew: f.isNew ?? false,
           markedImportant: f.sfqd === 1,
-          visitCount: f.llcs ?? 0,
+          visitCount: f.xsllcs ?? f.llcs ?? 0,
           downloadCount: f.xzcs ?? 0,
           fileType: f.wjlx,
           remoteFile: {
-            id: f.wjid,
+            id: fileId,
             name: title,
             downloadUrl,
             previewUrl,
             size: f.fileSize,
           },
-        });
-      }),
-    );
-
-    return files;
+        } satisfies File;
+      });
+    }
   }
 
   /** Get all homeworks （课程作业） of the specified course. */
@@ -495,11 +625,10 @@ export class Learn2018Helper {
       }
 
       const result = (json.object?.aaData ?? []) as any[];
-      const homeworks: HomeworkTA[] = [];
 
-      await Promise.all(
-        result.map(async (d) => {
-          homeworks.push({
+      return result.map(
+        (d) =>
+          ({
             id: d.zyid,
             index: d.wz,
             title: decodeHTML(d.bt),
@@ -514,22 +643,12 @@ export class Learn2018Helper {
             gradedCount: d.ypys,
             submittedCount: d.yjs,
             unsubmittedCount: d.wjs,
-          });
-        }),
+          }) satisfies HomeworkTA,
       );
-
-      return homeworks;
     } else {
-      const allHomework: Homework[] = [];
-
-      await Promise.all(
-        URLS.LEARN_HOMEWORK_LIST_SOURCE(courseID).map(async (s) => {
-          const homeworks = await this.getHomeworkListAtUrl(s.url, s.status);
-          allHomework.push(...homeworks);
-        }),
-      );
-
-      return allHomework;
+      return Promise.all(
+        URLS.LEARN_HOMEWORK_LIST_SOURCE(courseID).map((s) => this.getHomeworkListAtUrl(s.url, s.status)),
+      ).then((results) => results.flat());
     }
   }
 
@@ -544,19 +663,15 @@ export class Learn2018Helper {
     }
 
     const result = (json.object?.resultsList ?? []) as any[];
-    const discussions: Discussion[] = [];
 
-    await Promise.all(
-      result.map(async (d) => {
-        discussions.push({
+    return result.map(
+      (d) =>
+        ({
           ...this.parseDiscussionBase(d),
           boardId: d.bqid,
           url: URLS.LEARN_DISCUSSION_DETAIL(d.wlkcid, d.bqid, d.id, courseType),
-        });
-      }),
+        }) satisfies Discussion,
     );
-
-    return discussions;
   }
 
   /**
@@ -576,19 +691,260 @@ export class Learn2018Helper {
     }
 
     const result = (json.object?.resultsList ?? []) as any[];
-    const questions: Question[] = [];
 
-    await Promise.all(
-      result.map(async (q) => {
-        questions.push({
+    return result.map(
+      (q) =>
+        ({
           ...this.parseDiscussionBase(q),
           question: Base64.decode(q.wtnr),
           url: URLS.LEARN_QUESTION_DETAIL(q.wlkcid, q.id, courseType),
-        });
+        }) satisfies Question,
+    );
+  }
+
+  /**
+   * Get all questionnaires （课程问卷/QNR） of the specified course.
+   */
+  public async getQuestionnaireList(courseID: string): Promise<Questionnaire[]> {
+    return Promise.all([
+      this.getQuestionnaireListAtUrl(courseID, URLS.LEARN_QNR_LIST_ONGOING),
+      this.getQuestionnaireListAtUrl(courseID, URLS.LEARN_QNR_LIST_ENDED),
+    ]).then((r) => r.flat());
+  }
+
+  private async getQuestionnaireListAtUrl(courseID: string, url: string): Promise<Questionnaire[]> {
+    const json = await (
+      await this.#myFetchWithToken(url, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID) })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.INVALID_RESPONSE,
+        extra: json,
+      } as ApiError);
+    }
+    const result = (json.object?.aaData ?? []) as any[];
+    return Promise.all(
+      result.map(async (e) => {
+        const type = QNR_TYPE_MAP.get(e.wjlx) ?? QuestionnaireType.SURVEY;
+        return {
+          id: e.wjid,
+          type,
+          title: decodeHTML(e.wjbt),
+          startTime: e.kssj,
+          endTime: e.jssj,
+          uploadTime: e.scsj,
+          uploaderId: e.scr,
+          uploaderName: e.scrxm,
+          submitTime: e.tjsj ? e.tjsj : undefined,
+          isFavorite: e.sfsc === YES,
+          comment: e.bznr ?? undefined,
+          url: URLS.LEARN_QNR_SUBMIT_PAGE(e.wlkcid, e.wjid, type),
+          detail: await this.getQuestionnaireDetail(courseID, e.wjid),
+        } satisfies Questionnaire;
       }),
     );
+  }
 
-    return questions;
+  private async getQuestionnaireDetail(courseID: string, qnrID: string): Promise<QuestionnaireDetail[]> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_QNR_DETAIL, {
+        method: 'POST',
+        body: URLS.LEARN_QNR_DETAIL_FORM(courseID, qnrID),
+      })
+    ).json();
+    return (json as any[]).map(
+      (e) =>
+        ({
+          id: e.wtid,
+          index: Number(e.wtbh),
+          type: e.type,
+          required: e.require == YES,
+          title: decodeHTML(e.wtbt),
+          score: e.wtfz ? Number(e.wtfz) : undefined, // unsure about original type
+          options: (e.list as any[])?.map((o) => ({
+            id: o.xxid,
+            index: Number(o.xxbh),
+            title: decodeHTML(o.xxbt),
+          })),
+        }) satisfies QuestionnaireDetail,
+    );
+  }
+
+  /**
+   * Add an item to favorites. (收藏)
+   */
+  public async addToFavorites(type: ContentType, id: string): Promise<void> {
+    const json = await (await this.#myFetchWithToken(URLS.LEARN_FAVORITE_ADD(type, id))).json();
+    if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
+  }
+
+  /**
+   * Remove an item from favorites. (取消收藏)
+   */
+  public async removeFromFavorites(id: string): Promise<void> {
+    const json = await (await this.#myFetchWithToken(URLS.LEARN_FAVORITE_REMOVE(id))).json();
+    if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
+  }
+
+  /**
+   * Get favorites. (我的收藏)
+   * If `courseID` or `type` is specified, only return favorites of that course or type.
+   */
+  public async getFavorites(courseID?: string, type?: ContentType): Promise<FavoriteItem[]> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_FAVORITE_LIST(type), {
+        method: 'POST',
+        body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+      })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.INVALID_RESPONSE,
+        extra: json,
+      } as ApiError);
+    }
+    const result = (json.object?.aaData ?? []) as any[];
+    return result
+      .map((e): FavoriteItem | undefined => {
+        const type = CONTENT_TYPE_MAP_REVERSE.get(e.ywlx);
+        if (!type) return; // ignore unknown type
+        return {
+          id: e.ywid,
+          type,
+          title: decodeHTML(e.ywbt),
+          time: type === ContentType.DISCUSSION || type === ContentType.QUESTION ? e.tlsj : e.ywsj,
+          state: e.ywzt,
+          extra: e.ywbz ?? undefined,
+          semesterId: e.xnxq,
+          courseId: e.wlkcid,
+          pinned: e.sfzd === YES,
+          pinnedTime: e.zdsj === null ? undefined : e.zdsj, // Note: this field is originally unix timestamp instead of string
+          comment: e.bznr ?? undefined,
+          addedTime: e.scsj,
+          itemId: e.id,
+        } satisfies FavoriteItem;
+      })
+      .filter((x) => !!x);
+  }
+
+  /**
+   * Pin a favorite item. (置顶)
+   */
+  public async pinFavoriteItem(id: string): Promise<void> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_FAVORITE_PIN, {
+        method: 'POST',
+        body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
+      })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
+  }
+
+  /**
+   * Unpin a favorite item. (取消置顶)
+   */
+  public async unpinFavoriteItem(id: string): Promise<void> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_FAVORITE_UNPIN, {
+        method: 'POST',
+        body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
+      })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
+  }
+
+  /**
+   * Set a comment. (备注)
+   * Set an empty string to remove the comment.
+   */
+  public async setComment(type: ContentType, id: string, content: string): Promise<void> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_COMMENT_SET, {
+        method: 'POST',
+        body: URLS.LEARN_COMMENT_SET_FORM_DATA(type, id, content),
+      })
+    ).json();
+    if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
+  }
+
+  /**
+   * Get comments. (我的备注)
+   * If `courseID` or `type` is specified, only return favorites of that course or type.
+   */
+  public async getComments(courseID?: string, type?: ContentType): Promise<CommentItem[]> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_COMMENT_LIST(type), {
+        method: 'POST',
+        body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+      })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.INVALID_RESPONSE,
+        extra: json,
+      } as ApiError);
+    }
+    const result = (json.object?.aaData ?? []) as any[];
+    return result
+      .map((e): CommentItem | undefined => {
+        const type = CONTENT_TYPE_MAP_REVERSE.get(e.ywlx);
+        if (!type) return; // ignore unknown type
+        return {
+          id: e.ywid,
+          type,
+          content: e.bt,
+          contentHTML: decodeHTML(e.bznrstring),
+          title: decodeHTML(e.ywbt),
+          semesterId: e.xnxq,
+          courseId: e.wlkcid,
+          commentTime: e.cjsj,
+          itemId: e.id,
+        } satisfies CommentItem;
+      })
+      .filter((x) => !!x);
+  }
+
+  public async sortCourses(courseIDs: string[]): Promise<void> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_SORT_COURSES, {
+        method: 'POST',
+        body: JSON.stringify(courseIDs.map((id, index) => ({ wlkcid: id, xh: index + 1 }))),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
   }
 
   private async getHomeworkListAtUrl(url: string, status: IHomeworkStatus): Promise<Homework[]> {
@@ -601,30 +957,32 @@ export class Learn2018Helper {
     }
 
     const result = (json.object?.aaData ?? []) as any[];
-    const homeworks: Homework[] = [];
 
-    await Promise.all(
-      result.map(async (h) => {
-        homeworks.push({
-          id: h.zyid,
-          studentHomeworkId: h.xszyid,
-          title: decodeHTML(h.bt),
-          url: URLS.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.zyid, h.xszyid),
-          deadline: h.jzsj,
-          submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
-          submitTime: h.scsj === null ? undefined : h.scsj,
-          grade: h.cj === null ? undefined : h.cj,
-          gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
-          graderName: trimAndDefine(h.jsm),
-          gradeContent: trimAndDefine(h.pynr),
-          gradeTime: h.pysj === null ? undefined : h.pysj,
-          ...status,
-          ...(await this.parseHomeworkDetail(h.wlkcid, h.zyid, h.xszyid)),
-        });
-      }),
+    return Promise.all(
+      result.map(
+        async (h) =>
+          ({
+            id: h.xszyid,
+            studentHomeworkId: h.xszyid,
+            baseId: h.zyid,
+            title: decodeHTML(h.bt),
+            url: URLS.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.xszyid),
+            deadline: h.jzsj,
+            submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
+            submitTime: h.scsj === null ? undefined : h.scsj,
+            grade: h.cj === null ? undefined : h.cj,
+            gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
+            graderName: trimAndDefine(h.jsm),
+            gradeContent: trimAndDefine(h.pynr),
+            gradeTime: h.pysj === null ? undefined : h.pysj,
+            isFavorite: h.sfsc === YES,
+            favoriteTime: h.scsj === null || h.sfsc !== YES ? undefined : h.scsj,
+            comment: h.bznr ?? undefined,
+            ...status,
+            ...(await this.parseHomeworkDetail(h.wlkcid, h.xszyid)),
+          }) satisfies Homework,
+      ),
     );
-
-    return homeworks;
   }
 
   private async parseNotificationDetail(
@@ -668,8 +1026,8 @@ export class Learn2018Helper {
     };
   }
 
-  private async parseHomeworkDetail(courseID: string, id: string, studentHomeworkID: string): Promise<IHomeworkDetail> {
-    const response = await this.#myFetchWithToken(URLS.LEARN_HOMEWORK_DETAIL(courseID, id, studentHomeworkID));
+  private async parseHomeworkDetail(courseID: string, id: string): Promise<IHomeworkDetail> {
+    const response = await this.#myFetchWithToken(URLS.LEARN_HOMEWORK_DETAIL(courseID, id));
     const result = $(await response.text());
 
     const fileDivs = result('div.list.fujian.clearfix');
@@ -723,21 +1081,29 @@ export class Learn2018Helper {
       lastReplierName: d.zhhfrxm,
       visitCount: d.djs ?? 0, // teacher cannot fetch this
       replyCount: d.hfcs,
+      isFavorite: d.sfsc === YES,
+      comment: d.bznr ?? undefined,
     };
   }
 
   public async submitHomework(
-    studentHomeworkID: string,
+    id: string,
     content = '',
     attachment?: IHomeworkSubmitAttachment,
     removeAttachment = false,
-  ): Promise<IHomeworkSubmitResult> {
-    return await (
+  ) {
+    const json = await (
       await this.#myFetchWithToken(URLS.LEARN_HOMEWORK_SUBMIT(), {
         method: 'POST',
-        body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(studentHomeworkID, content, attachment, removeAttachment),
+        body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
       })
     ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.OPERATION_FAILED,
+        extra: json,
+      } as ApiError);
+    }
   }
 
   public async setLanguage(lang: Language): Promise<void> {

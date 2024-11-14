@@ -1,6 +1,6 @@
 {
   "name": "thu-learn-lib",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "description": "a JavaScript library to provide a program-friendly interface to Web Learning (2018) of Tsinghua University",
   "type": "module",
   "files": [
@@ -50,7 +50,7 @@
     "dev": "vite",
     "dev:build": "vite build",
     "format": "prettier --write \"{src,test,demo}/**/*.{ts,html,json}\" \"*.{ts,md,json}\"",
-    "lint": "eslint --ext .ts 'src/**'",
+    "lint": "eslint",
     "test": "OPENSSL_CONF=openssl.cnf vitest run"
   },
   "keywords": [
@@ -64,6 +64,7 @@
     "url": "https://github.com/Harry-Chen/thu-learn-lib.git"
   },
   "devDependencies": {
+    "@eslint/js": "^9.14.0",
     "@types/node": "^22.9.0",
     "@types/tough-cookie": "^4.0.5",
     "@types/webextension-polyfill": "^0.12.1",
@@ -78,6 +79,7 @@
     "terser": "^5.36.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.14.0",
     "vite": "^5.4.9",
     "vite-plugin-web-extension": "^4.2.0",
     "vitest": "^2.1.3",
@@ -88,8 +90,9 @@
     "entities": "^5.0.0",
     "fetch-cookie": "^3.0.1",
     "js-base64": "^3.7.7",
+    "node-fetch-cookie-native": "^0.0.2",
     "node-fetch-native": "^1.6.4",
     "tough-cookie": "^5.0.0"
   },
-  "packageManager": "yarn@1.22.22+sha256.c17d3797fb9a9115bf375e31bfd30058cac6bc9c3b8807a3d8cb2094794b51ca"
+  "packageManager": "yarn@4.5.1+sha512.341db9396b6e289fecc30cd7ab3af65060e05ebff4b3b47547b278b9e67b08f485ecd8c79006b405446262142c7a38154445ef7f17c1d5d1de7d90bf9ce7054d"
 }

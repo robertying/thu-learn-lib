@@ -1,33 +1,70 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import * as dotenv from 'dotenv';
-import { Language, Learn2018Helper } from '../src';
-
-dotenv.config({ path: 'test/.env' });
-const U = process.env.U!; // username
-const P = process.env.P!; // password
-const configs = { provider: () => ({ username: U, password: P }) };
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { ContentType, Language, Learn2018Helper } from '../src';
+import { config } from './config';
 
 describe('helper interaction', () => {
-  let helper: Learn2018Helper;
+  const h = new Learn2018Helper(config);
 
   beforeAll(async () => {
-    helper = new Learn2018Helper(configs);
+    await h.login();
   });
   afterAll(async () => {
-    await helper.logout();
+    await h.logout();
   });
 
+  const courseTester = inject('C');
+
   it('should set lang', async () => {
-    await helper.login();
-    const pre_lang = helper.getCurrentLanguage();
+    const pre_lang = h.getCurrentLanguage();
     const toset_lang = pre_lang === Language.EN ? Language.ZH : Language.EN;
-    await helper.setLanguage(toset_lang);
-    expect(helper.getCurrentLanguage()).toBe(toset_lang);
+    await h.setLanguage(toset_lang);
+    expect(h.getCurrentLanguage()).toBe(toset_lang);
+    await h.setLanguage(pre_lang);
+  });
 
-    await helper.logout();
-    await helper.login();
-    expect(helper.getCurrentLanguage()).toBe(toset_lang);
+  it('should operate on favorites correctly', async () => {
+    const oldFavorites = await h.getFavorites();
+    expect(oldFavorites).toBeDefined();
+    expect(oldFavorites.length).toBeGreaterThanOrEqual(0);
 
-    await helper.setLanguage(pre_lang);
+    if (courseTester) {
+      const noti = (await h.getNotificationList(courseTester)).find((n) => !oldFavorites.find((f) => f.id === n.id));
+      const hw = (await h.getHomeworkList(courseTester)).find((hw) => !oldFavorites.find((f) => f.id === hw.id));
+      const file = (await h.getFileList(courseTester)).find((f) => !oldFavorites.find((fav) => fav.id === f.id));
+      const discuss = (await h.getDiscussionList(courseTester)).find((d) => !oldFavorites.find((f) => f.id === d.id));
+      if (noti) await h.addToFavorites(ContentType.NOTIFICATION, noti.id);
+      if (hw) await h.addToFavorites(ContentType.HOMEWORK, hw.id);
+      if (file) await h.addToFavorites(ContentType.FILE, file.id);
+      if (discuss) await h.addToFavorites(ContentType.DISCUSSION, discuss.id);
+      const pinned = noti || hw || file || discuss;
+      if (pinned) await h.pinFavoriteItem(pinned.id);
+
+      const newFavorites = await h.getFavorites();
+      const addedFavorites = newFavorites.filter((f) => !oldFavorites.find((of) => of.id === f.id));
+
+      if (pinned) {
+        const i = addedFavorites.findIndex((f) => f.id === pinned.id);
+        expect(i).toBe(0);
+        expect(addedFavorites[i].pinned).toBeTruthy();
+        await h.unpinFavoriteItem(pinned.id);
+      }
+
+      if (noti) {
+        expect(addedFavorites.find((f) => f.type === ContentType.NOTIFICATION && f.id === noti.id)).toBeDefined();
+        await h.removeFromFavorites(noti.id);
+      }
+      if (hw) {
+        expect(addedFavorites.find((f) => f.type === ContentType.HOMEWORK && f.id === hw.id)).toBeDefined();
+        await h.removeFromFavorites(hw.id);
+      }
+      if (file) {
+        expect(addedFavorites.find((f) => f.type === ContentType.FILE && f.id === file.id)).toBeDefined();
+        await h.removeFromFavorites(file.id);
+      }
+      if (discuss) {
+        expect(addedFavorites.find((f) => f.type === ContentType.DISCUSSION && f.id === discuss.id)).toBeDefined();
+        await h.removeFromFavorites(discuss.id);
+      }
+    }
   });
 });

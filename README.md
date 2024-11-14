@@ -162,8 +162,34 @@ It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms 
 
 ## Changelog
 
+- v4.0.0
+  - Upgrade cheerio to 1.0
+  - Add support for questionnaire (add `getQuestionnaireList` API and some public types)
+  - Add support for managing favorite items
+  - Add support for sorting courses (i.e. manage the order on web learning)
+  - Add support for managing comments on content (e.g. files, notifications)
+  - (*BREAKING CHANGE*) Deprecate usage of `studentHomeworkId` 
+- v3.2.1
+  - Upgrade to eslint v9
+  - Add `setCSRFToken` function to manually reuse previous (maybe valid) token and prevent unnecessary re-login (see [#49](https://github.com/Harry-Chen/thu-learn-lib/issues/49))  
+    *Note:* To use this feature in Node.js, `cookieJar` should also be reused, otherwise it will not work. (not the case in browser env)
+  - Fix `CourseContent` type: default value for type param `T` (breaking change introduced in [#53](https://github.com/Harry-Chen/thu-learn-lib/issues/53))
+  - *(Breaking...?)* Rename `File.id2` added in previous version to actual `id` and previously used `id` to  `fileId` (see [#60](https://github.com/Harry-Chen/thu-learn-lib/issues/60))
+  - Upgrade dependencies
+- v3.2.0
+  - Support file categories (see [#57](https://github.com/Harry-Chen/thu-learn-lib/issues/57)):
+    - Add `FileCategory` type and optional `category` field in `File` type
+    - Now `getFileList` function automatically fetches all categories and saves them in each `File` object
+    - Add `getFileCategoryList` function to fetch file categories
+    - Add `getFileListByCategory` function to get file list by category
+  - Fix content of file download url and visit count in for `CourseType.TEACHER`
+- v3.1.4
+  - Allow and check for undefined credential in login (see [#52](https://github.com/Harry-Chen/thu-learn-lib/issues/52))
+  - Discriminate `getAllContents` return type based on input content type (see [#53](https://github.com/Harry-Chen/thu-learn-lib/issues/53))
+  - Use `searchParams` to set csrf token & add csrf token to `getCalendar` (see [#54](https://github.com/Harry-Chen/thu-learn-lib/issues/54))
+  - Update bunches of dependencies
 - v3.1.3
-  - Fix empty time and location of course (see [Harry-Chen/Learn-Helper#145](https://github.com/Harry-Chen/Learn-Helper/issues/145))
+  - Fix empty time and location of course (see [#145](https://github.com/Harry-Chen/Learn-Helper/issues/145))
 - v3.1.2
   - Fix empty course name parsing
   - (Maybe BEARKING) `Homework.gradeLevel` changed to `HomeworkGradeLevel` (a string enum) for better i18n

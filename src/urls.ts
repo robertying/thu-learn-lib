@@ -1,6 +1,6 @@
 import { FormData } from 'node-fetch-native';
-import { ContentType, CourseType, IHomeworkSubmitAttachment, Language } from './types';
-import { getMkFromType } from './utils';
+import { ContentType, CourseType, IHomeworkSubmitAttachment, Language, QuestionnaireType } from './types';
+import { CONTENT_TYPE_MAP, getMkFromType } from './utils';
 
 export const LEARN_PREFIX = 'https://learn.tsinghua.edu.cn';
 export const REGISTRAR_PREFIX = 'https://zhjw.cic.tsinghua.edu.cn';
@@ -53,10 +53,28 @@ export const LEARN_FILE_LIST = (courseID: string, courseType: CourseType) =>
     ? `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxbByWlkcidAndSizeForStudent?wlkcid=${courseID}&size=${MAX_SIZE}`
     : `${LEARN_PREFIX}/b/wlxt/kj/v_kjxxb_wjwjb/teacher/queryByWlkcid?wlkcid=${courseID}&size=${MAX_SIZE}`;
 
-export const LEARN_FILE_DOWNLOAD = (fileID: string, courseType: CourseType, courseID: string) =>
-  courseType === CourseType.STUDENT
-    ? `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/downloadFile?sfgk=0&wjid=${fileID}`
-    : `${LEARN_PREFIX}/f/wlxt/kj/wlkc_kjxxb/teacher/beforeView?id=${fileID}&wlkcid=${courseID}`;
+export const LEARN_FILE_CATEGORY_LIST = (courseID: string, courseType: CourseType) =>
+  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjflb/${courseType}/pageList?wlkcid=${courseID}`;
+
+export const LEARN_FILE_LIST_BY_CATEGORY_STUDENT = (courseID: string, categoryId: string) =>
+  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxb/${courseID}/${categoryId}`;
+
+export const LEARN_FILE_LIST_BY_CATEGORY_TEACHER = `${LEARN_PREFIX}/b/wlxt/kj/v_kjxxb_wjwjb/teacher/pageList`;
+
+export const LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA = (courseID: string, categoryId: string) => {
+  const form = new FormData();
+  form.append(
+    'aoData',
+    JSON.stringify([
+      { name: 'wlkcid', value: courseID },
+      { name: 'kjflid', value: categoryId },
+    ]),
+  );
+  return form;
+};
+
+export const LEARN_FILE_DOWNLOAD = (fileID: string, courseType: CourseType) =>
+  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/${courseType}/downloadFile?sfgk=0&wjid=${fileID}`;
 
 export const LEARN_FILE_PREVIEW = (type: ContentType, fileID: string, courseType: CourseType, firstPageOnly = false) =>
   `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=${getMkFromType(
@@ -109,25 +127,25 @@ export const LEARN_HOMEWORK_LIST_SUBMITTED = (courseID: string) =>
 export const LEARN_HOMEWORK_LIST_GRADED = (courseID: string) =>
   `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/index/zyListYpg?wlkcid=${courseID}&size=${MAX_SIZE}`;
 
-export const LEARN_HOMEWORK_DETAIL = (courseID: string, homeworkID: string, studentHomeworkID: string) =>
-  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewCj?wlkcid=${courseID}&zyid=${homeworkID}&xszyid=${studentHomeworkID}`;
+export const LEARN_HOMEWORK_DETAIL = (courseID: string, id: string) =>
+  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewCj?wlkcid=${courseID}&xszyid=${id}`;
 
 export const LEARN_HOMEWORK_DOWNLOAD = (courseID: string, attachmentID: string) =>
   `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/downloadFile/${courseID}/${attachmentID}`;
 
-export const LEARN_HOMEWORK_SUBMIT_PAGE = (courseID: string, studentHomeworkID: string) =>
-  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${courseID}&xszyid=${studentHomeworkID}`;
+export const LEARN_HOMEWORK_SUBMIT_PAGE = (courseID: string, id: string) =>
+  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${courseID}&xszyid=${id}`;
 
 export const LEARN_HOMEWORK_SUBMIT = () => `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/tjzy`;
 
 export const LEARN_HOMEWORK_SUBMIT_FORM_DATA = (
-  studentHomeworkID: string,
+  id: string,
   content = '',
   attachment?: IHomeworkSubmitAttachment,
   removeAttachment = false,
 ) => {
   const form = new FormData();
-  form.append('xszyid', studentHomeworkID);
+  form.append('xszyid', id);
   form.append('zynr', content ?? '');
   if (attachment) form.append('fileupload', attachment.content, attachment.filename);
   else form.append('fileupload', 'undefined');
@@ -162,13 +180,66 @@ export const LEARN_QUESTION_DETAIL = (courseID: string, questionID: string, cour
     ? `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/student/viewDyById?wlkcid=${courseID}&id=${questionID}`
     : `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/teacher/beforeEditDy?wlkcid=${courseID}&id=${questionID}`;
 
+export const LEARN_QNR_LIST_ONGOING = `${LEARN_PREFIX}/b/wlxt/kcwj/wlkc_wjb/student/pageListWks`;
+export const LEARN_QNR_LIST_ENDED = `${LEARN_PREFIX}/b/wlxt/kcwj/wlkc_wjb/student/pageListYjs`;
+/** Note: This page is accessible even with an invalid `qnrID` as long as you have access to the given `courseID`. */
+export const LEARN_QNR_SUBMIT_PAGE = (courseID: string, qnrID: string, type: QuestionnaireType) =>
+  `${LEARN_PREFIX}/f/wlxt/kcwj/wlkc_wjb/student/beforeAdd?wlkcid=${courseID}&wjid=${qnrID}&wjlx=${type}&jswj=no`;
+export const LEARN_QNR_DETAIL = `${LEARN_PREFIX}/b/wlxt/kcwj/wlkc_wjb/student/getWjnr`;
+
+export const LEARN_QNR_DETAIL_FORM = (courseID: string, qnrID: string) => {
+  const form = new FormData();
+  form.append('wlkcid', courseID);
+  form.append('wjid', qnrID);
+  return form;
+};
+
 export const WebsiteShowLanguage = {
   [Language.ZH]: 'zh_CN',
   [Language.EN]: 'en_US',
 };
 
 export const LEARN_WEBSITE_LANGUAGE = (lang: Language) =>
-  `https://learn.tsinghua.edu.cn/f/wlxt/common/language?websiteShowLanguage=${WebsiteShowLanguage[lang]}`;
+  `${LEARN_PREFIX}/f/wlxt/common/language?websiteShowLanguage=${WebsiteShowLanguage[lang]}`;
+
+export const LEARN_FAVORITE_ADD = (type: ContentType, id: string) =>
+  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/add?ywid=${id}&ywlx=${CONTENT_TYPE_MAP.get(type)}`;
+
+export const LEARN_FAVORITE_REMOVE = (id: string) => `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/delete?ywid=${id}`;
+
+export const LEARN_FAVORITE_LIST = (type?: ContentType) =>
+  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/pageList?ywlx=${type ? CONTENT_TYPE_MAP.get(type) : 'ALL'}`;
+
+export const LEARN_FAVORITE_PIN = `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/addZd`;
+
+export const LEARN_FAVORITE_UNPIN = `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/delZd`;
+
+export const LEARN_FAVORITE_PIN_UNPIN_FORM_DATA = (id: string) => {
+  const form = new FormData();
+  form.append('ywid', id);
+  return form;
+};
+
+export const LEARN_COMMENT_SET = `${LEARN_PREFIX}/b/wlxt/xt/wlkc_xsbjb/add`;
+
+export const LEARN_COMMENT_SET_FORM_DATA = (type: ContentType, id: string, content: string) => {
+  const form = new FormData();
+  form.append('ywlx', CONTENT_TYPE_MAP.get(type) ?? '');
+  form.append('ywid', id);
+  form.append('bznr', content);
+  return form;
+};
+
+export const LEARN_COMMENT_LIST = (type?: ContentType) =>
+  `${LEARN_PREFIX}/b/wlxt/xt/wlkc_xsbjb/student/pageList?ywlx=${type ? CONTENT_TYPE_MAP.get(type) : 'ALL'}`;
+
+export const LEARN_PAGE_LIST_FORM_DATA = (courseID?: string) => {
+  const form = new FormData();
+  form.append('aoData', JSON.stringify(courseID ? [{ name: 'wlkcid', value: courseID }] : []));
+  return form;
+};
+
+export const LEARN_SORT_COURSES = `${LEARN_PREFIX}/b/wlxt/kc/wlkc_kcpxb/addorUpdate`;
 
 export const REGISTRAR_TICKET_FORM_DATA = () => {
   const form = new FormData();
