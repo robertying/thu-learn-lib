@@ -64,7 +64,7 @@
     "url": "https://github.com/Harry-Chen/thu-learn-lib.git"
   },
   "devDependencies": {
-    "@types/node": "22.7.7",
+    "@types/node": "^22.9.0",
     "@types/tough-cookie": "^4.0.5",
     "@types/webextension-polyfill": "^0.12.1",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
@@ -74,7 +74,7 @@
     "eslint": "^9.13.0",
     "fake-parse5": "^0.0.1",
     "prettier": "^3.3.3",
-    "react-native-builder-bob": "^0.30.2",
+    "react-native-builder-bob": "^0.31.0",
     "terser": "^5.36.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.3",
