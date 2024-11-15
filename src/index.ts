@@ -414,6 +414,7 @@ export class Learn2018Helper {
           hasRead: n.sfyd === YES,
           markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
           publishTime: n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr,
+          expireTime: n.jzsj ?? undefined,
           isFavorite: n.sfsc === YES,
           comment: n.bznr ?? undefined,
         };
