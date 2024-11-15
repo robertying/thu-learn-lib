@@ -88,8 +88,8 @@
   "dependencies": {
     "cheerio": "1.0.0-rc.12",
     "entities": "^5.0.0",
+    "fetch-cookie": "^3.0.1",
     "js-base64": "^3.7.7",
-    "node-fetch-cookie-native": "^0.0.2",
     "node-fetch-native": "^1.6.4",
     "tough-cookie": "^5.0.0"
   },
