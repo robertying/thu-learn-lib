@@ -207,8 +207,8 @@ export interface IHomeworkDetail {
 }
 export type Homework = IHomework & IHomeworkDetail;
 export declare enum HomeworkCompletionType {
-    INDIVIDUA = 1,
-    GRUOP = 2
+    INDIVIDUAL = 1,
+    GROUP = 2
 }
 export declare enum HomeworkSubmissionType {
     WEB_LEARNING = 2,
