@@ -37,6 +37,7 @@ export declare class Learn2018Helper {
     getAllContents<T extends ContentType>(courseIDs: string[], type: T, courseType?: CourseType, allowFailure?: boolean): Promise<CourseContent<T>>;
     /** Get all notifications （课程公告） of the specified course. */
     getNotificationList(courseID: string, courseType?: CourseType): Promise<Notification[]>;
+    private getNotificationListKind;
     /** Get all files （课程文件） of the specified course. */
     getFileList(courseID: string, courseType?: CourseType): Promise<File[]>;
     /** Get file categories of the specified course. */
@@ -96,8 +97,9 @@ export declare class Learn2018Helper {
     getComments(courseID?: string, type?: ContentType): Promise<CommentItem[]>;
     sortCourses(courseIDs: string[]): Promise<void>;
     private getHomeworkListAtUrl;
+    private getExcellentHomeworkListByHomework;
     private parseNotificationDetail;
-    private parseHomeworkDetail;
+    private parseHomeworkAtUrl;
     private parseHomeworkFile;
     private parseDiscussionBase;
     submitHomework(id: string, content?: string, attachment?: IHomeworkSubmitAttachment, removeAttachment?: boolean): Promise<undefined>;

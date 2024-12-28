@@ -19,25 +19,27 @@ export declare const LEARN_FILE_LIST_BY_CATEGORY_TEACHER = "https://learn.tsingh
 export declare const LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA: (courseID: string, categoryId: string) => FormData;
 export declare const LEARN_FILE_DOWNLOAD: (fileID: string, courseType: CourseType) => string;
 export declare const LEARN_FILE_PREVIEW: (type: ContentType, fileID: string, courseType: CourseType, firstPageOnly?: boolean) => string;
-export declare const LEARN_NOTIFICATION_LIST: (courseID: string, courseType: CourseType) => string;
+export declare const LEARN_NOTIFICATION_LIST: (courseType: CourseType, expired: boolean) => string;
 export declare const LEARN_NOTIFICATION_DETAIL: (courseID: string, notificationID: string, courseType: CourseType) => string;
 export declare const LEARN_NOTIFICATION_EDIT: (courseType: CourseType) => string;
-export declare const LEARN_HOMEWORK_LIST_SOURCE: (courseID: string) => {
+export declare const LEARN_HOMEWORK_LIST_NEW = "https://learn.tsinghua.edu.cn/b/wlxt/kczy/zy/student/zyListWj";
+export declare const LEARN_HOMEWORK_LIST_SUBMITTED = "https://learn.tsinghua.edu.cn/b/wlxt/kczy/zy/student/zyListYjwg";
+export declare const LEARN_HOMEWORK_LIST_GRADED = "https://learn.tsinghua.edu.cn/b/wlxt/kczy/zy/student/zyListYpg";
+export declare const LEARN_HOMEWORK_LIST_EXCELLENT = "https://learn.tsinghua.edu.cn/b/wlxt/kczy/zy/student/yxzylist";
+export declare const LEARN_HOMEWORK_LIST_SOURCE: {
     url: string;
     status: {
         submitted: boolean;
         graded: boolean;
     };
 }[];
-export declare const LEARN_HOMEWORK_LIST_NEW: (courseID: string) => string;
-export declare const LEARN_HOMEWORK_LIST_SUBMITTED: (courseID: string) => string;
-export declare const LEARN_HOMEWORK_LIST_GRADED: (courseID: string) => string;
 export declare const LEARN_HOMEWORK_DETAIL: (courseID: string, id: string) => string;
+export declare const LEARN_HOMEWORK_DETAIL_EXCELLENT: (courseID: string, id: string) => string;
 export declare const LEARN_HOMEWORK_DOWNLOAD: (courseID: string, attachmentID: string) => string;
 export declare const LEARN_HOMEWORK_SUBMIT_PAGE: (courseID: string, id: string) => string;
 export declare const LEARN_HOMEWORK_SUBMIT: () => string;
 export declare const LEARN_HOMEWORK_SUBMIT_FORM_DATA: (id: string, content?: string, attachment?: IHomeworkSubmitAttachment, removeAttachment?: boolean) => FormData;
-export declare const LEARN_HOMEWORK_LIST_TEACHER: (courseID: string) => string;
+export declare const LEARN_HOMEWORK_LIST_TEACHER = "https://learn.tsinghua.edu.cn/b/wlxt/kczy/zy/teacher/pageList";
 export declare const LEARN_HOMEWORK_DETAIL_TEACHER: (courseID: string, homeworkID: string) => string;
 export declare const LEARN_DISCUSSION_LIST: (courseID: string, courseType: CourseType) => string;
 export declare const LEARN_DISCUSSION_DETAIL: (courseID: string, boardID: string, discussionID: string, courseType: CourseType, tabId?: number) => string;
