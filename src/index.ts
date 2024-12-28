@@ -39,6 +39,9 @@ import {
   RemoteFile,
   SemesterInfo,
   UserInfo,
+  ExcellentHomework,
+  IExcellentHomework,
+  IHomework,
 } from './types';
 import * as URLS from './urls';
 import {
@@ -992,35 +995,101 @@ export class Learn2018Helper {
 
     const result = (json.object?.aaData ?? []) as any[];
 
+    let excellentHomeworkListByHomework: { [id: string]: ExcellentHomework[] } = {};
+    try {
+      excellentHomeworkListByHomework = await this.getExcellentHomeworkListByHomework(courseID);
+    } catch (e) {
+      // Don't block the whole process if excellent homework list cannot be fetched
+    }
+
     return Promise.all(
-      result.map(
-        async (h) =>
-          ({
-            id: h.xszyid,
-            studentHomeworkId: h.xszyid,
-            baseId: h.zyid,
-            title: decodeHTML(h.bt),
-            url: URLS.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.xszyid),
-            deadline: h.jzsj,
-            lateSubmissionDeadline: h.bjjzsj ?? undefined,
-            isLateSubmission: h.sfbj === YES,
-            completionType: h.zywcfs,
-            submissionType: h.zytjfs,
-            submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
-            submitTime: h.scsj === null ? undefined : h.scsj,
-            grade: h.cj === null ? undefined : h.cj,
-            gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
-            graderName: trimAndDefine(h.jsm),
-            gradeContent: trimAndDefine(h.pynr),
-            gradeTime: h.pysj === null ? undefined : h.pysj,
-            isFavorite: h.sfsc === YES,
-            favoriteTime: h.scsj === null || h.sfsc !== YES ? undefined : h.scsj,
-            comment: h.bznr ?? undefined,
-            ...status,
-            ...(await this.parseHomeworkDetail(h.wlkcid, h.xszyid)),
-          }) satisfies Homework,
-      ),
+      result
+        .map(
+          (h) =>
+            ({
+              id: h.xszyid,
+              studentHomeworkId: h.xszyid,
+              baseId: h.zyid,
+              title: decodeHTML(h.bt),
+              url: URLS.LEARN_HOMEWORK_DETAIL(h.wlkcid, h.xszyid),
+              deadline: h.jzsj,
+              lateSubmissionDeadline: h.bjjzsj ? h.bjjzsj : undefined,
+              isLateSubmission: h.sfbj === YES,
+              completionType: h.zywcfs,
+              submissionType: h.zytjfs,
+              submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
+              submitTime: h.scsj === null ? undefined : h.scsj,
+              grade: h.cj === null ? undefined : h.cj,
+              gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
+              graderName: trimAndDefine(h.jsm),
+              gradeContent: trimAndDefine(h.pynr),
+              gradeTime: h.pysj === null ? undefined : h.pysj,
+              isFavorite: h.sfsc === YES,
+              favoriteTime: h.scsj === null || h.sfsc !== YES ? undefined : h.scsj,
+              comment: h.bznr ?? undefined,
+              excellentHomeworkList: excellentHomeworkListByHomework[h.zyid],
+              ...status,
+            }) satisfies IHomework,
+        )
+        .map(
+          async (h) =>
+            ({
+              ...h,
+              ...(await this.parseHomeworkAtUrl(h.url)),
+            }) satisfies Homework,
+        ),
     );
+  }
+
+  private async getExcellentHomeworkListByHomework(courseID: string): Promise<{ [id: string]: ExcellentHomework[] }> {
+    const json = await (
+      await this.#myFetchWithToken(URLS.LEARN_HOMEWORK_LIST_EXCELLENT, {
+        method: 'POST',
+        body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+      })
+    ).json();
+    if (json.result !== 'success') {
+      return Promise.reject({
+        reason: FailReason.INVALID_RESPONSE,
+        extra: json,
+      } as ApiError);
+    }
+
+    const result = (json.object?.aaData ?? []) as any[];
+
+    return (
+      await Promise.all(
+        result
+          .map(
+            (h) =>
+              ({
+                id: h.xszyid,
+                baseId: h.zyid,
+                title: decodeHTML(h.bt),
+                url: URLS.LEARN_HOMEWORK_DETAIL_EXCELLENT(h.wlkcid, h.xszyid),
+                completionType: h.zywcfs,
+                author: {
+                  id: h.cy?.split(' ')?.[0],
+                  name: h.cy?.split(' ')?.[1],
+                  anonymous: h.sfzm === YES,
+                },
+              }) satisfies IExcellentHomework,
+          )
+          .map(
+            async (h) =>
+              ({
+                ...h,
+                ...(await this.parseHomeworkAtUrl(h.url)),
+              }) satisfies ExcellentHomework,
+          ),
+      )
+    ).reduce<{ [id: string]: ExcellentHomework[] }>((acc, cur) => {
+      if (!acc[cur.baseId]) {
+        acc[cur.baseId] = [];
+      }
+      acc[cur.baseId].push(cur);
+      return acc;
+    }, {});
   }
 
   private async parseNotificationDetail(
@@ -1064,8 +1133,8 @@ export class Learn2018Helper {
     };
   }
 
-  private async parseHomeworkDetail(courseID: string, id: string): Promise<IHomeworkDetail> {
-    const response = await this.#myFetchWithToken(URLS.LEARN_HOMEWORK_DETAIL(courseID, id));
+  private async parseHomeworkAtUrl(url: string): Promise<IHomeworkDetail> {
+    const response = await this.#myFetchWithToken(url);
     const result = $(await response.text());
 
     const fileDivs = result('div.list.fujian.clearfix');
