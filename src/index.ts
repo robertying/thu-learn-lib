@@ -53,6 +53,7 @@ import {
   extractJSONPResult,
   formatFileSize,
   parseSemesterType,
+  replaceLatexWithSource,
   trimAndDefine,
 } from './utils';
 
@@ -1138,6 +1139,8 @@ export class Learn2018Helper {
     const result = $(await response.text());
 
     const fileDivs = result('div.list.fujian.clearfix');
+
+    replaceLatexWithSource(result);
 
     return {
       description: trimAndDefine(result('div.list.calendar.clearfix > div.fl.right > div.c55').slice(0, 1).html()),
