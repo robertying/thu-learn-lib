@@ -1,5 +1,4 @@
 import { decodeHTML as _decodeHTML } from 'entities';
-import * as cheerio from 'cheerio';
 
 import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types';
 
@@ -38,13 +37,6 @@ export function decodeHTML(html: string): string {
       : text.startsWith('\xE9\x65')
         ? text.slice(2)
         : text;
-}
-
-// Remove rendered latex and replace it with the original latex source
-export function replaceLatexWithSource(result: cheerio.CheerioAPI): void {
-  const mathTexSpan = result('span.math-tex');
-  const latexSourceScript = mathTexSpan.find('script[type="math/tex"]');
-  mathTexSpan.replaceWith(latexSourceScript);
 }
 
 export function trimAndDefine(text: string | undefined | null): string | undefined {
