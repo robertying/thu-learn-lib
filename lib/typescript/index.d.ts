@@ -11,8 +11,9 @@ export declare class Learn2018Helper {
     getCSRFToken(): string;
     /** manually set CSRF token (useful when you want to reuse previous token) */
     setCSRFToken(csrfToken: string): void;
+    getRoamingTicket(username: string, password: string, fingerPrint: string, fingerGenPrint?: string, fingerGenPrint3?: string): Promise<string>;
     /** login is necessary if you do not provide a `CredentialProvider` */
-    login(username?: string, password?: string): Promise<void>;
+    login(username?: string, password?: string, fingerPrint?: string, fingerGenPrint?: string, fingerGenPrint3?: string): Promise<void>;
     /**  logout (to make everyone happy) */
     logout(): Promise<void>;
     /** get user's name and department */

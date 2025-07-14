@@ -2,7 +2,7 @@ import { ContentType, CourseType, IHomeworkSubmitAttachment, Language, Questionn
 export declare const LEARN_PREFIX = "https://learn.tsinghua.edu.cn";
 export declare const REGISTRAR_PREFIX = "https://zhjw.cic.tsinghua.edu.cn";
 export declare const ID_LOGIN: () => string;
-export declare const ID_LOGIN_FORM_DATA: (username: string, password: string) => FormData;
+export declare const ID_LOGIN_CHECK: () => string;
 export declare const LEARN_AUTH_ROAM: (ticket: string) => string;
 export declare const LEARN_LOGOUT: () => string;
 export declare const LEARN_HOMEPAGE: (courseType: CourseType) => "https://learn.tsinghua.edu.cn/f/wlxt/index/course/student/" | "https://learn.tsinghua.edu.cn/f/wlxt/index/course/teacher/";

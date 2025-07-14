@@ -3,6 +3,9 @@ export type Fetch = typeof globalThis.fetch;
 export type Credential = {
     username?: string;
     password?: string;
+    fingerPrint?: string;
+    fingerGenPrint?: string;
+    fingerGenPrint3?: string;
 };
 export type CredentialProvider = () => Credential | Promise<Credential>;
 export type HelperConfig = {
