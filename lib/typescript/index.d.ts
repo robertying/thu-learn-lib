@@ -11,6 +11,10 @@ export declare class Learn2018Helper {
     getCSRFToken(): string;
     /** manually set CSRF token (useful when you want to reuse previous token) */
     setCSRFToken(csrfToken: string): void;
+    /**
+     * If using alternative cookie management systems,
+     * be sure to clear id.tsinghua.edu.cn cookies before calling this function
+     */
     getRoamingTicket(username: string, password: string, fingerPrint: string, fingerGenPrint?: string, fingerGenPrint3?: string): Promise<string>;
     /** login is necessary if you do not provide a `CredentialProvider` */
     login(username?: string, password?: string, fingerPrint?: string, fingerGenPrint?: string, fingerGenPrint3?: string): Promise<void>;
