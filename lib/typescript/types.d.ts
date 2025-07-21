@@ -23,7 +23,8 @@ export declare enum FailReason {
     NOT_IMPLEMENTED = "not implemented",
     INVALID_RESPONSE = "invalid response",
     UNEXPECTED_STATUS = "unexpected status",
-    OPERATION_FAILED = "operation failed"
+    OPERATION_FAILED = "operation failed",
+    ERROR_SETTING_COOKIES = "could not set cookies"
 }
 export interface ApiError {
     reason: FailReason;
