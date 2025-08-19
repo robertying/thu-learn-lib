@@ -1191,11 +1191,6 @@ export class Learn2018Helper {
 
     const fileDivs = result('div.list.fujian.clearfix');
 
-    // Fix latex rendering
-    result('.MathJax').removeAttr('data-mathml');
-    result('nobr[aria-hidden="true"]').remove();
-    result("script[type='math/tex']").remove();
-
     return {
       description: trimAndDefine(result('div.list.calendar.clearfix > div.fl.right > div.c55').slice(0, 1).html()),
       answerContent: trimAndDefine(result('div.list.calendar.clearfix > div.fl.right > div.c55').slice(1, 2).html()),
