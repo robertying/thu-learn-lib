@@ -105,6 +105,7 @@ export declare class Learn2018Helper {
     private getExcellentHomeworkListByHomework;
     private parseNotificationDetail;
     private parseHomeworkAtUrl;
+    private getHomeworkDetail;
     private parseHomeworkFile;
     private parseDiscussionBase;
     submitHomework(id: string, content?: string, attachment?: IHomeworkSubmitAttachment, removeAttachment?: boolean): Promise<undefined>;

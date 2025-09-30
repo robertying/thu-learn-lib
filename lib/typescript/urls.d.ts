@@ -34,8 +34,10 @@ export declare const LEARN_HOMEWORK_LIST_SOURCE: {
         graded: boolean;
     };
 }[];
-export declare const LEARN_HOMEWORK_DETAIL: (courseID: string, id: string) => string;
-export declare const LEARN_HOMEWORK_DETAIL_EXCELLENT: (courseID: string, id: string) => string;
+export declare const LEARN_HOMEWORK_PAGE: (courseID: string, id: string) => string;
+export declare const LEARN_HOMEWORK_EXCELLENT_PAGE: (courseID: string, id: string) => string;
+export declare const LEARN_HOMEWORK_DETAIL = "https://learn.tsinghua.edu.cn/b/wlxt/kczy/zy/student/detail";
+export declare const LEARN_HOMEWORK_DETAIL_FORM_DATA: (baseId: string) => FormData;
 export declare const LEARN_HOMEWORK_DOWNLOAD: (courseID: string, attachmentID: string) => string;
 export declare const LEARN_HOMEWORK_SUBMIT_PAGE: (courseID: string, id: string) => string;
 export declare const LEARN_HOMEWORK_SUBMIT: () => string;
