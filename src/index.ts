@@ -478,7 +478,7 @@ export class Learn2018Helper {
       result.map(async (n) => {
         const notification: INotification = {
           id: n.ggid,
-          content: decodeHTML(Base64.decode(n.ggnr ?? '')),
+          content: Base64.decode(n.ggnr ?? ''),
           title: decodeHTML(n.bt),
           url: URLS.LEARN_NOTIFICATION_DETAIL(courseID, n.ggid, courseType),
           publisher: n.fbrxm,
