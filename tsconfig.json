@@ -4,7 +4,8 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "strict": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "rootDir": "./src"
   },
   "include": ["src"]
 }
