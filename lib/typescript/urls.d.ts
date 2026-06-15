@@ -1,4 +1,4 @@
-import { ContentType, CourseType, IHomeworkSubmitAttachment, Language, QuestionnaireType } from './types';
+import { ContentType, CourseType, IHomeworkSubmitAttachment, Language, QuestionnaireType } from './types.js';
 export declare const ID_PREFIX = "https://id.tsinghua.edu.cn";
 export declare const LEARN_PREFIX = "https://learn.tsinghua.edu.cn";
 export declare const REGISTRAR_PREFIX = "https://zhjw.cic.tsinghua.edu.cn";

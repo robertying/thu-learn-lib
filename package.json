@@ -46,25 +46,25 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.3",
     "@types/sm-crypto": "^0.3.4",
     "@types/tough-cookie": "^4.0.5",
     "@types/webextension-polyfill": "^0.12.5",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
     "domhandler": "^6.0.1",
     "dotenv": "^17.4.2",
-    "eslint": "^10.4.1",
+    "eslint": "^10.5.0",
     "fake-parse5": "^0.0.2",
-    "prettier": "^3.8.3",
-    "react-native-builder-bob": "^0.41.0",
+    "prettier": "^3.8.4",
+    "react-native-builder-bob": "^0.42.1",
     "terser": "^5.48.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vite": "^8.0.14",
+    "typescript-eslint": "^8.61.0",
+    "vite": "^8.0.16",
     "vite-plugin-web-extension": "^4.5.1",
-    "vitest": "^4.1.7",
+    "vitest": "^4.1.8",
     "webextension-polyfill": "^0.12.0"
   },
   "dependencies": {
@@ -76,5 +76,5 @@
     "sm-crypto": "^0.4.0",
     "tough-cookie": "4.1.4"
   },
-  "packageManager": "yarn@4.15.0+sha512.07ec708ac11e2eaa4ea2b04cfbb272812f7e74a753f1595eaef4486c663a98306a30cca3e6fc40f7a0b168dcfb3a2490b6a5e0501e20fb69cc36f563dd161c53"
+  "packageManager": "yarn@4.16.0+sha512.5374c94eb4ef6aa8188fb112f20c1aa6569f248d676c5e576e1fd2a1a4d8d87a96df65d9dfe1c2a0252cbe38bda46cf18d955005b81b43cc7607a5c9d56fd2b6"
 }

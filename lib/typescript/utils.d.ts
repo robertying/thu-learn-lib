@@ -1,4 +1,4 @@
-import { ContentType, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types';
+import { ContentType, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.js';
 export declare function parseSemesterType(n: number): SemesterType;
 export declare function getMkFromType(type: ContentType): string;
 export declare function decodeHTML(html: string): string;

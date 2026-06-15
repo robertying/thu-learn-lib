@@ -1,4 +1,4 @@
-import { CalendarEvent, CommentItem, ContentType, CourseContent, CourseInfo, CourseType, Discussion, FavoriteItem, File, FileCategory, HelperConfig, Homework, HomeworkTA, IHomeworkSubmitAttachment, Language, Notification, Questionnaire, Question, SemesterInfo, UserInfo } from './types';
+import { CalendarEvent, CommentItem, ContentType, CourseContent, CourseInfo, CourseType, Discussion, FavoriteItem, File, FileCategory, HelperConfig, Homework, HomeworkTA, IHomeworkSubmitAttachment, Language, Notification, Questionnaire, Question, SemesterInfo, UserInfo } from './types.js';
 /** add CSRF token to any request URL as parameters */
 export declare const addCSRFTokenToUrl: (url: string, token: string) => string;
 /** the main helper class */
@@ -112,5 +112,5 @@ export declare class Learn2018Helper {
     setLanguage(lang: Language): Promise<void>;
     getCurrentLanguage(): Language;
 }
-export * from './types';
+export * from './types.js';
 //# sourceMappingURL=index.d.ts.map
