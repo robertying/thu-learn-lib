@@ -421,6 +421,24 @@ export interface CalendarEvent {
   courseName: string;
 }
 
+export interface CalendarOptions {
+  /** use the graduate calendar instead of the undergraduate one */
+  graduate?: boolean;
+}
+
+/** an inclusive date range, in yyyymmdd format */
+export interface CalendarRange {
+  startDate: string;
+  endDate: string;
+}
+
+export interface CalendarResult {
+  /** events of every window that succeeded, in date order */
+  events: CalendarEvent[];
+  /** windows that failed even after a retry; empty when the whole range was fetched */
+  failedRanges: CalendarRange[];
+}
+
 export enum Language {
   ZH = 'zh',
   EN = 'en',

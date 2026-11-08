@@ -103,7 +103,7 @@ describe('helper data retrival', () => {
   });
 
   it('should get calendar items correctly and throw on invalid response', async () => {
-    expect((await h.getCalendar('20210501', '20210530')).length).toBeGreaterThanOrEqual(0);
+    expect((await h.getCalendar('20210501', '20210530')).events.length).toBeGreaterThanOrEqual(0);
     // await expect(h.getCalendar('gg', 'GG')).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
   });
 });
