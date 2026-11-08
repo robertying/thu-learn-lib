@@ -1,11 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es2018",
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "strict": true,
-    "esModuleInterop": true,
-    "rootDir": "./src"
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"],
+    "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src", "test", "*.ts"]
 }

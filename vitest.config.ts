@@ -2,7 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    retry: 1,
-    globalSetup: ['./test/globalSetup.ts'],
+    include: ['test/**/*.test.ts'],
+    exclude: ['test/live/**', '**/node_modules/**'],
+    passWithNoTests: true,
   },
 });

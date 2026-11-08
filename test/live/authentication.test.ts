@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Learn2018Helper, FailReason } from '../src';
-import { U, P } from './config';
+import { Learn2018Helper, FailReason } from '../../src/index.ts';
+import { U, P } from './config.ts';
 
 describe('helper authentication', () => {
   it('should login & logout correctly if account is right', async () => {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { CourseType, Language, Learn2018Helper } from '../src';
-import { config } from './config';
+import { CourseType, Language, Learn2018Helper } from '../../src/index.ts';
+import { config } from './config.ts';
 
 describe('helper data retrival', () => {
   const h = new Learn2018Helper(config);

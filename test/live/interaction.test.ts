@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ContentType, Language, Learn2018Helper } from '../src';
-import { config } from './config';
+import { ContentType, Language, Learn2018Helper } from '../../src/index.ts';
+import { config } from './config.ts';
 
 describe('helper interaction', () => {
   const h = new Learn2018Helper(config);
@@ -29,7 +29,7 @@ describe('helper interaction', () => {
 
     if (courseTester) {
       const noti = (await h.getNotificationList(courseTester)).find((n) => !oldFavorites.find((f) => f.id === n.id));
-      const hw = (await h.getHomeworkList(courseTester)).find((hw) => !oldFavorites.find((f) => f.id === hw.id));
+      const hw = (await h.getHomeworkList(courseTester)).find((item) => !oldFavorites.find((f) => f.id === item.id));
       const file = (await h.getFileList(courseTester)).find((f) => !oldFavorites.find((fav) => fav.id === f.id));
       const discuss = (await h.getDiscussionList(courseTester)).find((d) => !oldFavorites.find((f) => f.id === d.id));
       if (noti) await h.addToFavorites(ContentType.NOTIFICATION, noti.id);

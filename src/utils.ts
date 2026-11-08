@@ -1,6 +1,6 @@
 import { decodeHTML as _decodeHTML } from 'entities';
 
-import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types';
+import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.ts';
 
 export function parseSemesterType(n: number): SemesterType {
   if (n === 1) {
@@ -83,6 +83,7 @@ export function extractJSONPResult(jsonp: string): any {
     throw FailReason.INVALID_RESPONSE;
   }
   // evaluate the result
+  // oxlint-disable-next-line typescript/no-implied-eval -- JSONP from the registrar is a JS expression, not JSON
   return Function(`"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`)();
 }
 
