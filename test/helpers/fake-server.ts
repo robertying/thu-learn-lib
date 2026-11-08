@@ -55,6 +55,12 @@ export class FakeServer {
   lang: 'zh' | 'en' = 'zh';
   /** extra HTML in the student homepage (which is also where login reads the CSRF token) */
   homepageBody = '';
+  /** milliseconds every request takes before its response arrives */
+  latency = 0;
+  /** requests waiting for their response right now */
+  inFlight = 0;
+  /** the most requests that were ever in flight at once */
+  maxInFlight = 0;
 
   constructor() {
     this.on(
@@ -139,7 +145,14 @@ export class FakeServer {
   on(method: string, url: string, handler: Handler, options: { public?: boolean } = {}) {
     const key = `${method} ${stripQuery(new URL(url))}`;
     const isPublic = options.public ?? false;
-    this.#routes.set(key, (req) => (isPublic || this.#loggedIn ? handler(req) : new Response('', { status: 403 })));
+    this.#routes.set(key, (req) => {
+      if (isPublic) return handler(req);
+      if (!this.#loggedIn) return new Response('', { status: 403 });
+      // a token from an earlier login is rejected like an expired session
+      const token = req.url.searchParams.get('_csrf');
+      if (token !== null && token !== this.csrfToken) return new Response('', { status: 403 });
+      return handler(req);
+    });
     return this;
   }
 
@@ -166,9 +179,26 @@ export class FakeServer {
       body: typeof init?.body === 'string' ? init.body : undefined,
     };
     this.requests.push(req);
-    const handler = this.#routes.get(`${method} ${req.path}`);
-    if (!handler) return new Response(`no route for ${method} ${url.href}`, { status: 404 });
-    return handler(req);
+    this.inFlight += 1;
+    this.maxInFlight = Math.max(this.maxInFlight, this.inFlight);
+    try {
+      const signal = init?.signal;
+      signal?.throwIfAborted();
+      const respond = async () => {
+        if (this.latency > 0) await new Promise((resolve) => setTimeout(resolve, this.latency));
+        // the session is checked when the request reaches the server, after the latency
+        const handler = this.#routes.get(`${method} ${req.path}`);
+        if (!handler) return new Response(`no route for ${method} ${url.href}`, { status: 404 });
+        return await handler(req);
+      };
+      if (!signal) return await respond();
+      return await new Promise<Response>((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        respond().then(resolve, reject);
+      });
+    } finally {
+      this.inFlight -= 1;
+    }
   };
 
   /** a helper that talks to this server */

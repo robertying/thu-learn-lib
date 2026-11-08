@@ -14,6 +14,10 @@ export type HelperConfig = {
   fetch?: Fetch;
   cookieJar?: CookieJar;
   generatePreviewUrlForFirstPage?: boolean;
+  /** at most this many requests in flight at once, including login (default 6; `Infinity` for no limit) */
+  maxConcurrentRequests?: number;
+  /** milliseconds to wait for a response before rejecting with `FailReason.REQUEST_TIMEOUT` (default 60000; 0 for none) */
+  requestTimeout?: number;
 };
 
 export enum FailReason {
@@ -27,6 +31,7 @@ export enum FailReason {
   UNEXPECTED_STATUS = 'unexpected status',
   OPERATION_FAILED = 'operation failed',
   ERROR_SETTING_COOKIES = 'could not set cookies',
+  REQUEST_TIMEOUT = 'request timed out',
 }
 
 export interface ApiError {
