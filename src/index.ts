@@ -30,6 +30,7 @@ import type {
   ContentType,
 } from './types.ts';
 import { CourseType } from './types.ts';
+import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
 export { addCSRFTokenToUrl } from './request.ts';
@@ -41,7 +42,7 @@ export class Learn2018Helper {
 
   /** you can provide a CookieJar and / or CredentialProvider in the configuration */
   constructor(config?: HelperConfig) {
-    this.#session = new Session(config, () => this.login());
+    this.#session = new Session(config, () => auth.login(this.#session));
   }
 
   /** whether preview URLs open the first page only (`HelperConfig.generatePreviewUrlForFirstPage`) */
@@ -77,7 +78,10 @@ export class Learn2018Helper {
     return auth.getRoamingTicket(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
   }
 
-  /** login is necessary if you do not provide a `CredentialProvider` */
+  /**
+   * Login is necessary if you do not provide a `CredentialProvider`.
+   * Without credentials it uses the provider, and concurrent calls share one SSO login.
+   */
   public async login(
     username?: string,
     password?: string,
@@ -85,7 +89,17 @@ export class Learn2018Helper {
     fingerGenPrint?: string,
     fingerGenPrint3?: string,
   ): Promise<void> {
+    if (!username || !password || !fingerPrint) return this.#session.relogin();
     return auth.login(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
+  }
+
+  /**
+   * Make sure the session is usable without a full SSO login when possible: with a CSRF token (from an earlier login
+   * or `setCSRFToken`), make one cheap request and log in again only if the session has expired; without one, log in.
+   * Use it when resuming an app instead of `login()`.
+   */
+  public async ensureSession(): Promise<void> {
+    return this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER());
   }
 
   /**  logout (to make everyone happy) */
