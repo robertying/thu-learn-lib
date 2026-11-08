@@ -163,7 +163,7 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
   - `logout` forgets the CSRF token, so the next request logs in instead of sending the old token
   - `getFileList` still returns the files (without `category`) when the category list fails
   - `getQuestionnaireList(courseID, { details })` can skip the questions (one request per questionnaire; default still `'all'`), with `getQuestionnaireDetail(courseID, questionnaireID)` on demand; `detail` is now optional
-  - Live tests need a fingerprint, use readable `.env` names (`THU_USERNAME`, `THU_PASSWORD`, `THU_FINGERPRINT`, `STUDENT_SEMESTER`, …; see `test/live/template.env`) and cover session expiry and resume, on-demand details and windowed calendar
+  - Live tests need a fingerprint, use readable `.env` names (`USERNAME`, `PASSWORD`, `FINGERPRINT`, `STUDENT_SEMESTER`, …; see `test/live/template.env`) and cover session expiry and resume, on-demand details and windowed calendar
 - v5.0.0
   - (_BREAKING CHANGE_) Per-item detail requests are opt-in: `getHomeworkList(id, CourseType.STUDENT, { details })`, `getNotificationList(id, type, { attachments })` (notices get `attachmentName`), `getCourseList(semester, type, lang, { timeAndLocation })` (`timeAndLocation` is now optional); fetch the rest on demand with `getHomeworkDetail`, `getExcellentHomeworkDetail`, `getNotificationAttachment` and `getCourseTimeAndLocation`
   - (_BREAKING CHANGE_) The excellent homework list is fetched once per course and comes without details
