@@ -37,12 +37,10 @@ async function getNotificationListKind(
   courseType: CourseType,
   expired: boolean,
 ): Promise<INotification[]> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_NOTIFICATION_LIST(courseType, expired), {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_NOTIFICATION_LIST(courseType, expired), {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -73,7 +71,7 @@ async function getNotificationListKind(
 
 /**
  * Get the attachment of a notice from its detail page (1 request), or `undefined` without a request if
- * `attachmentName` says it has none.
+ * `attachmentName` says it has none, or if the page has no attachment link.
  */
 export async function getNotificationAttachment(
   s: Session,
@@ -85,21 +83,18 @@ export async function getNotificationAttachment(
   // const postParams = new FormData();
   // postParams.append('id', id);
   // postParams.append('wlkcid', courseID);
-  // const metadata = await (await s.fetchWithToken(URL.LEARN_NOTIFICATION_EDIT(courseType), {
+  // const metadata = await s.fetchJsonWithToken(URL.LEARN_NOTIFICATION_EDIT(courseType), {
   //   'method': 'POST',
   //   'body': postParams,
-  // })).json();
+  // });
   // const attachmentId = metadata.ggfjid as string;
   /// parsed from HTML
   const response = await s.fetchWithToken(notification.url);
   const result = $(await response.text());
-  let path = '';
-  if (courseType === CourseType.STUDENT) {
-    path = result('.ml-10').attr('href')!;
-  } else {
-    path = result('#wjid').attr('href')!;
-  }
-  const size = trimAndDefine(result('div#attachment > div.fl > span[class^="color"]').first().text())!;
+  let path = (courseType === CourseType.STUDENT ? result('.ml-10') : result('#wjid')).attr('href');
+  // the page has no attachment link (removed since the list was fetched, or the page changed)
+  if (!path) return undefined;
+  const size = trimAndDefine(result('div#attachment > div.fl > span[class^="color"]').first().text()) ?? '';
   const params = new URLSearchParams(path.split('?').slice(-1)[0]);
   const attachmentId = params.get('wjid')!;
   if (!path.startsWith(URLS.LEARN_PREFIX)) {

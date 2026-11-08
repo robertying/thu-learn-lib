@@ -36,7 +36,7 @@ Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and for
 
 ## Releasing
 
-Bump `version` in `package.json`, merge, then push a matching tag (for example `git tag v4.1.0 && git push origin v4.1.0`). The Release workflow checks, builds, publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release.
+Bump `version` in `package.json`, merge, then push a matching tag (for example `git tag v5.1.0 && git push origin v5.1.0`). The Release workflow checks, builds, publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release.
 
 ## Usage
 
@@ -63,6 +63,8 @@ const helper = new Learn2018Helper({
 // again and retries once when a request finds the session expired, so we strongly recommend it.
 
 // Without a CredentialProvider you must log in yourself. With one, the first request logs in.
+// When resuming with a saved CSRF token (setCSRFToken) and cookie jar, call `await helper.ensureSession()`:
+// it logs in again only if the session has expired.
 try {
   await helper.login(username, password, fingerPrint);
 } catch (e) {
@@ -107,13 +109,20 @@ const files = await helper.getFileList(course.id);
 const homework = await helper.getHomeworkList(course.id);
 const questions = await helper.getAnsweredQuestionList(course.id);
 
-// get content from bunches of courses
-// the return type will be { [id: string]: Content }
-// where Content = Notification | File | Homework | Discussion | Question
-const homeworks = await helper.getAllContents([1, 2, 3], ContentType.HOMEWORK);
+// details cost extra requests per item, so they are opt-in; fetch the rest on demand
+const withDetails = await helper.getHomeworkList(course.id, undefined, { details: (h) => !h.submitted });
+const detail = await helper.getHomeworkDetail(homework[0]);
+const attachment = await helper.getNotificationAttachment(notifications[0]);
+
+// get one type of content from many courses; a course that fails is in `errors` instead of failing the rest
+const { contents, errors } = await helper.getAllContents(
+  courses.map((c) => c.id),
+  ContentType.HOMEWORK,
+  { details: 'none' },
+);
 
 // get course calendar in a period (yyyymmdd, inclusive)
-// ranges over 28 days are fetched in windows; windows that fail even after a retry are in failedRanges
+// ranges over 28 days are fetched in windows; windows that still fail are in failedRanges
 try {
   const { events, failedRanges } = await helper.getCalendar('20191001', '20191201', { graduate: false });
 } catch (e) {
@@ -137,6 +146,23 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
 
 ## Changelog
 
+- v5.1.0
+  - Treat a 200 HTML page where JSON was expected as an expired session: log in again and retry once, like a 403
+  - `ensureSession` checks the probe's body (the current semester) instead of only its status
+  - Logins never overlap: `login(username, password, fingerPrint)` waits for a login in progress, and requests that find the session expired during it wait for it instead of starting another SSO login
+  - `submitHomework` with an attachment has no timeout (the response only starts after the upload)
+  - A caller's `signal` can still cancel reading a body after the headers arrived
+  - `getCalendar`: timed-out windows are not retried, and after two in a row the rest go to `failedRanges` without a request; an invalid date throws a `RangeError`; a bad JSONP body rejects with an `ApiError` (`INVALID_RESPONSE`) instead of a bare string
+  - `getNotificationAttachment` returns `undefined` when the detail page has no attachment link, instead of throwing
+  - `getHomeworkList(courseID, undefined, options)` type-checks; `getAllContents` rejects homework of a teacher course with `NOT_IMPLEMENTED` instead of returning student data
+  - Supports Node 22 and later (was 26)
+- v5.0.0
+  - (_BREAKING CHANGE_) Per-item detail requests are opt-in: `getHomeworkList(id, CourseType.STUDENT, { details })`, `getNotificationList(id, type, { attachments })` (notices get `attachmentName`), `getCourseList(semester, type, lang, { timeAndLocation })` (`timeAndLocation` is now optional); fetch the rest on demand with `getHomeworkDetail`, `getExcellentHomeworkDetail`, `getNotificationAttachment` and `getCourseTimeAndLocation`
+  - (_BREAKING CHANGE_) The excellent homework list is fetched once per course and comes without details
+  - (_BREAKING CHANGE_) `getAllContents(ids, type, { courseType, details })` returns `{ contents, errors }` and no longer rejects when a course fails
+  - (_BREAKING CHANGE_) `getCalendar(start, end, { graduate })` fetches ranges over 28 days in windows and returns `{ events, failedRanges }`
+  - Requests are capped (`maxConcurrentRequests`, default 6) and time out (`requestTimeout`, default 60 s, `FailReason.REQUEST_TIMEOUT`); concurrent re-logins share one SSO login
+  - `ensureSession()` resumes a saved session (CSRF token + cookies) and logs in only if it has expired
 - v4.1.0
   - Published as `@robertying/thu-learn-lib`
   - Tooling: pnpm, TypeScript 7 (`tsc` ESM + `.d.ts` build), oxlint + oxfmt, Vitest 5, Node 26

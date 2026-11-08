@@ -7,7 +7,7 @@ import { JSONP_EXTRACTOR_NAME } from '../src/utils.ts';
 import type { Request } from './helpers/fake-server.ts';
 import { FakeServer, html } from './helpers/fake-server.ts';
 
-const setup = (calendar: (req: Request) => Response) =>
+const setup = (calendar: (req: Request) => Response | Promise<Response>) =>
   new FakeServer()
     .on('POST', URLS.REGISTRAR_TICKET(), () => html('"registrar-ticket"'))
     .on('GET', URLS.REGISTRAR_AUTH(''), () => html(''))
@@ -52,9 +52,7 @@ describe('splitCalendarRange', () => {
 
   it('rejects dates that are not valid yyyymmdd', () => {
     for (const bad of ['2025-03-01', '20250230', 'gg', '2025031']) {
-      expect(() => splitCalendarRange(bad, '20250301')).toThrow(
-        expect.objectContaining({ reason: FailReason.INVALID_RESPONSE }),
-      );
+      expect(() => splitCalendarRange(bad, '20250301')).toThrow(RangeError);
     }
   });
 });
@@ -159,7 +157,10 @@ describe('getCalendar', () => {
   it('throws INVALID_RESPONSE when the body is not the expected JSONP', async () => {
     const server = setup(() => html('alert(1)'));
     const helper = await server.loggedInHelper();
-    await expect(helper.getCalendar('20250301', '20250328')).rejects.toBe(FailReason.INVALID_RESPONSE);
+    await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
   });
 
   it('makes no requests for an empty or invalid range', async () => {
@@ -167,10 +168,26 @@ describe('getCalendar', () => {
     const helper = await server.loggedInHelper();
     const before = server.requests.length;
     expect(await helper.getCalendar('20250302', '20250301')).toEqual({ events: [], failedRanges: [] });
-    await expect(helper.getCalendar('2025-03-01', '20250328')).rejects.toHaveProperty(
-      'reason',
-      FailReason.INVALID_RESPONSE,
-    );
+    await expect(helper.getCalendar('2025-03-01', '20250328')).rejects.toBeInstanceOf(RangeError);
     expect(server.requests).toHaveLength(before);
+  });
+
+  it('does not retry a timed-out window and gives up after two in a row', async () => {
+    const server = setup((req) =>
+      req.url.searchParams.get('p_start_date') === '20250301' ? eventPerWindow(req) : new Promise<Response>(() => {}),
+    );
+    const helper = await server.loggedInHelper({ requestTimeout: 10 });
+    const result = await helper.getCalendar('20250301', '20250801');
+
+    // window 1 works, windows 2 and 3 time out once each, windows 4 to 6 are not tried
+    expect(calendarRequests(server)).toHaveLength(3);
+    expect(result.events).toHaveLength(1);
+    expect(result.failedRanges.map((r) => r.startDate)).toEqual([
+      '20250329',
+      '20250426',
+      '20250524',
+      '20250621',
+      '20250719',
+    ]);
   });
 });

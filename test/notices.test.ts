@@ -144,3 +144,15 @@ describe('getNotificationList', () => {
     await expect(helper.getNotificationList('c1')).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
   });
 });
+
+describe('getNotificationAttachment', () => {
+  it('returns undefined when the detail page has no attachment link', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT), () =>
+      html('<html><body>no attachment</body></html>'),
+    );
+    const helper = await server.loggedInHelper();
+    const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
+
+    expect(await helper.getNotificationAttachment({ url, attachmentName: 'gone.pdf' })).toBeUndefined();
+  });
+});

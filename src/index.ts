@@ -89,7 +89,8 @@ export class Learn2018Helper {
 
   /**
    * Login is necessary if you do not provide a `CredentialProvider`.
-   * Without credentials it uses the provider, and concurrent calls share one SSO login.
+   * Without credentials it uses the provider, and concurrent calls share one SSO login. Logins never overlap: one with
+   * credentials waits for a login in progress, and requests that find the session expired meanwhile wait for it.
    */
   public async login(
     username?: string,
@@ -99,7 +100,9 @@ export class Learn2018Helper {
     fingerGenPrint3?: string,
   ): Promise<void> {
     if (!username || !password || !fingerPrint) return this.#session.relogin();
-    return auth.login(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
+    return this.#session.runLogin(() =>
+      auth.login(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3),
+    );
   }
 
   /**
@@ -124,7 +127,8 @@ export class Learn2018Helper {
   /**
    * Get calendar items during the specified period (in yyyymmdd format, both inclusive).
    * Ranges longer than 28 days are fetched in windows and merged; windows that fail even after a retry are listed in
-   * `failedRanges`. Rejects only when every window fails (usually with `FailReason.INVALID_RESPONSE`).
+   * `failedRanges`. Rejects only when every window fails (usually with `FailReason.INVALID_RESPONSE`), or with a
+   * `RangeError` for a date that is not a valid yyyymmdd.
    */
   public async getCalendar(startDate: string, endDate: string, options?: CalendarOptions): Promise<CalendarResult> {
     return calendar.getCalendar(this.#session, startDate, endDate, options);
@@ -220,10 +224,9 @@ export class Learn2018Helper {
    * Details (page + description, two requests per homework) are only fetched for the homework `options.details`
    * selects; use `getHomeworkDetail` for the others.
    */
-  public async getHomeworkList(courseID: string): Promise<Homework[]>;
   public async getHomeworkList(
     courseID: string,
-    courseType: CourseType.STUDENT,
+    courseType?: CourseType.STUDENT,
     options?: HomeworkListOptions,
   ): Promise<Homework[]>;
   public async getHomeworkList(courseID: string, courseType: CourseType.TEACHER): Promise<HomeworkTA[]>;

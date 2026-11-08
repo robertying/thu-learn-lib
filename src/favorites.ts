@@ -11,7 +11,7 @@ import { CONTENT_TYPE_MAP_REVERSE, decodeHTML } from './utils.ts';
  * Add an item to favorites. (收藏)
  */
 export async function addToFavorites(s: Session, type: ContentType, id: string): Promise<void> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_FAVORITE_ADD(type, id))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_ADD(type, id));
   if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
@@ -24,7 +24,7 @@ export async function addToFavorites(s: Session, type: ContentType, id: string):
  * Remove an item from favorites. (取消收藏)
  */
 export async function removeFromFavorites(s: Session, id: string): Promise<void> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_FAVORITE_REMOVE(id))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_REMOVE(id));
   if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
@@ -38,12 +38,10 @@ export async function removeFromFavorites(s: Session, id: string): Promise<void>
  * If `courseID` or `type` is specified, only return favorites of that course or type.
  */
 export async function getFavorites(s: Session, courseID?: string, type?: ContentType): Promise<FavoriteItem[]> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_FAVORITE_LIST(type), {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_LIST(type), {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -78,12 +76,10 @@ export async function getFavorites(s: Session, courseID?: string, type?: Content
  * Pin a favorite item. (置顶)
  */
 export async function pinFavoriteItem(s: Session, id: string): Promise<void> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_FAVORITE_PIN, {
-      method: 'POST',
-      body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_PIN, {
+    method: 'POST',
+    body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
@@ -96,12 +92,10 @@ export async function pinFavoriteItem(s: Session, id: string): Promise<void> {
  * Unpin a favorite item. (取消置顶)
  */
 export async function unpinFavoriteItem(s: Session, id: string): Promise<void> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_FAVORITE_UNPIN, {
-      method: 'POST',
-      body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_UNPIN, {
+    method: 'POST',
+    body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
@@ -115,12 +109,10 @@ export async function unpinFavoriteItem(s: Session, id: string): Promise<void> {
  * Set an empty string to remove the comment.
  */
 export async function setComment(s: Session, type: ContentType, id: string, content: string): Promise<void> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_COMMENT_SET, {
-      method: 'POST',
-      body: URLS.LEARN_COMMENT_SET_FORM_DATA(type, id, content),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_COMMENT_SET, {
+    method: 'POST',
+    body: URLS.LEARN_COMMENT_SET_FORM_DATA(type, id, content),
+  });
   if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
@@ -134,12 +126,10 @@ export async function setComment(s: Session, type: ContentType, id: string, cont
  * If `courseID` or `type` is specified, only return favorites of that course or type.
  */
 export async function getComments(s: Session, courseID?: string, type?: ContentType): Promise<CommentItem[]> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_COMMENT_LIST(type), {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_COMMENT_LIST(type), {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,

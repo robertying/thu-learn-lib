@@ -26,12 +26,10 @@ import { GRADE_LEVEL_MAP, decodeHTML, isSelected, trimAndDefine } from './utils.
  * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.
  * Details (page + description) only for the homework `options.details` selects.
  */
-export function getHomeworkList(s: Session, courseID: string): Promise<Homework[]>;
-
 export function getHomeworkList(
   s: Session,
   courseID: string,
-  courseType: CourseType.STUDENT,
+  courseType?: CourseType.STUDENT,
   options?: HomeworkListOptions,
 ): Promise<Homework[]>;
 
@@ -44,12 +42,10 @@ export async function getHomeworkList(
   options: HomeworkListOptions = {},
 ): Promise<Homework[] | HomeworkTA[]> {
   if (courseType === CourseType.TEACHER) {
-    const json = await (
-      await s.fetchWithToken(URLS.LEARN_HOMEWORK_LIST_TEACHER, {
-        method: 'POST',
-        body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-      })
-    ).json();
+    const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_LIST_TEACHER, {
+      method: 'POST',
+      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+    });
     if (json.result !== 'success') {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
@@ -102,12 +98,10 @@ async function getHomeworkListAtUrl(
   url: string,
   status: IHomeworkStatus,
 ): Promise<IHomework[]> {
-  const json = await (
-    await s.fetchWithToken(url, {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(url, {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -149,12 +143,10 @@ async function getExcellentHomeworkListByHomework(
   s: Session,
   courseID: string,
 ): Promise<{ [id: string]: ExcellentHomework[] }> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_HOMEWORK_LIST_EXCELLENT, {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_LIST_EXCELLENT, {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -222,12 +214,10 @@ export async function getHomeworkDetail(
 }
 
 async function getHomeworkDescription(s: Session, baseId: string): Promise<IHomeworkDetail> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_HOMEWORK_DETAIL, {
-      method: 'POST',
-      body: URLS.LEARN_HOMEWORK_DETAIL_FORM_DATA(baseId),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_DETAIL, {
+    method: 'POST',
+    body: URLS.LEARN_HOMEWORK_DETAIL_FORM_DATA(baseId),
+  });
   if (json.result !== 'success') {
     throw {
       reason: FailReason.INVALID_RESPONSE,
@@ -241,18 +231,19 @@ async function getHomeworkDescription(s: Session, baseId: string): Promise<IHome
 
 function parseHomeworkFile(s: Session, fileDiv: Element): RemoteFile | undefined {
   const fileNode = $(fileDiv)('.ftitle').children('a')[0] ?? $(fileDiv)('.fl').children('a')[0];
-  if (fileNode !== undefined) {
-    const size = trimAndDefine($(fileDiv)('.fl > span[class^="color"]').first().text())!;
-    const params = new URLSearchParams(fileNode.attribs.href.split('?').slice(-1)[0]);
+  const href = fileNode?.attribs.href;
+  if (fileNode !== undefined && href) {
+    const size = trimAndDefine($(fileDiv)('.fl > span[class^="color"]').first().text()) ?? '';
+    const params = new URLSearchParams(href.split('?').slice(-1)[0]);
     const attachmentId = params.get('fileId')!;
     // so dirty here...
-    let downloadUrl = URLS.LEARN_PREFIX + fileNode.attribs.href;
+    let downloadUrl = URLS.LEARN_PREFIX + href;
     if (params.has('downloadUrl')) {
       downloadUrl = URLS.LEARN_PREFIX + params.get('downloadUrl')!;
     }
     return {
       id: attachmentId,
-      name: (fileNode.children[0] as { data: string }).data,
+      name: (fileNode.children[0] as { data?: string } | undefined)?.data ?? '',
       downloadUrl,
       previewUrl: URLS.LEARN_FILE_PREVIEW(ContentType.HOMEWORK, attachmentId, CourseType.STUDENT, s.previewFirstPage),
       size,
@@ -269,12 +260,12 @@ export async function submitHomework(
   attachment?: IHomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<void> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_HOMEWORK_SUBMIT(), {
-      method: 'POST',
-      body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT(), {
+    method: 'POST',
+    body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
+    // the response only starts after the whole upload, which can take longer than `requestTimeout`
+    timeout: attachment ? 0 : undefined,
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,

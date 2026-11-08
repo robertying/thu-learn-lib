@@ -1,6 +1,6 @@
 {
   "name": "@robertying/thu-learn-lib",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "a JavaScript library to provide a program-friendly interface to Web Learning (2018) of Tsinghua University",
   "keywords": [
     "learn2018",
@@ -63,7 +63,7 @@
     "vitest": "5.1.0"
   },
   "engines": {
-    "node": ">=26"
+    "node": ">=22"
   },
   "packageManager": "pnpm@12.18.0"
 }

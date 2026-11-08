@@ -141,7 +141,8 @@ describe('getHomeworkList (student)', () => {
   it('adds 2 requests per homework with details: all', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
-    await helper.getHomeworkList('c1', CourseType.STUDENT, { details: 'all' });
+    // the course type can be left out when passing options
+    await helper.getHomeworkList('c1', undefined, { details: 'all' });
 
     expect(server.count(URLS.LEARN_HOMEWORK_PAGE('', ''))).toBe(3);
     expect(server.count(URLS.LEARN_HOMEWORK_DETAIL)).toBe(3);
@@ -264,5 +265,25 @@ describe('submitHomework', () => {
     const server = new FakeServer().on('POST', URLS.LEARN_HOMEWORK_SUBMIT(), () => json({ result: 'error' }));
     const helper = await server.loggedInHelper();
     await expect(helper.submitHomework('s-h1')).rejects.toHaveProperty('reason', FailReason.OPERATION_FAILED);
+  });
+
+  it('waits for an upload longer than requestTimeout, but not for a submission without attachment', async () => {
+    const server = new FakeServer().on('POST', URLS.LEARN_HOMEWORK_SUBMIT(), () => json({ result: 'success' }));
+    const helper = await server.loggedInHelper({ requestTimeout: 10 });
+    server.latency = 30;
+
+    await helper.submitHomework('s-h1', '', { filename: 'a.txt', content: new Blob(['hi']) });
+    await expect(helper.submitHomework('s-h1', 'text')).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
+  });
+
+  it('logs in again when an expired session answers with a 200 HTML page', async () => {
+    const server = new FakeServer().on('POST', URLS.LEARN_HOMEWORK_SUBMIT(), () => json({ result: 'success' }));
+    const helper = await server.loggedInHelper();
+    server.expiry = 'html';
+    server.expireSession();
+
+    await helper.submitHomework('s-h1', 'text');
+    expect(server.loginCount).toBe(2);
+    expect(server.count(URLS.LEARN_HOMEWORK_SUBMIT())).toBe(2);
   });
 });

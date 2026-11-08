@@ -40,7 +40,7 @@ const urlOf = (input: Parameters<Fetch>[0]): string =>
  * Let at most `max` calls of `inner` run at once; the rest wait in FIFO order. A slot is freed when the response
  * headers arrive (or the call fails), so reading a body does not hold one.
  */
-export function limitConcurrency(inner: Fetch, max: number): Fetch {
+export function limitConcurrency<F extends (...args: any[]) => Promise<Response>>(inner: F, max: number): F {
   if (!(max >= 1) || max === Infinity) return inner;
   let active = 0;
   const waiting: (() => void)[] = [];
@@ -57,47 +57,57 @@ export function limitConcurrency(inner: Fetch, max: number): Fetch {
     if (next) next();
     else active -= 1;
   };
-  return async (...args) => {
+  return (async (...args: Parameters<F>) => {
     await acquire();
     try {
       return await inner(...args);
     } finally {
       release();
     }
-  };
+  }) as F;
 }
 
+/** `RequestInit` plus a per-request `timeout` (milliseconds; 0 or `Infinity` for none) */
+export type RequestOptions = RequestInit & { timeout?: number };
+
+/** a `Fetch` whose `init` can also carry a per-request `timeout` */
+export type TimedFetch = (input: Parameters<Fetch>[0], init?: RequestOptions) => Promise<Response>;
+
 /**
- * Abort a call of `inner` that has no response headers after `ms` milliseconds and reject it with
- * `FailReason.REQUEST_TIMEOUT`. A caller's own `signal` still works. Uses only `AbortController` and `setTimeout`,
- * which React Native has (unlike `AbortSignal.timeout` / `AbortSignal.any`).
+ * Abort a call of `inner` that has no response headers after `ms` milliseconds (or `init.timeout`, which overrides it
+ * for one request) and reject it with `FailReason.REQUEST_TIMEOUT`. A caller's own `signal` still works, also while
+ * the body is read. Uses only `AbortController` and `setTimeout`, which React Native has (unlike
+ * `AbortSignal.timeout` / `AbortSignal.any`). Note that React Native's fetch resolves only after the whole body has
+ * arrived, so there the timeout covers the download too.
  */
-export function withTimeout(inner: Fetch, ms: number): Fetch {
-  if (!(ms > 0) || ms === Infinity) return inner;
-  return async (input, init) => {
+export function withTimeout(inner: Fetch, ms: number): TimedFetch {
+  return async (input, options) => {
+    const { timeout = ms, ...init } = options ?? {};
+    if (!(timeout > 0) || timeout === Infinity) return inner(input, init);
     const controller = new AbortController();
-    const outer = init?.signal ?? undefined;
+    const outer = init.signal ?? undefined;
     const forward = () => controller.abort(outer?.reason);
     if (outer?.aborted) forward();
+    // kept after the headers arrive, so the caller can still cancel reading the body
     else outer?.addEventListener('abort', forward, { once: true });
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
-    }, ms);
+    }, timeout);
     try {
       return await inner(input, { ...init, signal: controller.signal });
     } catch (err) {
+      outer?.removeEventListener('abort', forward);
       if (timedOut) {
         throw {
           reason: FailReason.REQUEST_TIMEOUT,
-          extra: { url: urlOf(input), timeout: ms },
+          extra: { url: urlOf(input), timeout },
         } as ApiError;
       }
       throw err;
     } finally {
       clearTimeout(timer);
-      outer?.removeEventListener('abort', forward);
     }
   };
 }
@@ -107,6 +117,15 @@ const discard = (res: Response) => {
   res.body?.cancel().catch(() => {});
 };
 
+/** returned by a read step when the response turned out to be from an expired session */
+const EXPIRED = Symbol('expired');
+
+/**
+ * Whether a 200 body that should have been JSON is an HTML page instead. Web Learning answers some requests of an
+ * expired session with a login or redirect page and status 200, not with a 403 or a `login_timeout` redirect.
+ */
+const looksLikeHtml = (text: string) => text.trimStart().startsWith('<');
+
 /**
  * State shared by every request a `Learn2018Helper` makes: cookies, CSRF token, language and the fetch wrappers.
  * Internal; the helper keeps it in a private field.
@@ -115,7 +134,7 @@ export class Session {
   readonly provider?: CredentialProvider;
   readonly cookieJar: CookieJar;
   /** fetch with cookies, the concurrency cap and the timeout, but no login check */
-  readonly rawFetch: Fetch;
+  readonly rawFetch: TimedFetch;
   #csrfToken = '';
   /** bumped whenever the session changes (login, `csrfToken` set), so late failures from an old session don't log in again */
   #generation = 0;
@@ -123,10 +142,10 @@ export class Session {
   lang = Language.ZH;
   previewFirstPage: boolean;
 
-  /** `login` signs in through SSO with the `CredentialProvider`; the session calls it at most once at a time */
+  /** `loginWithProvider` signs in through SSO with the `CredentialProvider` */
   constructor(
     config: HelperConfig | undefined,
-    readonly login: () => Promise<void>,
+    readonly loginWithProvider: () => Promise<void>,
   ) {
     this.previewFirstPage = config?.generatePreviewUrlForFirstPage ?? true;
     this.provider = config?.provider;
@@ -147,68 +166,123 @@ export class Session {
   }
 
   /**
-   * Log in with the `CredentialProvider`. Concurrent callers share one SSO login instead of starting one each.
+   * Run one login (`login`) at a time. It starts after a login already in progress has settled, and requests that
+   * find the session expired meanwhile wait for it instead of starting their own (two SSO logins at once reset each
+   * other's id.tsinghua.edu.cn cookie).
    */
-  relogin(): Promise<void> {
-    this.#pendingLogin ??= this.login().finally(() => {
-      this.#pendingLogin = undefined;
+  runLogin(login: () => Promise<void>): Promise<void> {
+    const previous = this.#pendingLogin?.catch(() => {}) ?? Promise.resolve();
+    const current: Promise<void> = previous.then(login).finally(() => {
+      if (this.#pendingLogin === current) this.#pendingLogin = undefined;
     });
-    return this.#pendingLogin;
+    this.#pendingLogin = current;
+    return current;
   }
 
   /**
-   * Send a request built by `makeUrl` (called again for the retry, so it can pick up a new CSRF token).
+   * Log in with the `CredentialProvider`, or wait for the login already in progress (also one with explicit
+   * credentials) instead of starting another.
+   */
+  relogin(): Promise<void> {
+    return this.#pendingLogin ?? this.runLogin(this.loginWithProvider);
+  }
+
+  /**
+   * Send a request built by `makeUrl` (called again for the retry, so it can pick up a new CSRF token) and read it
+   * with `read`, which returns `EXPIRED` for a body that shows the session has expired.
    * When the session has expired, it rejects with `NOT_LOGGED_IN` if there is no `CredentialProvider`; otherwise it
    * logs in again (sharing a login already in progress, or skipping it if another request already renewed the
    * session) and retries once.
    */
-  async #send(makeUrl: () => string, init?: RequestInit): Promise<Response> {
+  async #send<T>(
+    makeUrl: () => string,
+    init: RequestOptions | undefined,
+    read: (res: Response, retry: boolean) => Promise<T | typeof EXPIRED>,
+  ): Promise<T> {
+    const attempt = async (retry: boolean): Promise<T | typeof EXPIRED> => {
+      const res = await this.rawFetch(makeUrl(), init);
+      if (noLogin(res)) {
+        discard(res);
+        return EXPIRED;
+      }
+      return read(res, retry);
+    };
     const generation = this.#generation;
-    const res = await this.rawFetch(makeUrl(), init);
-    if (!noLogin(res)) return res;
-    discard(res);
+    const first = await attempt(false);
+    if (first !== EXPIRED) return first;
     if (!this.provider) {
       throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
     }
     if (this.#generation === generation) {
       await this.relogin();
     }
-    const retry = await this.rawFetch(makeUrl(), init);
-    if (noLogin(retry)) {
-      discard(retry);
+    const second = await attempt(true);
+    if (second === EXPIRED) {
       throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
     }
-    if (retry.status !== 200) {
-      discard(retry);
-      throw {
-        reason: FailReason.UNEXPECTED_STATUS,
-        extra: { code: retry.status, text: retry.statusText },
-      } as ApiError;
-    }
-    return retry;
+    return second;
   }
 
-  /** fetch with a login check (see `#send`) */
-  readonly fetch: Fetch = (input, init) => this.#send(() => urlOf(input), init);
+  /** the response, but after a re-login only one with status 200 */
+  static readonly #response = async (res: Response, retry: boolean): Promise<Response> => {
+    if (retry && res.status !== 200) {
+      discard(res);
+      throw {
+        reason: FailReason.UNEXPECTED_STATUS,
+        extra: { code: res.status, text: res.statusText },
+      } as ApiError;
+    }
+    return res;
+  };
 
-  /** like `fetch`, but logs in first if there is no CSRF token yet and adds the current token to the URL */
-  readonly fetchWithToken: Fetch = async (input, init) => {
+  /** the parsed JSON body; an HTML page with status 200 means the session has expired */
+  static readonly #json = async (res: Response): Promise<any> => {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      if (res.status === 200 && looksLikeHtml(text)) return EXPIRED;
+      throw {
+        reason: res.status === 200 ? FailReason.INVALID_RESPONSE : FailReason.UNEXPECTED_STATUS,
+        extra: { code: res.status, text: text.slice(0, 200) },
+      } as ApiError;
+    }
+  };
+
+  #withToken = async (input: Parameters<Fetch>[0]): Promise<() => string> => {
     if (this.#csrfToken === '') {
       await this.relogin();
     }
     const url = urlOf(input);
-    return this.#send(() => addCSRFTokenToUrl(url, this.#csrfToken), init);
+    return () => addCSRFTokenToUrl(url, this.#csrfToken);
   };
 
+  /** fetch with a login check (see `#send`) */
+  readonly fetch: TimedFetch = (input, init) => this.#send(() => urlOf(input), init, Session.#response);
+
+  /** like `fetch`, but logs in first if there is no CSRF token yet and adds the current token to the URL */
+  readonly fetchWithToken: TimedFetch = async (input, init) =>
+    this.#send(await this.#withToken(input), init, Session.#response);
+
   /**
-   * Make sure the session works: if there is a CSRF token, make one cheap authenticated request (`probeUrl`) and log
-   * in only if it fails; otherwise log in.
+   * Like `fetchWithToken`, but returns the parsed JSON body. A 200 HTML page instead of JSON counts as an expired
+   * session (log in again and retry once, as for a 403).
+   */
+  readonly fetchJsonWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<any> =>
+    this.#send(await this.#withToken(input), init, Session.#json);
+
+  /**
+   * Make sure the session works: if there is a CSRF token, fetch the current semester (`probeUrl`) and log in only if
+   * the session has expired; otherwise log in.
    */
   async ensureSession(probeUrl: string): Promise<void> {
     if (this.#csrfToken === '') {
       await this.relogin();
       return;
     }
-    discard(await this.fetchWithToken(probeUrl));
+    const json = await this.fetchJsonWithToken(probeUrl);
+    if (json?.message !== 'success') {
+      throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+    }
   }
 }
