@@ -1,5 +1,6 @@
 import { decodeHTML as _decodeHTML } from 'entities';
 
+import type { DetailSelector } from './types.ts';
 import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.ts';
 
 export function parseSemesterType(n: number): SemesterType {
@@ -118,3 +119,7 @@ export const QNR_TYPE_MAP = new Map([
   ['填表', QuestionnaireType.FORM],
   ['问卷', QuestionnaireType.SURVEY],
 ]);
+
+/** whether `item` is selected by a `DetailSelector` (`undefined` means `'none'`) */
+export const isSelected = <T>(selector: DetailSelector<T> | undefined, item: T): boolean =>
+  selector === 'all' || (typeof selector === 'function' && selector(item));

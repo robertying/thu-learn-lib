@@ -9,6 +9,7 @@ import type {
   ApiError,
   ExcellentHomework,
   Homework,
+  HomeworkListOptions,
   HomeworkTA,
   IExcellentHomework,
   IHomework,
@@ -19,12 +20,20 @@ import type {
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { GRADE_LEVEL_MAP, decodeHTML, trimAndDefine } from './utils.ts';
+import { GRADE_LEVEL_MAP, decodeHTML, isSelected, trimAndDefine } from './utils.ts';
 
-/** Get all homeworks （课程作业） of the specified course. */
+/**
+ * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.
+ * Details (page + description) only for the homework `options.details` selects.
+ */
 export function getHomeworkList(s: Session, courseID: string): Promise<Homework[]>;
 
-export function getHomeworkList(s: Session, courseID: string, courseType: CourseType.STUDENT): Promise<Homework[]>;
+export function getHomeworkList(
+  s: Session,
+  courseID: string,
+  courseType: CourseType.STUDENT,
+  options?: HomeworkListOptions,
+): Promise<Homework[]>;
 
 export function getHomeworkList(s: Session, courseID: string, courseType: CourseType.TEACHER): Promise<HomeworkTA[]>;
 
@@ -32,6 +41,7 @@ export async function getHomeworkList(
   s: Session,
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
+  options: HomeworkListOptions = {},
 ): Promise<Homework[] | HomeworkTA[]> {
   if (courseType === CourseType.TEACHER) {
     const json = await (
@@ -70,9 +80,19 @@ export async function getHomeworkList(
         }) satisfies HomeworkTA,
     );
   } else {
+    const [lists, excellentHomeworkListByHomework] = await Promise.all([
+      Promise.all(
+        URLS.LEARN_HOMEWORK_LIST_SOURCE.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status)),
+      ),
+      // Don't block the whole process if excellent homework list cannot be fetched
+      getExcellentHomeworkListByHomework(s, courseID).catch((): { [id: string]: ExcellentHomework[] } => ({})),
+    ]);
     return Promise.all(
-      URLS.LEARN_HOMEWORK_LIST_SOURCE.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status)),
-    ).then((r) => r.flat());
+      lists.flat().map(async (h) => {
+        const homework: Homework = { ...h, excellentHomeworkList: excellentHomeworkListByHomework[h.baseId] };
+        return isSelected(options.details, homework) ? { ...homework, ...(await getHomeworkDetail(s, h)) } : homework;
+      }),
+    );
   }
 }
 
@@ -81,7 +101,7 @@ async function getHomeworkListAtUrl(
   courseID: string,
   url: string,
   status: IHomeworkStatus,
-): Promise<Homework[]> {
+): Promise<IHomework[]> {
   const json = await (
     await s.fetchWithToken(url, {
       method: 'POST',
@@ -97,50 +117,31 @@ async function getHomeworkListAtUrl(
 
   const result = (json.object?.aaData ?? []) as any[];
 
-  let excellentHomeworkListByHomework: { [id: string]: ExcellentHomework[] } = {};
-  try {
-    excellentHomeworkListByHomework = await getExcellentHomeworkListByHomework(s, courseID);
-  } catch (e) {
-    // Don't block the whole process if excellent homework list cannot be fetched
-  }
-
-  return Promise.all(
-    result
-      .map(
-        (h) =>
-          ({
-            id: h.xszyid,
-            studentHomeworkId: h.xszyid,
-            baseId: h.zyid,
-            title: decodeHTML(h.bt),
-            url: URLS.LEARN_HOMEWORK_PAGE(h.wlkcid, h.xszyid),
-            deadline: h.jzsj,
-            lateSubmissionDeadline: h.bjjzsj ? h.bjjzsj : undefined,
-            isLateSubmission: h.sfbj === YES,
-            completionType: h.zywcfs,
-            submissionType: h.zytjfs,
-            submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
-            submitTime: h.scsj === null ? undefined : h.scsj,
-            grade: h.cj === null ? undefined : h.cj,
-            gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
-            graderName: trimAndDefine(h.jsm),
-            gradeContent: trimAndDefine(h.pynr),
-            gradeTime: h.pysj === null ? undefined : h.pysj,
-            isFavorite: h.sfsc === YES,
-            favoriteTime: h.scsj === null || h.sfsc !== YES ? undefined : h.scsj,
-            comment: h.bznr ?? undefined,
-            excellentHomeworkList: excellentHomeworkListByHomework[h.zyid],
-            ...status,
-          }) satisfies IHomework,
-      )
-      .map(
-        async (h) =>
-          ({
-            ...h,
-            ...(await parseHomeworkAtUrl(s, h.url)),
-            ...(await getHomeworkDetail(s, h.baseId)),
-          }) satisfies Homework,
-      ),
+  return result.map(
+    (h) =>
+      ({
+        id: h.xszyid,
+        studentHomeworkId: h.xszyid,
+        baseId: h.zyid,
+        title: decodeHTML(h.bt),
+        url: URLS.LEARN_HOMEWORK_PAGE(h.wlkcid, h.xszyid),
+        deadline: h.jzsj,
+        lateSubmissionDeadline: h.bjjzsj ? h.bjjzsj : undefined,
+        isLateSubmission: h.sfbj === YES,
+        completionType: h.zywcfs,
+        submissionType: h.zytjfs,
+        submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
+        submitTime: h.scsj === null ? undefined : h.scsj,
+        grade: h.cj === null ? undefined : h.cj,
+        gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
+        graderName: trimAndDefine(h.jsm),
+        gradeContent: trimAndDefine(h.pynr),
+        gradeTime: h.pysj === null ? undefined : h.pysj,
+        isFavorite: h.sfsc === YES,
+        favoriteTime: h.scsj === null || h.sfsc !== YES ? undefined : h.scsj,
+        comment: h.bznr ?? undefined,
+        ...status,
+      }) satisfies IHomework,
   );
 }
 
@@ -163,40 +164,29 @@ async function getExcellentHomeworkListByHomework(
 
   const result = (json.object?.aaData ?? []) as any[];
 
-  return (
-    await Promise.all(
-      result
-        .map(
-          (h) =>
-            ({
-              id: h.xszyid,
-              baseId: h.zyid,
-              title: decodeHTML(h.bt),
-              url: URLS.LEARN_HOMEWORK_EXCELLENT_PAGE(h.wlkcid, h.xszyid),
-              completionType: h.zywcfs,
-              author: {
-                id: h.cy?.split(' ')?.[0],
-                name: h.cy?.split(' ')?.[1],
-                anonymous: h.sfzm === YES,
-              },
-            }) satisfies IExcellentHomework,
-        )
-        .map(
-          async (h) =>
-            ({
-              ...h,
-              ...(await parseHomeworkAtUrl(s, h.url)),
-              ...(await getHomeworkDetail(s, h.baseId)),
-            }) satisfies ExcellentHomework,
-        ),
+  return result
+    .map(
+      (h) =>
+        ({
+          id: h.xszyid,
+          baseId: h.zyid,
+          title: decodeHTML(h.bt),
+          url: URLS.LEARN_HOMEWORK_EXCELLENT_PAGE(h.wlkcid, h.xszyid),
+          completionType: h.zywcfs,
+          author: {
+            id: h.cy?.split(' ')?.[0],
+            name: h.cy?.split(' ')?.[1],
+            anonymous: h.sfzm === YES,
+          },
+        }) satisfies IExcellentHomework,
     )
-  ).reduce<{ [id: string]: ExcellentHomework[] }>((acc, cur) => {
-    if (!acc[cur.baseId]) {
-      acc[cur.baseId] = [];
-    }
-    acc[cur.baseId].push(cur);
-    return acc;
-  }, {});
+    .reduce<{ [id: string]: ExcellentHomework[] }>((acc, cur) => {
+      if (!acc[cur.baseId]) {
+        acc[cur.baseId] = [];
+      }
+      acc[cur.baseId].push(cur);
+      return acc;
+    }, {});
 }
 
 async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDetail> {
@@ -216,7 +206,22 @@ async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDet
   };
 }
 
-async function getHomeworkDetail(s: Session, baseId: string): Promise<IHomeworkDetail> {
+/**
+ * Get the detail of one homework or excellent homework: its page (answer, submitted content, attachments) and the
+ * description JSON (which wins for `description`). 2 requests.
+ */
+export async function getHomeworkDetail(
+  s: Session,
+  homework: Pick<IHomework | IExcellentHomework, 'url' | 'baseId'>,
+): Promise<IHomeworkDetail> {
+  const [page, description] = await Promise.all([
+    parseHomeworkAtUrl(s, homework.url),
+    getHomeworkDescription(s, homework.baseId),
+  ]);
+  return { ...page, ...description };
+}
+
+async function getHomeworkDescription(s: Session, baseId: string): Promise<IHomeworkDetail> {
   const json = await (
     await s.fetchWithToken(URLS.LEARN_HOMEWORK_DETAIL, {
       method: 'POST',

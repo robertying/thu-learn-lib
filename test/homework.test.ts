@@ -66,7 +66,7 @@ describe('getHomeworkList (student)', () => {
   it('parses the three status lists with page and detail content', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
-    const list = await helper.getHomeworkList('c1');
+    const list = await helper.getHomeworkList('c1', CourseType.STUDENT, { details: 'all' });
 
     expect(list.map((h) => [h.id, h.submitted, h.graded])).toEqual([
       ['s-h1', false, false],
@@ -121,23 +121,66 @@ describe('getHomeworkList (student)', () => {
         title: 'Best',
         url: URLS.LEARN_HOMEWORK_EXCELLENT_PAGE('c1', 'x1'),
         author: { id: '2020011111', name: 'Alice', anonymous: false },
-        description: 'detail h3',
-        answerContent: 'answer x1',
       }),
     ]);
+    // excellent homework comes without its detail
+    expect(h3.excellentHomeworkList?.[0]).not.toHaveProperty('description');
   });
 
-  it('makes 3 list + 3 excellent list + 2 per homework + 2 per excellent item per list requests', async () => {
+  it('makes 3 status list + 1 excellent list requests and no detail requests by default', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
-    await helper.getHomeworkList('c1');
+    const list = await helper.getHomeworkList('c1');
 
-    // The excellent list (and each excellent item's page + detail) is fetched again for every status list.
-    expect(server.count(URLS.LEARN_HOMEWORK_LIST_EXCELLENT)).toBe(3);
-    expect(server.count(URLS.LEARN_HOMEWORK_EXCELLENT_PAGE('', ''))).toBe(3);
+    expect(server.count(URLS.LEARN_HOMEWORK_LIST_EXCELLENT)).toBe(1);
+    expect(server.requests).toHaveLength(3 + 1);
+    expect(list.every((h) => h.description === undefined && h.attachment === undefined)).toBe(true);
+    expect(list[2].excellentHomeworkList).toHaveLength(1);
+  });
+
+  it('adds 2 requests per homework with details: all', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+    await helper.getHomeworkList('c1', CourseType.STUDENT, { details: 'all' });
+
     expect(server.count(URLS.LEARN_HOMEWORK_PAGE('', ''))).toBe(3);
-    expect(server.count(URLS.LEARN_HOMEWORK_DETAIL)).toBe(3 + 3);
-    expect(server.requests).toHaveLength(3 + 3 + 3 * 2 + 3 * 2);
+    expect(server.count(URLS.LEARN_HOMEWORK_DETAIL)).toBe(3);
+    expect(server.count(URLS.LEARN_HOMEWORK_EXCELLENT_PAGE('', ''))).toBe(0);
+    expect(server.requests).toHaveLength(3 + 1 + 3 * 2);
+  });
+
+  it('fetches details only for the homework a predicate selects', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+    const seen: string[] = [];
+    const list = await helper.getHomeworkList('c1', CourseType.STUDENT, {
+      details: (h) => {
+        seen.push(h.id);
+        return h.submitTime !== undefined && !h.graded;
+      },
+    });
+
+    expect(seen.toSorted()).toEqual(['s-h1', 's-h2', 's-h3']);
+    expect(list.map((h) => h.description)).toEqual([undefined, 'detail h2', undefined]);
+    expect(server.requests).toHaveLength(3 + 1 + 2);
+  });
+
+  it('gets one homework or excellent homework detail on demand', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+    const [, h2, h3] = await helper.getHomeworkList('c1');
+    server.reset();
+
+    expect(await helper.getHomeworkDetail(h2)).toMatchObject({
+      description: 'detail h2',
+      submittedContent: 'submitted s-h2',
+      attachment: expect.objectContaining({ id: 'att-s-h2' }),
+    });
+    expect(await helper.getExcellentHomeworkDetail(h3.excellentHomeworkList![0])).toMatchObject({
+      description: 'detail h3',
+      answerContent: 'answer x1',
+    });
+    expect(server.requests).toHaveLength(4);
   });
 
   it('still returns homework when the excellent list fails', async () => {

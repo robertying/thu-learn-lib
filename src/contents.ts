@@ -1,7 +1,7 @@
 // One kind of content for many courses at once.
 
 import type { Session } from './request.ts';
-import type { ContentTypeMap, CourseContent } from './types.ts';
+import type { AllContentsOptions, AllContentsResult, ContentTypeMap, CourseContent } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import { getAnsweredQuestionList, getDiscussionList } from './discussions.ts';
 import { getFileList } from './files.ts';
@@ -11,23 +11,27 @@ import { getQuestionnaireList } from './questionnaires.ts';
 
 /**
  * Get certain type of content of all specified courses.
- * It actually wraps around other `getXXX` functions. You can ignore the failure caused by certain courses.
+ * It wraps around the `getXXX` list functions; one course failing doesn't fail the others: its error is in `errors`.
  */
 export async function getAllContents<T extends ContentType>(
   s: Session,
   courseIDs: string[],
   type: T,
-  courseType: CourseType = CourseType.STUDENT,
-  allowFailure = false,
-) {
-  const fetchContentForCourse = (id: string) => {
+  options: AllContentsOptions<T> = {},
+): Promise<AllContentsResult<T>> {
+  const courseType = options.courseType ?? CourseType.STUDENT;
+  const fetchContentForCourse = (id: string): Promise<ContentTypeMap[T][]> => {
     switch (type) {
       case ContentType.NOTIFICATION:
-        return getNotificationList(s, id, courseType) as Promise<ContentTypeMap[T][]>;
+        return getNotificationList(s, id, courseType, {
+          attachments: (options as AllContentsOptions<ContentType.NOTIFICATION>).details,
+        }) as Promise<ContentTypeMap[T][]>;
       case ContentType.FILE:
         return getFileList(s, id, courseType) as Promise<ContentTypeMap[T][]>;
       case ContentType.HOMEWORK:
-        return getHomeworkList(s, id) as Promise<ContentTypeMap[T][]>;
+        return getHomeworkList(s, id, CourseType.STUDENT, {
+          details: (options as AllContentsOptions<ContentType.HOMEWORK>).details,
+        }) as Promise<ContentTypeMap[T][]>;
       case ContentType.DISCUSSION:
         return getDiscussionList(s, id, courseType) as Promise<ContentTypeMap[T][]>;
       case ContentType.QUESTION:
@@ -43,25 +47,17 @@ export async function getAllContents<T extends ContentType>(
   };
 
   const contents: CourseContent<T> = {};
+  const errors: AllContentsResult<T>['errors'] = {};
 
-  const results = await Promise.allSettled(
+  await Promise.all(
     courseIDs.map(async (id) => {
-      contents[id] = await fetchContentForCourse(id);
+      try {
+        contents[id] = await fetchContentForCourse(id);
+      } catch (err) {
+        errors[id] = err;
+      }
     }),
   );
 
-  if (!allowFailure) {
-    for (const r of results) {
-      if (r.status === 'rejected') {
-        return Promise.reject({
-          reason: FailReason.INVALID_RESPONSE,
-          extra: {
-            reason: r.reason,
-          },
-        });
-      }
-    }
-  }
-
-  return contents;
+  return { contents, errors };
 }
