@@ -29,6 +29,13 @@ export async function getAllContents<T extends ContentType>(
       case ContentType.FILE:
         return getFileList(s, id, courseType) as Promise<ContentTypeMap[T][]>;
       case ContentType.HOMEWORK:
+        if (courseType === CourseType.TEACHER) {
+          // the teacher list has another shape (`HomeworkTA`); use `getHomeworkList(id, CourseType.TEACHER)`
+          return Promise.reject({
+            reason: FailReason.NOT_IMPLEMENTED,
+            extra: 'homework of a teacher course; use getHomeworkList(courseID, CourseType.TEACHER)',
+          });
+        }
         return getHomeworkList(s, id, CourseType.STUDENT, {
           details: (options as AllContentsOptions<ContentType.HOMEWORK>).details,
         }) as Promise<ContentTypeMap[T][]>;

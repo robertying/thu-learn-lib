@@ -59,4 +59,14 @@ describe('getAllContents', () => {
     const helper = await server.loggedInHelper();
     expect(await helper.getAllContents(['c1'], ContentType.QUESTION)).toEqual({ contents: { c1: [] }, errors: {} });
   });
+
+  it('rejects homework of a teacher course for every course instead of returning student data', async () => {
+    const server = new FakeServer();
+    const helper = await server.loggedInHelper();
+    const result = await helper.getAllContents(['c1'], ContentType.HOMEWORK, { courseType: CourseType.TEACHER });
+
+    expect(result.contents).toEqual({});
+    expect(result.errors.c1).toHaveProperty('reason', FailReason.NOT_IMPLEMENTED);
+    expect(server.requests).toHaveLength(0);
+  });
 });

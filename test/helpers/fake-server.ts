@@ -61,12 +61,25 @@ export class FakeServer {
   inFlight = 0;
   /** the most requests that were ever in flight at once */
   maxInFlight = 0;
+  /**
+   * How an authenticated request of an expired session is answered: `'status'` with a 403, `'redirect'` with the
+   * login_timeout page it is redirected to, `'html'` with a 200 HTML page (as Web Learning does for some requests).
+   */
+  expiry: 'status' | 'redirect' | 'html' = 'status';
+  /** SSO logins in progress (login form fetched, not yet roamed) */
+  #ssoInProgress = 0;
+  /** the most SSO logins that were ever in progress at once */
+  maxConcurrentSso = 0;
 
   constructor() {
     this.on(
       'GET',
       URLS.ID_LOGIN(),
-      () => html(`<html><body><div id="sm2publicKey">${this.#keys.publicKey}</div></body></html>`),
+      () => {
+        this.#ssoInProgress += 1;
+        this.maxConcurrentSso = Math.max(this.maxConcurrentSso, this.#ssoInProgress);
+        return html(`<html><body><div id="sm2publicKey">${this.#keys.publicKey}</div></body></html>`);
+      },
       PUBLIC,
     );
     this.on(
@@ -77,6 +90,7 @@ export class FakeServer {
         const pass = field(req, 'i_pass');
         const decrypted = pass.startsWith('04') ? sm2.doDecrypt(pass.slice(2), this.#keys.privateKey) : '';
         if (user !== USERNAME || decrypted !== PASSWORD) {
+          this.#ssoInProgress -= 1;
           return html('<html><body><div class="error">用户名或密码错误</div></body></html>');
         }
         return html(
@@ -90,6 +104,7 @@ export class FakeServer {
       URLS.LEARN_AUTH_ROAM(''),
       (req) => {
         if (!req.url.searchParams.get('ticket')?.startsWith('ticket-')) return new Response('', { status: 401 });
+        this.#ssoInProgress -= 1;
         this.#loggedIn = true;
         this.#loginCount += 1;
         return html('');
@@ -133,7 +148,7 @@ export class FakeServer {
     return this.#loginCount;
   }
 
-  /** make the next authenticated requests fail with 403 until the client logs in again */
+  /** make the next authenticated requests fail (see `expiry`) until the client logs in again */
   expireSession() {
     this.#loggedIn = false;
   }
@@ -147,13 +162,22 @@ export class FakeServer {
     const isPublic = options.public ?? false;
     this.#routes.set(key, (req) => {
       if (isPublic) return handler(req);
-      if (!this.#loggedIn) return new Response('', { status: 403 });
+      if (!this.#loggedIn) return this.#expired();
       // a token from an earlier login is rejected like an expired session
       const token = req.url.searchParams.get('_csrf');
-      if (token !== null && token !== this.csrfToken) return new Response('', { status: 403 });
+      if (token !== null && token !== this.csrfToken) return this.#expired();
       return handler(req);
     });
     return this;
+  }
+
+  #expired(): Response {
+    if (this.expiry === 'status') return new Response('', { status: 403 });
+    const page = html('<html><head><script>window.location.href="/f/login_timeout";</script></head></html>');
+    // a followed redirect ends on the login_timeout page
+    if (this.expiry === 'redirect')
+      Object.defineProperty(page, 'url', { value: `${URLS.LEARN_PREFIX}/f/login_timeout` });
+    return page;
   }
 
   /** number of recorded requests, optionally only those whose URL (without query) equals `url` */

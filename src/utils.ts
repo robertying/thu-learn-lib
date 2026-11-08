@@ -1,6 +1,6 @@
 import { decodeHTML as _decodeHTML } from 'entities';
 
-import type { DetailSelector } from './types.ts';
+import type { ApiError, DetailSelector } from './types.ts';
 import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.ts';
 
 export function parseSemesterType(n: number): SemesterType {
@@ -78,14 +78,20 @@ export const GRADE_LEVEL_MAP = new Map([
 
 export const JSONP_EXTRACTOR_NAME = 'thu_learn_lib_jsonp_extractor';
 
+const invalidJSONP = (extra: unknown): ApiError => ({ reason: FailReason.INVALID_RESPONSE, extra });
+
 export function extractJSONPResult(jsonp: string): any {
   // check jsonp format
   if (!jsonp.startsWith(JSONP_EXTRACTOR_NAME)) {
-    throw FailReason.INVALID_RESPONSE;
+    throw invalidJSONP(jsonp.slice(0, 200));
   }
   // evaluate the result
-  // oxlint-disable-next-line typescript/no-implied-eval -- JSONP from the registrar is a JS expression, not JSON
-  return Function(`"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`)();
+  try {
+    // oxlint-disable-next-line typescript/no-implied-eval -- JSONP from the registrar is a JS expression, not JSON
+    return Function(`"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`)();
+  } catch (err) {
+    throw invalidJSONP(err);
+  }
 }
 
 export function formatFileSize(size: number): string {

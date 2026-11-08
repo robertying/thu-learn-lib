@@ -1,7 +1,7 @@
 // Course calendar from the registrar (academic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
-import type { CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
+import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { JSONP_EXTRACTOR_NAME, extractJSONPResult } from './utils.ts';
@@ -11,11 +11,16 @@ export const CALENDAR_WINDOW_DAYS = 28;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** after this many windows in a row time out, `getCalendar` gives up on the rest (they go to `failedRanges`) */
+const MAX_CONSECUTIVE_TIMEOUTS = 2;
+
+const isTimeout = (err: unknown) => (err as ApiError | undefined)?.reason === FailReason.REQUEST_TIMEOUT;
+
 const parseDate = (date: string): number => {
   const match = /^(\d{4})(\d{2})(\d{2})$/.exec(date);
   const time = match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : NaN;
   if (Number.isNaN(time) || formatDate(time) !== date) {
-    throw { reason: FailReason.INVALID_RESPONSE, extra: `invalid date ${date}, expected yyyymmdd` };
+    throw new RangeError(`invalid date ${date}, expected yyyymmdd`);
   }
   return time;
 };
@@ -60,10 +65,12 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
 /**
  * Get calendar items during the specified period (in yyyymmdd format, both inclusive).
  *
- * Ranges longer than `CALENDAR_WINDOW_DAYS` are fetched in consecutive windows (one at a time, each retried once) and
- * merged in date order. Windows that still fail are listed in `failedRanges`, so callers can show partial data and
- * retry only those. If every window fails, this rejects with the last error instead (usually
- * `FailReason.INVALID_RESPONSE`). The result might be empty if the period is too far away from now.
+ * Ranges longer than `CALENDAR_WINDOW_DAYS` are fetched in consecutive windows (one at a time, each retried once
+ * unless it timed out) and merged in date order. Windows that still fail are listed in `failedRanges`, so callers can
+ * show partial data and retry only those; after two windows in a row time out, the rest are listed there without a
+ * request. If every window fails, this rejects with the last error instead (usually `FailReason.INVALID_RESPONSE`).
+ * The result might be empty if the period is too far away from now. Throws a `RangeError` for a date that is not a
+ * valid yyyymmdd.
  */
 export async function getCalendar(
   s: Session,
@@ -88,12 +95,25 @@ export async function getCalendar(
   const events: CalendarEvent[] = [];
   const failedRanges: CalendarRange[] = [];
   let lastError: unknown;
+  let timeouts = 0;
   for (const range of ranges) {
+    // after this many timed-out windows in a row the registrar is taken as down, and the rest are not tried
+    if (timeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+      failedRanges.push(range);
+      continue;
+    }
     try {
-      events.push(...(await fetchWindow(s, range, graduate).catch(() => fetchWindow(s, range, graduate))));
+      // a timed-out window is not retried: the registrar is slow, not flaky, and each try takes `requestTimeout`
+      events.push(
+        ...(await fetchWindow(s, range, graduate).catch((err: unknown) =>
+          isTimeout(err) ? Promise.reject(err) : fetchWindow(s, range, graduate),
+        )),
+      );
+      timeouts = 0;
     } catch (e) {
       lastError = e;
       failedRanges.push(range);
+      timeouts = isTimeout(e) ? timeouts + 1 : 0;
     }
   }
 

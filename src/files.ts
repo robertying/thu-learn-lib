@@ -12,7 +12,7 @@ export async function getFileList(
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<File[]> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_FILE_LIST(courseID, courseType))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType));
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -71,7 +71,7 @@ export async function getFileCategoryList(
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<FileCategory[]> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_FILE_CATEGORY_LIST(courseID, courseType))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_CATEGORY_LIST(courseID, courseType));
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -102,7 +102,7 @@ export async function getFileListByCategory(
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<File[]> {
   if (courseType === CourseType.STUDENT) {
-    const json = await (await s.fetchWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT(courseID, categoryId))).json();
+    const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT(courseID, categoryId));
     if (json.result !== 'success') {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
@@ -147,12 +147,10 @@ export async function getFileListByCategory(
       } satisfies File;
     });
   } else {
-    const json = await (
-      await s.fetchWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER, {
-        method: 'POST',
-        body: URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA(courseID, categoryId),
-      })
-    ).json();
+    const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER, {
+      method: 'POST',
+      body: URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA(courseID, categoryId),
+    });
     if (json.result !== 'success') {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,

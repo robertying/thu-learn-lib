@@ -15,7 +15,7 @@ export async function getDiscussionList(
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<Discussion[]> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_DISCUSSION_LIST(courseID, courseType))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_DISCUSSION_LIST(courseID, courseType));
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -44,7 +44,7 @@ export async function getAnsweredQuestionList(
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<Question[]> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType));
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,

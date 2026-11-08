@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { FailReason, Language } from '../src/index.ts';
+import { withTimeout } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
-import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, json } from './helpers/fake-server.ts';
+import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, html, json } from './helpers/fake-server.ts';
 
 const semesters = (server: FakeServer) =>
   server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => json(['2024-2025-1', null, '2024-2025-2']));
@@ -279,5 +280,135 @@ describe('request limits', () => {
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
     expect(server.inFlight).toBe(0);
+  });
+});
+
+describe('expired sessions that are not a 403', () => {
+  for (const expiry of ['redirect', 'html'] as const) {
+    it(`logs in again and retries once for a ${expiry} answer`, async () => {
+      const server = semesters(new FakeServer());
+      const helper = await server.loggedInHelper();
+      server.expiry = expiry;
+      server.expireSession();
+
+      expect(await helper.getSemesterIdList()).toEqual(['2024-2025-1', '2024-2025-2']);
+      expect(server.loginCount).toBe(2);
+      expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(2);
+    });
+
+    it(`ensureSession logs in again for a ${expiry} answer`, async () => {
+      const server = new FakeServer();
+      server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () => json({ message: 'success', result: {} }));
+      const helper = await server.loggedInHelper();
+      server.expiry = expiry;
+      server.expireSession();
+
+      await helper.ensureSession();
+      expect(server.loginCount).toBe(2);
+    });
+  }
+
+  it('rejects with NOT_LOGGED_IN for a 200 HTML page without a provider', async () => {
+    const server = semesters(new FakeServer());
+    const helper = server.helper();
+    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    server.expiry = 'html';
+    server.expireSession();
+
+    await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
+    expect(server.loginCount).toBe(1);
+  });
+
+  it('rejects with NOT_LOGGED_IN when the page is still HTML after logging in again', async () => {
+    const server = new FakeServer();
+    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => html('<html>login</html>'));
+    const helper = await server.loggedInHelper();
+
+    await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
+    expect(server.loginCount).toBe(2);
+  });
+
+  it('does not log in again for an error page with another status', async () => {
+    const server = new FakeServer();
+    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => new Response('<html>oops</html>', { status: 500 }));
+    const helper = await server.loggedInHelper();
+
+    await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.UNEXPECTED_STATUS);
+    expect(server.loginCount).toBe(1);
+  });
+
+  it('ensureSession rejects with INVALID_RESPONSE when the probe is not a success', async () => {
+    const server = new FakeServer();
+    server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () => json({ message: 'error' }));
+    const helper = await server.loggedInHelper();
+
+    await expect(helper.ensureSession()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+  });
+});
+
+describe('logins never overlap', () => {
+  it('runs an explicit login after a provider login in progress', async () => {
+    const server = new FakeServer();
+    server.latency = 3;
+    const helper = server.helper({ provider: () => credential });
+
+    await Promise.all([helper.login(), helper.login(USERNAME, PASSWORD, FINGERPRINT)]);
+    expect(server.loginCount).toBe(2);
+    expect(server.maxConcurrentSso).toBe(1);
+  });
+
+  it('makes requests that expire during an explicit login wait for it', async () => {
+    const server = semesters(new FakeServer());
+    const helper = await server.loggedInHelper();
+    server.expireSession();
+    server.latency = 3;
+
+    await Promise.all([
+      helper.login(USERNAME, PASSWORD, FINGERPRINT),
+      ...Array.from({ length: 4 }, () => helper.getSemesterIdList()),
+    ]);
+    expect(server.maxConcurrentSso).toBe(1);
+    expect(server.loginCount).toBe(2);
+  });
+
+  it('still runs an explicit login after a failed one', async () => {
+    const server = new FakeServer();
+    const helper = server.helper();
+    await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toHaveProperty(
+      'reason',
+      FailReason.ERROR_FETCH_FROM_ID,
+    );
+    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    expect(server.loginCount).toBe(1);
+  });
+});
+
+describe('withTimeout', () => {
+  it('lets the caller cancel reading the body after the headers arrived', async () => {
+    let seen: AbortSignal | undefined;
+    const fetch = withTimeout(async (_input, init) => {
+      seen = init?.signal ?? undefined;
+      return new Response('');
+    }, 1000);
+    const controller = new AbortController();
+    await fetch('https://example.com', { signal: controller.signal });
+    controller.abort();
+    expect(seen?.aborted).toBe(true);
+  });
+
+  it('uses a per-request timeout, 0 for none', async () => {
+    const slow = withTimeout(
+      (_input, init) =>
+        new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(() => resolve(new Response('')), 30);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new Error('aborted'));
+          });
+        }),
+      10,
+    );
+    await expect(slow('https://example.com')).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
+    await expect(slow('https://example.com', { timeout: 0 })).resolves.toBeInstanceOf(Response);
   });
 });

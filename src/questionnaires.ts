@@ -18,9 +18,7 @@ export async function getQuestionnaireList(s: Session, courseID: string): Promis
 }
 
 async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: string): Promise<Questionnaire[]> {
-  const json = await (
-    await s.fetchWithToken(url, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID) })
-  ).json();
+  const json = await s.fetchJsonWithToken(url, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID) });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -51,12 +49,10 @@ async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: stri
 }
 
 async function getQuestionnaireDetail(s: Session, courseID: string, qnrID: string): Promise<QuestionnaireDetail[]> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_QNR_DETAIL, {
-      method: 'POST',
-      body: URLS.LEARN_QNR_DETAIL_FORM(courseID, qnrID),
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_QNR_DETAIL, {
+    method: 'POST',
+    body: URLS.LEARN_QNR_DETAIL_FORM(courseID, qnrID),
+  });
   return (json as any[]).map(
     (e) =>
       ({

@@ -7,7 +7,7 @@ import * as URLS from './urls.ts';
 import { decodeHTML, parseSemesterType } from './utils.ts';
 
 export async function getSemesterIdList(s: Session): Promise<string[]> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_SEMESTER_LIST())).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_SEMESTER_LIST());
   if (!Array.isArray(json)) {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -20,7 +20,7 @@ export async function getSemesterIdList(s: Session): Promise<string[]> {
 }
 
 export async function getCurrentSemester(s: Session): Promise<SemesterInfo> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_CURRENT_SEMESTER())).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_CURRENT_SEMESTER());
   if (json.message !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -46,7 +46,7 @@ export async function getCourseList(
   lang = s.lang,
   options: CourseListOptions = {},
 ): Promise<CourseInfo[]> {
-  const json = await (await s.fetchWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, lang))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, lang));
   if (json.message !== 'success' || !Array.isArray(json.resultList)) {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -85,7 +85,7 @@ export async function getCourseList(
 /** get the time and location of one course (1 request) */
 export async function getCourseTimeAndLocation(s: Session, courseID: string): Promise<string[]> {
   // see https://github.com/Harry-Chen/Learn-Helper/issues/145
-  const json = await (await s.fetchWithToken(URLS.LEARN_COURSE_TIME_LOCATION(courseID))).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_COURSE_TIME_LOCATION(courseID));
   if (!Array.isArray(json)) {
     throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
   }
@@ -93,15 +93,13 @@ export async function getCourseTimeAndLocation(s: Session, courseID: string): Pr
 }
 
 export async function sortCourses(s: Session, courseIDs: string[]): Promise<void> {
-  const json = await (
-    await s.fetchWithToken(URLS.LEARN_SORT_COURSES, {
-      method: 'POST',
-      body: JSON.stringify(courseIDs.map((id, index) => ({ wlkcid: id, xh: index + 1 }))),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-  ).json();
+  const json = await s.fetchJsonWithToken(URLS.LEARN_SORT_COURSES, {
+    method: 'POST',
+    body: JSON.stringify(courseIDs.map((id, index) => ({ wlkcid: id, xh: index + 1 }))),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
