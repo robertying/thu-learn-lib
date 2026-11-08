@@ -10,8 +10,16 @@ import * as notices from './notices.ts';
 import * as questionnaires from './questionnaires.ts';
 import { Session } from './request.ts';
 import type {
+  AllContentsOptions,
+  AllContentsResult,
   CalendarOptions,
   CalendarResult,
+  CourseListOptions,
+  ExcellentHomework,
+  HomeworkListOptions,
+  IHomeworkDetail,
+  NotificationListOptions,
+  RemoteFile,
   CommentItem,
   CourseInfo,
   Discussion,
@@ -130,34 +138,56 @@ export class Learn2018Helper {
     return courses.getCurrentSemester(this.#session);
   }
 
-  /** get all courses in the specified semester */
+  /**
+   * Get all courses in the specified semester.
+   * `timeAndLocation` is only fetched (one request per course) with `options.timeAndLocation`.
+   */
   public async getCourseList(
     semesterID: string,
     courseType: CourseType = CourseType.STUDENT,
     lang: Language = this.#session.lang,
+    options?: CourseListOptions,
   ): Promise<CourseInfo[]> {
-    return courses.getCourseList(this.#session, semesterID, courseType, lang);
+    return courses.getCourseList(this.#session, semesterID, courseType, lang, options);
+  }
+
+  /** Get the time and location of one course. */
+  public async getCourseTimeAndLocation(courseID: string): Promise<string[]> {
+    return courses.getCourseTimeAndLocation(this.#session, courseID);
   }
 
   /**
    * Get certain type of content of all specified courses.
-   * It actually wraps around other `getXXX` functions. You can ignore the failure caused by certain courses.
+   * It wraps around the `getXXX` list functions; a course that fails is reported in `errors` instead of failing
+   * the rest. `options.details` is passed on as homework `details` or notification `attachments`.
    */
   public async getAllContents<T extends ContentType>(
     courseIDs: string[],
     type: T,
-    courseType: CourseType = CourseType.STUDENT,
-    allowFailure = false,
-  ) {
-    return contents.getAllContents(this.#session, courseIDs, type, courseType, allowFailure);
+    options?: AllContentsOptions<T>,
+  ): Promise<AllContentsResult<T>> {
+    return contents.getAllContents(this.#session, courseIDs, type, options);
   }
 
-  /** Get all notifications （课程公告） of the specified course. */
+  /**
+   * Get all notifications （课程公告） of the specified course.
+   * Attachments are only fetched (one request per notice) for the notices `options.attachments` selects;
+   * use `getNotificationAttachment` for the others.
+   */
   public async getNotificationList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT,
+    options?: NotificationListOptions,
   ): Promise<Notification[]> {
-    return notices.getNotificationList(this.#session, courseID, courseType);
+    return notices.getNotificationList(this.#session, courseID, courseType, options);
+  }
+
+  /** Get the attachment of a notice (one request), `undefined` if it has none. */
+  public async getNotificationAttachment(
+    notification: Pick<Notification, 'url' | 'attachmentName'>,
+    courseType: CourseType = CourseType.STUDENT,
+  ): Promise<RemoteFile | undefined> {
+    return notices.getNotificationAttachment(this.#session, notification, courseType);
   }
 
   /** Get all files （课程文件） of the specified course. */
@@ -185,17 +215,36 @@ export class Learn2018Helper {
     return files.getFileListByCategory(this.#session, courseID, categoryId, courseType);
   }
 
-  /** Get all homeworks （课程作业） of the specified course. */
+  /**
+   * Get all homeworks （课程作业） of the specified course, with the excellent homework list (without details).
+   * Details (page + description, two requests per homework) are only fetched for the homework `options.details`
+   * selects; use `getHomeworkDetail` for the others.
+   */
   public async getHomeworkList(courseID: string): Promise<Homework[]>;
-  public async getHomeworkList(courseID: string, courseType: CourseType.STUDENT): Promise<Homework[]>;
+  public async getHomeworkList(
+    courseID: string,
+    courseType: CourseType.STUDENT,
+    options?: HomeworkListOptions,
+  ): Promise<Homework[]>;
   public async getHomeworkList(courseID: string, courseType: CourseType.TEACHER): Promise<HomeworkTA[]>;
   public async getHomeworkList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT,
+    options?: HomeworkListOptions,
   ): Promise<Homework[] | HomeworkTA[]> {
     return courseType === CourseType.TEACHER
       ? homework.getHomeworkList(this.#session, courseID, CourseType.TEACHER)
-      : homework.getHomeworkList(this.#session, courseID, CourseType.STUDENT);
+      : homework.getHomeworkList(this.#session, courseID, CourseType.STUDENT, options);
+  }
+
+  /** Get the detail (page content, attachments and description) of one homework. */
+  public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<IHomeworkDetail> {
+    return homework.getHomeworkDetail(this.#session, item);
+  }
+
+  /** Get the detail (page content, attachments and description) of one excellent homework. */
+  public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<IHomeworkDetail> {
+    return homework.getHomeworkDetail(this.#session, item);
   }
 
   /** Get all discussions （课程讨论） of the specified course. */

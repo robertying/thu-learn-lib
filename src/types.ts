@@ -83,7 +83,8 @@ interface ICourseInfo {
   name: string;
   chineseName: string;
   englishName: string;
-  timeAndLocation: string[];
+  /** only with `getCourseList(..., { timeAndLocation: true })`; see `getCourseTimeAndLocation` */
+  timeAndLocation?: string[];
   url: string;
   teacherName: string;
   teacherNumber: string;
@@ -116,6 +117,8 @@ export interface INotification {
   expireTime?: string;
   isFavorite: boolean;
   comment?: string;
+  /** name of the attachment, if the notice has one; fetch it with `getNotificationAttachment` */
+  attachmentName?: string;
 }
 
 export interface INotificationDetail {
@@ -366,6 +369,47 @@ export interface IQuestionnaire {
 }
 
 export type Questionnaire = IQuestionnaire;
+
+/** which items get their extra per-item requests: none (default), all, or those the predicate accepts */
+export type DetailSelector<T> = 'none' | 'all' | ((item: T) => boolean);
+
+export interface CourseListOptions {
+  /** fetch each course's time and location (one request per course; default false) */
+  timeAndLocation?: boolean;
+}
+
+export interface HomeworkListOptions {
+  /**
+   * Which homework gets its detail (page + description JSON, 2 requests each); default `'none'`.
+   * The same as calling `getHomeworkDetail` for those items.
+   */
+  details?: DetailSelector<IHomework>;
+}
+
+export interface NotificationListOptions {
+  /**
+   * Which notices with an attachment get it (1 request each); default `'none'`.
+   * The same as calling `getNotificationAttachment` for those items.
+   */
+  attachments?: DetailSelector<INotification>;
+}
+
+export interface AllContentsOptions<T extends ContentType> {
+  courseType?: CourseType;
+  /** homework `details` or notification `attachments`, passed to each course's list */
+  details?: T extends ContentType.HOMEWORK
+    ? DetailSelector<IHomework>
+    : T extends ContentType.NOTIFICATION
+      ? DetailSelector<INotification>
+      : never;
+}
+
+export interface AllContentsResult<T extends ContentType> {
+  /** content of each course that succeeded */
+  contents: CourseContent<T>;
+  /** the error of each course that failed */
+  errors: { [courseID: string]: unknown };
+}
 
 export type ContentTypeMap = {
   [ContentType.NOTIFICATION]: Notification;

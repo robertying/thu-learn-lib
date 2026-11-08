@@ -60,10 +60,31 @@ const setup = () => {
 };
 
 describe('getCourseList', () => {
-  it('parses courses and fetches time and location per course', async () => {
+  it('parses courses without time and location by default, in one request', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
     const courses = await helper.getCourseList('2024-2025-1');
+
+    expect(courses.map((c) => [c.id, c.timeAndLocation])).toEqual([
+      ['c1', undefined],
+      ['c2', undefined],
+    ]);
+    expect(server.requests).toHaveLength(1);
+  });
+
+  it('gets one course’s time and location', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+    expect(await helper.getCourseTimeAndLocation('c1')).toEqual(['Mon 1-2, 6A101']);
+    await expect(helper.getCourseTimeAndLocation('c2')).rejects.toBeDefined();
+  });
+
+  it('parses courses and fetches time and location per course with timeAndLocation', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+    const courses = await helper.getCourseList('2024-2025-1', CourseType.STUDENT, Language.ZH, {
+      timeAndLocation: true,
+    });
 
     expect(courses).toEqual([
       {

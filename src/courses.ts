@@ -1,7 +1,7 @@
 // Semesters and courses.
 
 import type { Session } from './request.ts';
-import type { CourseInfo, SemesterInfo } from './types.ts';
+import type { ApiError, CourseInfo, CourseListOptions, SemesterInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { decodeHTML, parseSemesterType } from './utils.ts';
@@ -38,12 +38,13 @@ export async function getCurrentSemester(s: Session): Promise<SemesterInfo> {
   };
 }
 
-/** get all courses in the specified semester */
+/** get all courses in the specified semester; time and location only with `options.timeAndLocation` */
 export async function getCourseList(
   s: Session,
   semesterID: string,
   courseType: CourseType = CourseType.STUDENT,
   lang = s.lang,
+  options: CourseListOptions = {},
 ): Promise<CourseInfo[]> {
   const json = await (await s.fetchWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, lang))).json();
   if (json.message !== 'success' || !Array.isArray(json.resultList)) {
@@ -56,11 +57,14 @@ export async function getCourseList(
 
   return Promise.all(
     result.map(async (c) => {
-      let timeAndLocation: string[] = [];
-      try {
-        // see https://github.com/Harry-Chen/Learn-Helper/issues/145
-        timeAndLocation = await (await s.fetchWithToken(URLS.LEARN_COURSE_TIME_LOCATION(c.wlkcid))).json();
-      } catch (e) {}
+      let timeAndLocation: string[] | undefined;
+      if (options.timeAndLocation) {
+        try {
+          timeAndLocation = await getCourseTimeAndLocation(s, c.wlkcid);
+        } catch {
+          timeAndLocation = [];
+        }
+      }
       return {
         id: c.wlkcid,
         name: decodeHTML(c.zywkcm),
@@ -76,6 +80,16 @@ export async function getCourseList(
       } satisfies CourseInfo;
     }),
   );
+}
+
+/** get the time and location of one course (1 request) */
+export async function getCourseTimeAndLocation(s: Session, courseID: string): Promise<string[]> {
+  // see https://github.com/Harry-Chen/Learn-Helper/issues/145
+  const json = await (await s.fetchWithToken(URLS.LEARN_COURSE_TIME_LOCATION(courseID))).json();
+  if (!Array.isArray(json)) {
+    throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+  }
+  return json as string[];
 }
 
 export async function sortCourses(s: Session, courseIDs: string[]): Promise<void> {
