@@ -1,36 +1,43 @@
 // Course calendar from the registrar (academic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
-import type { CalendarEvent } from './types.ts';
+import type { CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { JSONP_EXTRACTOR_NAME, extractJSONPResult } from './utils.ts';
 
-/**
- * Get calendar items during the specified period (in yyyymmdd format).
- * @param startDate start date (inclusive)
- * @param endDate end date (inclusive)
- * If the API returns any error, this function will throw `FailReason.INVALID_RESPONSE`,
- * and we currently observe a limit of no more that 29 days.
- * Otherwise it will return the parsed data (might be empty if the period is too far away from now)
- */
-export async function getCalendar(
-  s: Session,
-  startDate: string,
-  endDate: string,
-  graduate = false,
-): Promise<CalendarEvent[]> {
-  const ticketResponse = await s.fetchWithToken(URLS.REGISTRAR_TICKET(), {
-    method: 'POST',
-    body: URLS.REGISTRAR_TICKET_FORM_DATA(),
-  });
+/** The registrar often fails for ranges longer than about a month, so longer ranges are fetched in windows of this many days. */
+export const CALENDAR_WINDOW_DAYS = 28;
 
-  let ticket = await ticketResponse.text();
-  ticket = ticket.substring(1, ticket.length - 1);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-  await s.fetch(URLS.REGISTRAR_AUTH(ticket));
+const parseDate = (date: string): number => {
+  const match = /^(\d{4})(\d{2})(\d{2})$/.exec(date);
+  const time = match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : NaN;
+  if (Number.isNaN(time) || formatDate(time) !== date) {
+    throw { reason: FailReason.INVALID_RESPONSE, extra: `invalid date ${date}, expected yyyymmdd` };
+  }
+  return time;
+};
 
-  const response = await s.fetchWithToken(URLS.REGISTRAR_CALENDAR(startDate, endDate, graduate, JSONP_EXTRACTOR_NAME));
+const formatDate = (time: number): string => new Date(time).toISOString().slice(0, 10).replaceAll('-', '');
+
+/** Split an inclusive yyyymmdd range into consecutive inclusive windows of at most `days` days. */
+export function splitCalendarRange(startDate: string, endDate: string, days = CALENDAR_WINDOW_DAYS): CalendarRange[] {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const ranges: CalendarRange[] = [];
+  for (let from = start; from <= end; from += days * DAY_MS) {
+    const to = Math.min(from + (days - 1) * DAY_MS, end);
+    ranges.push({ startDate: formatDate(from), endDate: formatDate(to) });
+  }
+  return ranges;
+}
+
+async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean): Promise<CalendarEvent[]> {
+  const response = await s.fetchWithToken(
+    URLS.REGISTRAR_CALENDAR(range.startDate, range.endDate, graduate, JSONP_EXTRACTOR_NAME),
+  );
 
   if (!response.ok) {
     return Promise.reject({
@@ -48,4 +55,48 @@ export async function getCalendar(
     date: i.nq,
     courseName: i.nr,
   }));
+}
+
+/**
+ * Get calendar items during the specified period (in yyyymmdd format, both inclusive).
+ *
+ * Ranges longer than `CALENDAR_WINDOW_DAYS` are fetched in consecutive windows (one at a time, each retried once) and
+ * merged in date order. Windows that still fail are listed in `failedRanges`, so callers can show partial data and
+ * retry only those. If every window fails, this rejects with the last error instead (usually
+ * `FailReason.INVALID_RESPONSE`). The result might be empty if the period is too far away from now.
+ */
+export async function getCalendar(
+  s: Session,
+  startDate: string,
+  endDate: string,
+  options: CalendarOptions = {},
+): Promise<CalendarResult> {
+  const graduate = options.graduate ?? false;
+  const ranges = splitCalendarRange(startDate, endDate);
+  if (ranges.length === 0) return { events: [], failedRanges: [] };
+
+  const ticketResponse = await s.fetchWithToken(URLS.REGISTRAR_TICKET(), {
+    method: 'POST',
+    body: URLS.REGISTRAR_TICKET_FORM_DATA(),
+  });
+
+  let ticket = await ticketResponse.text();
+  ticket = ticket.substring(1, ticket.length - 1);
+
+  await s.fetch(URLS.REGISTRAR_AUTH(ticket));
+
+  const events: CalendarEvent[] = [];
+  const failedRanges: CalendarRange[] = [];
+  let lastError: unknown;
+  for (const range of ranges) {
+    try {
+      events.push(...(await fetchWindow(s, range, graduate).catch(() => fetchWindow(s, range, graduate))));
+    } catch (e) {
+      lastError = e;
+      failedRanges.push(range);
+    }
+  }
+
+  if (failedRanges.length === ranges.length) throw lastError;
+  return { events, failedRanges };
 }

@@ -10,7 +10,8 @@ import * as notices from './notices.ts';
 import * as questionnaires from './questionnaires.ts';
 import { Session } from './request.ts';
 import type {
-  CalendarEvent,
+  CalendarOptions,
+  CalendarResult,
   CommentItem,
   CourseInfo,
   Discussion,
@@ -113,15 +114,12 @@ export class Learn2018Helper {
   }
 
   /**
-   * Get calendar items during the specified period (in yyyymmdd format).
-   * @param startDate start date (inclusive)
-   * @param endDate end date (inclusive)
-   * If the API returns any error, this function will throw `FailReason.INVALID_RESPONSE`,
-   * and we currently observe a limit of no more that 29 days.
-   * Otherwise it will return the parsed data (might be empty if the period is too far away from now)
+   * Get calendar items during the specified period (in yyyymmdd format, both inclusive).
+   * Ranges longer than 28 days are fetched in windows and merged; windows that fail even after a retry are listed in
+   * `failedRanges`. Rejects only when every window fails (usually with `FailReason.INVALID_RESPONSE`).
    */
-  public async getCalendar(startDate: string, endDate: string, graduate = false): Promise<CalendarEvent[]> {
-    return calendar.getCalendar(this.#session, startDate, endDate, graduate);
+  public async getCalendar(startDate: string, endDate: string, options?: CalendarOptions): Promise<CalendarResult> {
+    return calendar.getCalendar(this.#session, startDate, endDate, options);
   }
 
   public async getSemesterIdList(): Promise<string[]> {

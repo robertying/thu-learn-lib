@@ -112,13 +112,14 @@ const questions = await helper.getAnsweredQuestionList(course.id);
 // where Content = Notification | File | Homework | Discussion | Question
 const homeworks = await helper.getAllContents([1, 2, 3], ContentType.HOMEWORK);
 
-// get course calendar in a period
+// get course calendar in a period (yyyymmdd, inclusive)
+// ranges over 28 days are fetched in windows; windows that fail even after a retry are in failedRanges
 try {
-  const calendar = await helper.getCalendar('20191001', '20191201');
+  const { events, failedRanges } = await helper.getCalendar('20191001', '20191201', { graduate: false });
 } catch (e) {
+  // every window failed
   const error = e as ApiError;
   // check e.reason and e.extra for information
-  // you might want to check your date format or shrink the range (currently we observe a limit of 29 days)
 }
 ```
 
