@@ -30,6 +30,8 @@ pnpm test
 pnpm build # emits ESM + .d.ts to lib/
 ```
 
+The code is split by area under `src/`: `request.ts` (session, CSRF token, re-login), `auth.ts`, `courses.ts`, `notices.ts`, `files.ts`, `homework.ts`, `discussions.ts`, `questionnaires.ts`, `favorites.ts`, `calendar.ts`, `contents.ts` and `user.ts`. `index.ts` holds the public `Learn2018Helper` class, which passes its private session to those functions.
+
 Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and formatting uses [oxfmt](https://oxc.rs/docs/guide/usage/formatter).
 
 ## Releasing
@@ -127,7 +129,7 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
 
 ## Testing
 
-`pnpm test` runs the offline tests.
+`pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes.
 
 `pnpm test:live` runs the tests against the real server. It needs your own credentials: copy `test/live/template.env` to `test/live/.env` and fill it in.
 
@@ -137,6 +139,7 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
   - Published as `@robertying/thu-learn-lib`
   - Tooling: pnpm, TypeScript 7 (`tsc` ESM + `.d.ts` build), oxlint + oxfmt, Vitest 5, Node 26
   - (_BREAKING CHANGE_) Drop the IIFE browser build and the browser-extension demo
+  - Code split into modules, with offline tests
   - No API changes
 - v4.0.0
   - Upgrade cheerio to 1.0
