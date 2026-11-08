@@ -17,10 +17,10 @@ export default async function setup(project: TestProject) {
     return courses.length > 0 ? courses[0].id : undefined;
   };
 
-  let semesterTester = process.env.S;
-  let courseTester = process.env.C;
-  let semesterTATester = process.env.ST;
-  let courseTATester = process.env.CT;
+  let semesterTester = process.env.STUDENT_SEMESTER;
+  let courseTester = process.env.STUDENT_COURSE;
+  let semesterTATester = process.env.TEACHER_SEMESTER;
+  let courseTATester = process.env.TEACHER_COURSE;
 
   if (!semesterTester) {
     const semesters = await h.getSemesterIdList();
@@ -37,8 +37,8 @@ export default async function setup(project: TestProject) {
   if (!courseTester) {
     courseTester = await findCourse(semesterTester, CourseType.STUDENT);
   }
-  provide('S', semesterTester);
-  provide('C', courseTester);
+  provide('studentSemester', semesterTester);
+  provide('studentCourse', courseTester);
 
   if (!semesterTATester) {
     const semesters = await h.getSemesterIdList();
@@ -55,17 +55,17 @@ export default async function setup(project: TestProject) {
   if (!courseTATester) {
     courseTATester = await findCourse(semesterTATester, CourseType.TEACHER);
   }
-  provide('ST', semesterTATester);
-  provide('CT', courseTATester);
+  provide('teacherSemester', semesterTATester);
+  provide('teacherCourse', courseTATester);
 
   await h.logout();
 }
 
 declare module 'vitest' {
   export interface ProvidedContext {
-    S: string;
-    C: string | undefined;
-    ST: string;
-    CT: string | undefined;
+    studentSemester: string;
+    studentCourse: string | undefined;
+    teacherSemester: string;
+    teacherCourse: string | undefined;
   }
 }

@@ -17,11 +17,12 @@ Other dependencies (`js-base64`, `sm-crypto`, `node-fetch-native`) are on their 
 
 ## Check against the real server
 
-v5 has only been tested offline (`test/helpers/fake-server.ts`), since nobody had a real account at the time.
-`test/live/v5.test.ts` covers these; run `pnpm test:live` and fix whatever it finds:
+The request layer and on-demand details (v5) have only been tested offline (`test/helpers/fake-server.ts`), since
+nobody had a real account at the time. The live tests (`test/live/`) cover these; run `pnpm test:live` and fix
+whatever it finds:
 
 - How an expired session answers a JSON request and an HTML page: a 403, a redirect to `login_timeout`, or a 200
-  page. The "records how the server answers" test prints it. The library assumes all three are possible and treats a
+  page. The "records how the server answers an expired session" test in `authentication.test.ts` prints it. The library assumes all three are possible and treats a
   short 200 page that mentions `login_timeout` or the SSO login (`looksLikeLoginPage` in `src/request.ts`) as expired.
   Adjust that heuristic and the fake server's `expiry` modes to what the server really does.
 - `ensureSession()` resumes a saved CSRF token and cookies without SSO, and logs in again when the session expired.
