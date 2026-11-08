@@ -155,4 +155,26 @@ describe('getNotificationAttachment', () => {
 
     expect(await helper.getNotificationAttachment({ url, attachmentName: 'gone.pdf' })).toBeUndefined();
   });
+
+  it('logs in again when the detail page is the short login page of an expired session', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+    server.expiry = 'html';
+    server.expireSession();
+    const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n2', CourseType.STUDENT);
+
+    expect((await helper.getNotificationAttachment({ url, attachmentName: 'slides.pdf' }))?.id).toBe('file-n2');
+    expect(server.loginCount).toBe(2);
+  });
+
+  it('does not take a full page that mentions login_timeout for a login page', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT), () =>
+      html(`<script>/* login_timeout */</script>${detailPage('f1')}`.padEnd(5000)),
+    );
+    const helper = await server.loggedInHelper();
+    const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
+
+    expect((await helper.getNotificationAttachment({ url, attachmentName: 'a.pdf' }))?.id).toBe('f1');
+    expect(server.loginCount).toBe(1);
+  });
 });

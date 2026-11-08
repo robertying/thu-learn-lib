@@ -44,7 +44,9 @@ export async function getAllContents<T extends ContentType>(
       case ContentType.QUESTION:
         return getAnsweredQuestionList(s, id, courseType) as Promise<ContentTypeMap[T][]>;
       case ContentType.QUESTIONNAIRE:
-        return getQuestionnaireList(s, id) as Promise<ContentTypeMap[T][]>;
+        return getQuestionnaireList(s, id, {
+          details: (options as AllContentsOptions<ContentType.QUESTIONNAIRE>).details,
+        }) as Promise<ContentTypeMap[T][]>;
       default:
         return Promise.reject({
           reason: FailReason.NOT_IMPLEMENTED,

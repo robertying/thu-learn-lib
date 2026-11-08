@@ -6,7 +6,7 @@ import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { decodeHTML, formatFileSize } from './utils.ts';
 
-/** Get all files （课程文件） of the specified course. */
+/** Get all files （课程文件） of the specified course; `category` is left out if the categories can't be fetched. */
 export async function getFileList(
   s: Session,
   courseID: string,
@@ -29,7 +29,9 @@ export async function getFileList(
     result = json.object;
   }
 
-  const categories = new Map((await getFileCategoryList(s, courseID, courseType)).map((c) => [c.id, c]));
+  // categories only fill `category`; don't fail the whole list when they can't be fetched
+  const categoryList = await getFileCategoryList(s, courseID, courseType).catch(() => []);
+  const categories = new Map(categoryList.map((c) => [c.id, c]));
 
   return result.map((f) => {
     const title = decodeHTML(f.bt);
@@ -158,7 +160,7 @@ export async function getFileListByCategory(
       });
     }
 
-    const result = (json.object.aaData ?? []) as any[];
+    const result = (json.object?.aaData ?? []) as any[];
 
     return result.map((f) => {
       const title = decodeHTML(f.bt);

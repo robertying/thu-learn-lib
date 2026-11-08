@@ -8,7 +8,7 @@ import * as URLS from './urls.ts';
 
 /** get user's name and department */
 export async function getUserInfo(s: Session, courseType = CourseType.STUDENT): Promise<UserInfo> {
-  const content = await (await s.fetchWithToken(URLS.LEARN_HOMEPAGE(courseType))).text();
+  const content = await s.fetchTextWithToken(URLS.LEARN_HOMEPAGE(courseType));
 
   const dom = $(content);
   const name = dom('a.user-log').text().trim();

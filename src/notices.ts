@@ -89,8 +89,7 @@ export async function getNotificationAttachment(
   // });
   // const attachmentId = metadata.ggfjid as string;
   /// parsed from HTML
-  const response = await s.fetchWithToken(notification.url);
-  const result = $(await response.text());
+  const result = $(await s.fetchTextWithToken(notification.url));
   let path = (courseType === CourseType.STUDENT ? result('.ml-10') : result('#wjid')).attr('href');
   // the page has no attachment link (removed since the list was fetched, or the page changed)
   if (!path) return undefined;

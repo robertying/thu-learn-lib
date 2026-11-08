@@ -365,7 +365,8 @@ export interface IQuestionnaire {
   isFavorite: boolean;
   comment?: string;
   url: string;
-  detail: QuestionnaireDetail[];
+  /** the questions; only for the questionnaires `getQuestionnaireList`'s `details` selects (by default all) */
+  detail?: QuestionnaireDetail[];
 }
 
 export type Questionnaire = IQuestionnaire;
@@ -394,14 +395,24 @@ export interface NotificationListOptions {
   attachments?: DetailSelector<INotification>;
 }
 
+export interface QuestionnaireListOptions {
+  /**
+   * Which questionnaires get their questions (`detail`, 1 request each); default `'all'` (unlike the other lists, for
+   * compatibility). The same as calling `getQuestionnaireDetail` for those items.
+   */
+  details?: DetailSelector<IQuestionnaire>;
+}
+
 export interface AllContentsOptions<T extends ContentType> {
   courseType?: CourseType;
-  /** homework `details` or notification `attachments`, passed to each course's list */
+  /** homework or questionnaire `details`, or notification `attachments`, passed to each course's list */
   details?: T extends ContentType.HOMEWORK
     ? DetailSelector<IHomework>
     : T extends ContentType.NOTIFICATION
       ? DetailSelector<INotification>
-      : never;
+      : T extends ContentType.QUESTIONNAIRE
+        ? DetailSelector<IQuestionnaire>
+        : never;
 }
 
 export interface AllContentsResult<T extends ContentType> {

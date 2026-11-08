@@ -127,4 +127,32 @@ describe('getQuestionnaireList', () => {
     // 2 lists + 1 detail per questionnaire
     expect(server.requests).toHaveLength(4);
   });
+
+  it('fetches questions only for the questionnaires details selects, or on demand', async () => {
+    const server = new FakeServer()
+      .on('POST', URLS.LEARN_QNR_LIST_ONGOING, () => success({ aaData: [qnr('w1', '投票', null)] }))
+      .on('POST', URLS.LEARN_QNR_LIST_ENDED, () => success({ aaData: [qnr('w2', '问卷', '2025-01-01')] }))
+      .on('POST', URLS.LEARN_QNR_DETAIL, () => json([]));
+    const helper = await server.loggedInHelper();
+
+    const none = await helper.getQuestionnaireList('c1', { details: 'none' });
+    expect(none.map((q) => q.detail)).toEqual([undefined, undefined]);
+    expect(server.count(URLS.LEARN_QNR_DETAIL)).toBe(0);
+
+    const some = await helper.getQuestionnaireList('c1', { details: (q) => q.submitTime === undefined });
+    expect(some.map((q) => q.detail)).toEqual([[], undefined]);
+    expect(server.count(URLS.LEARN_QNR_DETAIL)).toBe(1);
+
+    expect(await helper.getQuestionnaireDetail('c1', 'w2')).toEqual([]);
+    expect(server.requests.at(-1)?.form?.get('wjid')).toBe('w2');
+  });
+
+  it('rejects with INVALID_RESPONSE when the questions are not a list', async () => {
+    const server = new FakeServer()
+      .on('POST', URLS.LEARN_QNR_LIST_ONGOING, () => success({ aaData: [qnr('w1', '投票', null)] }))
+      .on('POST', URLS.LEARN_QNR_LIST_ENDED, () => success({ aaData: [] }))
+      .on('POST', URLS.LEARN_QNR_DETAIL, () => json({ result: 'error' }));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getQuestionnaireList('c1')).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+  });
 });

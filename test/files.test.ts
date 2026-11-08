@@ -29,6 +29,15 @@ const studentFile = {
 };
 
 describe('getFileList', () => {
+  it('still returns the files without category when the category list fails', async () => {
+    const server = new FakeServer()
+      .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () => success([studentFile]))
+      .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.STUDENT), () => json({ result: 'error' }));
+    const helper = await server.loggedInHelper();
+    const files = await helper.getFileList('c1');
+    expect(files.map((f) => [f.id, f.category])).toEqual([['k1', undefined]]);
+  });
+
   it('parses files and attaches their category', async () => {
     const server = new FakeServer()
       .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () => success([studentFile]))

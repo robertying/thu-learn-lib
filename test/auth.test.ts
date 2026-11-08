@@ -54,21 +54,45 @@ describe('login', () => {
     await expect(helper.login()).rejects.toHaveProperty('reason', FailReason.NO_CREDENTIAL);
   });
 
-  it('rejects with ERROR_FETCH_FROM_ID for a wrong password', async () => {
+  it('rejects with BAD_CREDENTIAL and the page message for a wrong password', async () => {
     const server = new FakeServer();
     const helper = server.helper();
-    await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toHaveProperty(
-      'reason',
-      FailReason.ERROR_FETCH_FROM_ID,
-    );
+    await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toEqual({
+      reason: FailReason.BAD_CREDENTIAL,
+      extra: '用户名或密码错误',
+    });
     expect(server.loginCount).toBe(0);
   });
 
-  it('logs out with one POST', async () => {
-    const server = new FakeServer();
+  it('rejects with ERROR_FETCH_FROM_ID when the SSO server fails or is unreachable', async () => {
+    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => new Response('', { status: 502 }), {
+      public: true,
+    });
+    await expect(server.helper().login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
+      'reason',
+      FailReason.ERROR_FETCH_FROM_ID,
+    );
+
+    const offline = new FakeServer().helper({
+      fetch: () => Promise.reject(new TypeError('Network request failed')),
+    });
+    await expect(offline.login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
+      'reason',
+      FailReason.ERROR_FETCH_FROM_ID,
+    );
+  });
+
+  it('logs out with one POST and forgets the CSRF token', async () => {
+    const server = semesters(new FakeServer());
     const helper = await server.loggedInHelper();
     await helper.logout();
     expect(server.count(URLS.LEARN_LOGOUT(), 'POST')).toBe(1);
+    expect(helper.getCSRFToken()).toBe('');
+
+    // the next request logs in first instead of sending the old token
+    await helper.getSemesterIdList();
+    expect(server.loginCount).toBe(2);
+    expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(1);
   });
 });
 
@@ -376,7 +400,7 @@ describe('logins never overlap', () => {
     const helper = server.helper();
     await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toHaveProperty(
       'reason',
-      FailReason.ERROR_FETCH_FROM_ID,
+      FailReason.BAD_CREDENTIAL,
     );
     await helper.login(USERNAME, PASSWORD, FINGERPRINT);
     expect(server.loginCount).toBe(1);

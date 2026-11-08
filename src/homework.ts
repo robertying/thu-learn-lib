@@ -182,8 +182,7 @@ async function getExcellentHomeworkListByHomework(
 }
 
 async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDetail> {
-  const response = await s.fetchWithToken(url);
-  const result = $(await response.text());
+  const result = $(await s.fetchTextWithToken(url));
 
   const fileDivs = result('div.list.fujian.clearfix');
 

@@ -108,6 +108,8 @@ const notifications = await helper.getNotificationList(course.id);
 const files = await helper.getFileList(course.id);
 const homework = await helper.getHomeworkList(course.id);
 const questions = await helper.getAnsweredQuestionList(course.id);
+// questionnaires fetch their questions (one request each) unless you pass { details: 'none' }
+const questionnaires = await helper.getQuestionnaireList(course.id, { details: 'none' });
 
 // details cost extra requests per item, so they are opt-in; fetch the rest on demand
 const withDetails = await helper.getHomeworkList(course.id, undefined, { details: (h) => !h.submitted });
@@ -142,7 +144,7 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
 
 `pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes.
 
-`pnpm test:live` runs the tests against the real server. It needs your own credentials: copy `test/live/template.env` to `test/live/.env` and fill it in.
+`pnpm test:live` runs the tests against the real server. It needs your own credentials and a device fingerprint: copy `test/live/template.env` to `test/live/.env` and fill it in. `test/live/v5.test.ts` checks the behavior the offline tests can only assume (see [TODO.md](TODO.md)).
 
 ## Changelog
 
@@ -156,6 +158,12 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
   - `getNotificationAttachment` returns `undefined` when the detail page has no attachment link, instead of throwing
   - `getHomeworkList(courseID, undefined, options)` type-checks; `getAllContents` rejects homework of a teacher course with `NOT_IMPLEMENTED` instead of returning student data
   - Supports Node 22 and later (was 26)
+  - A wrong password rejects with `BAD_CREDENTIAL` (with the SSO page's message in `extra`) instead of `ERROR_FETCH_FROM_ID`, which now means the SSO server failed or couldn't be reached
+  - HTML pages (user info, homework page, notice detail, calendar ticket) also detect the short login page of an expired session and log in again
+  - `logout` forgets the CSRF token, so the next request logs in instead of sending the old token
+  - `getFileList` still returns the files (without `category`) when the category list fails
+  - `getQuestionnaireList(courseID, { details })` can skip the questions (one request per questionnaire; default still `'all'`), with `getQuestionnaireDetail(courseID, questionnaireID)` on demand; `detail` is now optional
+  - Live tests need a fingerprint (`FP` in `test/live/.env`) and cover the v5 behavior (`test/live/v5.test.ts`)
 - v5.0.0
   - (_BREAKING CHANGE_) Per-item detail requests are opt-in: `getHomeworkList(id, CourseType.STUDENT, { details })`, `getNotificationList(id, type, { attachments })` (notices get `attachmentName`), `getCourseList(semester, type, lang, { timeAndLocation })` (`timeAndLocation` is now optional); fetch the rest on demand with `getHomeworkDetail`, `getExcellentHomeworkDetail`, `getNotificationAttachment` and `getCourseTimeAndLocation`
   - (_BREAKING CHANGE_) The excellent homework list is fetched once per course and comes without details

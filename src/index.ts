@@ -34,6 +34,8 @@ import type {
   Notification,
   Question,
   Questionnaire,
+  QuestionnaireDetail,
+  QuestionnaireListOptions,
   SemesterInfo,
   UserInfo,
   ContentType,
@@ -268,9 +270,16 @@ export class Learn2018Helper {
 
   /**
    * Get all questionnaires （课程问卷/QNR） of the specified course.
+   * Questions (`detail`, one request per questionnaire) for the questionnaires `options.details` selects, by default
+   * all; use `getQuestionnaireDetail` for the others.
    */
-  public async getQuestionnaireList(courseID: string): Promise<Questionnaire[]> {
-    return questionnaires.getQuestionnaireList(this.#session, courseID);
+  public async getQuestionnaireList(courseID: string, options?: QuestionnaireListOptions): Promise<Questionnaire[]> {
+    return questionnaires.getQuestionnaireList(this.#session, courseID, options);
+  }
+
+  /** Get the questions of one questionnaire (one request). */
+  public async getQuestionnaireDetail(courseID: string, questionnaireID: string): Promise<QuestionnaireDetail[]> {
+    return questionnaires.getQuestionnaireDetail(this.#session, courseID, questionnaireID);
   }
 
   /**

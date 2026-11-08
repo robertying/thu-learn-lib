@@ -34,6 +34,7 @@ export async function getRoamingTicket(
     } as ApiError;
   }
 
+  let page: string;
   try {
     const loginForm = await s.rawFetch(URLS.ID_LOGIN());
     const body = $(await loginForm.text());
@@ -52,16 +53,27 @@ export async function getRoamingTicket(
       body: formData,
     });
 
-    const anchor = $(await checkResponse.text())('a');
-    const redirectUrl = anchor.attr('href') as string;
-    const ticket = redirectUrl.split('=').slice(-1)[0];
-    return ticket;
+    if (!checkResponse.ok) {
+      throw { code: checkResponse.status, text: checkResponse.statusText };
+    }
+    page = await checkResponse.text();
   } catch (err) {
     throw {
       reason: FailReason.ERROR_FETCH_FROM_ID,
       extra: err,
     } as ApiError;
   }
+
+  // id.tsinghua.edu.cn answers with a link to the roaming URL (with the ticket), or with the form and an error
+  const body = $(page);
+  const redirectUrl = body('a').attr('href');
+  if (!redirectUrl) {
+    throw {
+      reason: FailReason.BAD_CREDENTIAL,
+      extra: body.root().text().replace(/\s+/g, ' ').trim().slice(0, 200),
+    } as ApiError;
+  }
+  return redirectUrl.split('=').slice(-1)[0];
 }
 
 /** login is necessary if you do not provide a `CredentialProvider` */
@@ -115,7 +127,8 @@ export async function login(
   if (langMatches.length !== 0) s.lang = langMatches[0][1] === 'en' ? Language.EN : Language.ZH;
 }
 
-/**  logout (to make everyone happy) */
+/**  logout (to make everyone happy); the CSRF token is cleared, so the next request logs in again */
 export async function logout(s: Session): Promise<void> {
   await s.rawFetch(URLS.LEARN_LOGOUT(), { method: 'POST' });
+  s.csrfToken = '';
 }
