@@ -1,22 +1,19 @@
 import * as cheerio from 'cheerio';
-import type * as DOM from 'domhandler';
+import type { Element } from 'cheerio';
 import { Base64 } from 'js-base64';
 import { fetch } from 'node-fetch-native';
 import fetchCookie from 'fetch-cookie';
 import { CookieJar } from 'tough-cookie';
 
-import {
+import type {
   ApiError,
   CalendarEvent,
   CommentItem,
-  ContentType,
   ContentTypeMap,
   CourseContent,
   CourseInfo,
-  CourseType,
   CredentialProvider,
   Discussion,
-  FailReason,
   FavoriteItem,
   Fetch,
   File,
@@ -30,11 +27,9 @@ import {
   IHomeworkSubmitAttachment,
   INotification,
   INotificationDetail,
-  Language,
   Notification,
   Questionnaire,
   QuestionnaireDetail,
-  QuestionnaireType,
   Question,
   RemoteFile,
   SemesterInfo,
@@ -42,8 +37,9 @@ import {
   ExcellentHomework,
   IExcellentHomework,
   IHomework,
-} from './types';
-import * as URLS from './urls';
+} from './types.ts';
+import { ContentType, CourseType, FailReason, Language, QuestionnaireType } from './types.ts';
+import * as URLS from './urls.ts';
 import {
   CONTENT_TYPE_MAP_REVERSE,
   GRADE_LEVEL_MAP,
@@ -54,7 +50,7 @@ import {
   formatFileSize,
   parseSemesterType,
   trimAndDefine,
-} from './utils';
+} from './utils.ts';
 import { sm2 } from 'sm-crypto';
 
 function makeFetch(jar?: CookieJar): typeof fetch {
@@ -63,11 +59,11 @@ function makeFetch(jar?: CookieJar): typeof fetch {
 
 const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
 
-const $ = (html: string | DOM.Element | DOM.Element[]): cheerio.CheerioAPI => {
+const $ = (html: string | Element | Element[]): cheerio.CheerioAPI => {
   return cheerio.load(html, CHEERIO_CONFIG);
 };
 
-const noLogin = (res: Response) => res.url.includes('login_timeout') || res.status == 403;
+const noLogin = (res: Response) => res.url.includes('login_timeout') || res.status === 403;
 
 const YES = '是';
 
@@ -85,7 +81,7 @@ export class Learn2018Helper {
   readonly #rawFetch: Fetch;
   readonly #myFetch: Fetch;
   readonly #myFetchWithToken: Fetch = async (...args) => {
-    if (this.#csrfToken == '') {
+    if (this.#csrfToken === '') {
       await this.login();
     }
     const [url, ...remaining] = args;
@@ -103,15 +99,15 @@ export class Learn2018Helper {
           if (noLogin(res)) {
             return Promise.reject({
               reason: FailReason.NOT_LOGGED_IN,
-            } as ApiError);
-          } else if (res.status != 200) {
+            });
+          } else if (res.status !== 200) {
             return Promise.reject({
               reason: FailReason.UNEXPECTED_STATUS,
               extra: {
                 code: res.status,
                 text: res.statusText,
               },
-            } as ApiError);
+            });
           } else {
             return res;
           }
@@ -136,7 +132,7 @@ export class Learn2018Helper {
           if (noLogin(result))
             return Promise.reject({
               reason: FailReason.NOT_LOGGED_IN,
-            } as ApiError);
+            });
           return result;
         };
   }
@@ -218,7 +214,7 @@ export class Learn2018Helper {
       if (!this.#provider)
         return Promise.reject({
           reason: FailReason.NO_CREDENTIAL,
-        } as ApiError);
+        });
       const credential = await this.#provider();
       username = credential.username;
       password = credential.password;
@@ -228,7 +224,7 @@ export class Learn2018Helper {
       if (!username || !password || !fingerPrint) {
         return Promise.reject({
           reason: FailReason.NO_CREDENTIAL,
-        } as ApiError);
+        });
       }
     }
 
@@ -236,24 +232,24 @@ export class Learn2018Helper {
     const ticket = await this.getRoamingTicket(username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
 
     const loginResponse = await this.#rawFetch(URLS.LEARN_AUTH_ROAM(ticket));
-    if (loginResponse.ok !== true) {
+    if (!loginResponse.ok) {
       return Promise.reject({
         reason: FailReason.ERROR_ROAMING,
-      } as ApiError);
+      });
     }
     const courseListPageSource: string = await (await this.#rawFetch(URLS.LEARN_STUDENT_COURSE_LIST_PAGE())).text();
     const tokenRegex = /^.*&_csrf=(\S*)".*$/gm;
     const tokenMatches = [...courseListPageSource.matchAll(tokenRegex)];
-    if (tokenMatches.length == 0) {
+    if (tokenMatches.length === 0) {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: 'cannot fetch CSRF token from source',
-      } as ApiError);
+      });
     }
     this.#csrfToken = tokenMatches[0][1];
     const langRegex = /<script src="\/f\/wlxt\/common\/languagejs\?lang=(zh|en)"><\/script>/g;
     const langMatches = [...courseListPageSource.matchAll(langRegex)];
-    if (langMatches.length !== 0) this.#lang = langMatches[0][1] as Language;
+    if (langMatches.length !== 0) this.#lang = langMatches[0][1] === 'en' ? Language.EN : Language.ZH;
   }
 
   /**  logout (to make everyone happy) */
@@ -289,7 +285,7 @@ export class Learn2018Helper {
       body: URLS.REGISTRAR_TICKET_FORM_DATA(),
     });
 
-    let ticket = (await ticketResponse.text()) as string;
+    let ticket = await ticketResponse.text();
     ticket = ticket.substring(1, ticket.length - 1);
 
     await this.#myFetch(URLS.REGISTRAR_AUTH(ticket));
@@ -301,7 +297,7 @@ export class Learn2018Helper {
     if (!response.ok) {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
-      } as ApiError);
+      });
     }
 
     const result = extractJSONPResult(await response.text()) as any[];
@@ -322,7 +318,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
     const semesters = json as string[];
     // sometimes web learning returns null, so confusing...
@@ -335,7 +331,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
     const result = json.result;
     return {
@@ -359,7 +355,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
     const result = (json.resultList ?? []) as any[];
 
@@ -397,7 +393,7 @@ export class Learn2018Helper {
     courseType: CourseType = CourseType.STUDENT,
     allowFailure = false,
   ) {
-    const fetchContentForCourse = <T extends ContentType>(type: T, id: string, courseType: CourseType) => {
+    const fetchContentForCourse = (id: string) => {
       switch (type) {
         case ContentType.NOTIFICATION:
           return this.getNotificationList(id, courseType) as Promise<ContentTypeMap[T][]>;
@@ -415,7 +411,7 @@ export class Learn2018Helper {
           return Promise.reject({
             reason: FailReason.NOT_IMPLEMENTED,
             extra: 'Unknown content type',
-          } as ApiError);
+          });
       }
     };
 
@@ -423,19 +419,19 @@ export class Learn2018Helper {
 
     const results = await Promise.allSettled(
       courseIDs.map(async (id) => {
-        contents[id] = await fetchContentForCourse(type, id, courseType);
+        contents[id] = await fetchContentForCourse(id);
       }),
     );
 
     if (!allowFailure) {
       for (const r of results) {
-        if (r.status == 'rejected') {
+        if (r.status === 'rejected') {
           return Promise.reject({
             reason: FailReason.INVALID_RESPONSE,
             extra: {
               reason: r.reason,
             },
-          } as ApiError);
+          });
         }
       }
     }
@@ -469,7 +465,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     const result = (json.object?.aaData ?? json.object?.resultsList ?? []) as any[];
@@ -506,7 +502,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     let result: any[] = [];
@@ -564,7 +560,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     const result = (json.object?.rows ?? []) as any[];
@@ -596,7 +592,7 @@ export class Learn2018Helper {
         return Promise.reject({
           reason: FailReason.INVALID_RESPONSE,
           extra: json,
-        } as ApiError);
+        });
       }
 
       const result = (json.object ?? []) as any[];
@@ -646,7 +642,7 @@ export class Learn2018Helper {
         return Promise.reject({
           reason: FailReason.INVALID_RESPONSE,
           extra: json,
-        } as ApiError);
+        });
       }
 
       const result = (json.object.aaData ?? []) as any[];
@@ -704,7 +700,7 @@ export class Learn2018Helper {
         return Promise.reject({
           reason: FailReason.INVALID_RESPONSE,
           extra: json,
-        } as ApiError);
+        });
       }
 
       const result = (json.object?.aaData ?? []) as any[];
@@ -743,7 +739,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     const result = (json.object?.resultsList ?? []) as any[];
@@ -771,7 +767,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     const result = (json.object?.resultsList ?? []) as any[];
@@ -804,7 +800,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
     const result = (json.object?.aaData ?? []) as any[];
     return Promise.all(
@@ -842,7 +838,7 @@ export class Learn2018Helper {
           id: e.wtid,
           index: Number(e.wtbh),
           type: e.type,
-          required: e.require == YES,
+          required: e.require === YES,
           title: decodeHTML(e.wtbt),
           score: e.wtfz ? Number(e.wtfz) : undefined, // unsure about original type
           options: (e.list as any[])?.map((o) => ({
@@ -863,7 +859,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -876,7 +872,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -895,18 +891,18 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
     const result = (json.object?.aaData ?? []) as any[];
     return result
       .map((e): FavoriteItem | undefined => {
-        const type = CONTENT_TYPE_MAP_REVERSE.get(e.ywlx);
-        if (!type) return; // ignore unknown type
+        const itemType = CONTENT_TYPE_MAP_REVERSE.get(e.ywlx);
+        if (!itemType) return undefined; // ignore unknown type
         return {
           id: e.ywid,
-          type,
+          type: itemType,
           title: decodeHTML(e.ywbt),
-          time: type === ContentType.DISCUSSION || type === ContentType.QUESTION ? e.tlsj : e.ywsj,
+          time: itemType === ContentType.DISCUSSION || itemType === ContentType.QUESTION ? e.tlsj : e.ywsj,
           state: e.ywzt,
           extra: e.ywbz ?? undefined,
           semesterId: e.xnxq,
@@ -935,7 +931,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -953,7 +949,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -972,7 +968,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -991,16 +987,16 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
     const result = (json.object?.aaData ?? []) as any[];
     return result
       .map((e): CommentItem | undefined => {
-        const type = CONTENT_TYPE_MAP_REVERSE.get(e.ywlx);
-        if (!type) return; // ignore unknown type
+        const itemType = CONTENT_TYPE_MAP_REVERSE.get(e.ywlx);
+        if (!itemType) return undefined; // ignore unknown type
         return {
           id: e.ywid,
-          type,
+          type: itemType,
           content: e.bt,
           contentHTML: decodeHTML(e.bznrstring),
           title: decodeHTML(e.ywbt),
@@ -1027,7 +1023,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -1042,7 +1038,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     const result = (json.object?.aaData ?? []) as any[];
@@ -1105,7 +1101,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.INVALID_RESPONSE,
         extra: json,
-      } as ApiError);
+      });
     }
 
     const result = (json.object?.aaData ?? []) as any[];
@@ -1222,8 +1218,8 @@ export class Learn2018Helper {
     };
   }
 
-  private parseHomeworkFile(fileDiv: DOM.Element): RemoteFile | undefined {
-    const fileNode = ($(fileDiv)('.ftitle').children('a')[0] ?? $(fileDiv)('.fl').children('a')[0]) as DOM.Element;
+  private parseHomeworkFile(fileDiv: Element): RemoteFile | undefined {
+    const fileNode = $(fileDiv)('.ftitle').children('a')[0] ?? $(fileDiv)('.fl').children('a')[0];
     if (fileNode !== undefined) {
       const size = trimAndDefine($(fileDiv)('.fl > span[class^="color"]').first().text())!;
       const params = new URLSearchParams(fileNode.attribs.href.split('?').slice(-1)[0]);
@@ -1235,7 +1231,7 @@ export class Learn2018Helper {
       }
       return {
         id: attachmentId,
-        name: (fileNode.children[0] as DOM.Text).data!,
+        name: (fileNode.children[0] as { data: string }).data,
         downloadUrl,
         previewUrl: URLS.LEARN_FILE_PREVIEW(
           ContentType.HOMEWORK,
@@ -1270,7 +1266,7 @@ export class Learn2018Helper {
     content = '',
     attachment?: IHomeworkSubmitAttachment,
     removeAttachment = false,
-  ) {
+  ): Promise<void> {
     const json = await (
       await this.#myFetchWithToken(URLS.LEARN_HOMEWORK_SUBMIT(), {
         method: 'POST',
@@ -1281,7 +1277,7 @@ export class Learn2018Helper {
       return Promise.reject({
         reason: FailReason.OPERATION_FAILED,
         extra: json,
-      } as ApiError);
+      });
     }
   }
 
@@ -1297,4 +1293,4 @@ export class Learn2018Helper {
   }
 }
 
-export * from './types';
+export * from './types.ts';

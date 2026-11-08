@@ -1,0 +1,65 @@
+name: Release
+
+# Push a `v*` tag that matches package.json's version to publish to npm and
+# create a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create the GitHub release
+  id-token: write # npm trusted publishing + provenance
+
+jobs:
+  release:
+    name: Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Check tag matches package.json
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match package.json version $version"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check
+        run: |
+          pnpm typecheck
+          pnpm lint --deny-warnings
+          pnpm format --check
+          pnpm test
+
+      # `prepublishOnly` builds lib/. Uses npm trusted publishing (OIDC) once it's set up for the package on
+      # npmjs.com. NPM_TOKEN is only needed for the very first publish, before
+      # a trusted publisher can be attached; delete the secret afterwards.
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub release
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

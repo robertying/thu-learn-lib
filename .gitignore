@@ -1,9 +1,6 @@
 .idea
 node_modules
-/dist
 .env
 .npmrc
-.yarn/*
-!.yarn/releases
-!.yarn/plugins
-.pnp.*
+*.tgz
+lib

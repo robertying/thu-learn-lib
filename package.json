@@ -1,71 +1,46 @@
 {
-  "name": "thu-learn-lib",
-  "version": "4.0.0",
+  "name": "@robertying/thu-learn-lib",
+  "version": "4.1.0",
   "description": "a JavaScript library to provide a program-friendly interface to Web Learning (2018) of Tsinghua University",
-  "type": "module",
-  "files": [
-    "lib"
-  ],
-  "main": "./lib/module/index.js",
-  "exports": {
-    ".": {
-      "types": "./lib/typescript/index.d.ts",
-      "default": "./lib/module/index.js"
-    }
-  },
-  "react-native-builder-bob": {
-    "source": "src",
-    "output": "lib",
-    "targets": [
-      [
-        "module",
-        {
-          "esm": true
-        }
-      ],
-      "typescript"
-    ]
-  },
-  "scripts": {
-    "build": "bob build",
-    "dev": "vite",
-    "dev:build": "vite build",
-    "format": "prettier --write \"{src,test,demo}/**/*.{ts,html,json}\" \"*.{ts,md,json}\"",
-    "lint": "eslint",
-    "test": "OPENSSL_CONF=openssl.cnf vitest run"
-  },
   "keywords": [
-    "tsinghua",
-    "learn2018"
+    "learn2018",
+    "tsinghua"
   ],
-  "author": "Harry Chen <harry-chen@outlook.com> (https://harrychen.xyz)",
   "license": "MIT",
+  "author": "Harry Chen <harry-chen@outlook.com> (https://harrychen.xyz)",
+  "contributors": [
+    "Rui Ying (https://github.com/robertying)"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Harry-Chen/thu-learn-lib.git"
+    "url": "git+https://github.com/robertying/thu-learn-lib.git"
   },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^26.5.1",
-    "@types/sm-crypto": "^0.3.4",
-    "@types/tough-cookie": "^4.0.5",
-    "@types/webextension-polyfill": "^0.12.6",
-    "@typescript-eslint/eslint-plugin": "^8.70.0",
-    "@typescript-eslint/parser": "^8.70.0",
-    "domhandler": "^6.0.1",
-    "dotenv": "^17.4.2",
-    "eslint": "^10.10.0",
-    "fake-parse5": "^0.0.2",
-    "prettier": "^3.9.6",
-    "react-native-builder-bob": "^0.43.1",
-    "terser": "^5.51.2",
-    "tsup": "^8.5.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.0",
-    "vite": "^8.3.0",
-    "vite-plugin-web-extension": "^4.5.1",
-    "vitest": "^5.0.0",
-    "webextension-polyfill": "^0.12.0"
+  "files": [
+    "lib",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "rm -rf lib && tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "test": "vitest run",
+    "test:live": "OPENSSL_CONF=openssl.cnf vitest run --config vitest.live.config.ts",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "cheerio": "1.0.0-rc.12",
@@ -76,5 +51,19 @@
     "sm-crypto": "^0.5.7",
     "tough-cookie": "4.1.4"
   },
-  "packageManager": "yarn@4.18.0+sha512.fcb8716fe7cd0eece141ffc18b92193a9df9204c1ba83189c288835223fc0bbe64af473bab0d5e9927a7daeb5caf2bb07eb2787cc9338ca040ea125f2a1f2f7e"
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/sm-crypto": "0.3.4",
+    "@types/tough-cookie": "4.0.5",
+    "dotenv": "17.4.2",
+    "oxfmt": "0.77.0",
+    "oxlint": "1.92.0",
+    "oxlint-tsgolint": "7.0.2006",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "pnpm@12.18.0"
 }

@@ -1,6 +1,7 @@
 import { FormData } from 'node-fetch-native';
-import { ContentType, CourseType, IHomeworkSubmitAttachment, Language, QuestionnaireType } from './types';
-import { CONTENT_TYPE_MAP, getMkFromType } from './utils';
+import type { ContentType, IHomeworkSubmitAttachment, QuestionnaireType } from './types.ts';
+import { CourseType, Language } from './types.ts';
+import { CONTENT_TYPE_MAP, getMkFromType } from './utils.ts';
 
 export const ID_PREFIX = 'https://id.tsinghua.edu.cn';
 export const LEARN_PREFIX = 'https://learn.tsinghua.edu.cn';

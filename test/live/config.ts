@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: 'test/.env' });
+dotenv.config({ path: 'test/live/.env' });
 
 export const U = process.env.U!; // username
 export const P = process.env.P!; // password

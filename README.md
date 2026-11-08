@@ -1,76 +1,47 @@
 # thu-learn-lib
 
-[![Build and Publish](https://github.com/Harry-Chen/thu-learn-lib/workflows/Build%20and%20Publish/badge.svg?event=push)](https://github.com/Harry-Chen/thu-learn-lib/actions?query=workflow%3A%22Build+and+Publish%22)
-[![Github version](https://img.shields.io/github/package-json/v/Harry-Chen/thu-learn-lib)](https://github.com/Harry-Chen/thu-learn-lib)
-[![npm version](https://img.shields.io/npm/v/thu-learn-lib)](https://www.npmjs.com/package/thu-learn-lib)
-![npm size](https://img.shields.io/bundlephobia/min/thu-learn-lib)
-![npm downloads](https://img.shields.io/npm/dw/thu-learn-lib)
+[![Check](https://github.com/robertying/thu-learn-lib/actions/workflows/check.yml/badge.svg)](https://github.com/robertying/thu-learn-lib/actions/workflows/check.yml)
+[![npm version](https://img.shields.io/npm/v/@robertying/thu-learn-lib)](https://www.npmjs.com/package/@robertying/thu-learn-lib)
 
 This is a JavaScript library aimed to provide a program-friendly interface of [web Learning of Tsinghua University](https://learn.tsinghua.edu.cn).
+
+This is [robertying](https://github.com/robertying)'s fork of [Harry-Chen/thu-learn-lib](https://github.com/Harry-Chen/thu-learn-lib), maintained for [learnX](https://github.com/robertying/learnX) and published as `@robertying/thu-learn-lib`.
 
 This project is licensed under MIT License.
 
 ## Compatibility
 
-The library uses [`node-fetch-cookie-native`](https://github.com/AsakuraMizu/node-fetch-cookie-native), which is a simple wrapper for [node-fetch-native](https://github.com/unjs/node-fetch-native) and [fetch-cookie](https://github.com/valeriangalliat/fetch-cookie), providing cookie and redirection support in both browsers and Node.
-
-In case of any syntax problems, just upgrade your browser / Node, or use any corresponding polyfills.
+The library is ESM-only and uses [node-fetch-native](https://github.com/unjs/node-fetch-native) with [fetch-cookie](https://github.com/valeriangalliat/fetch-cookie) for cookie and redirect support. It runs in Node and in React Native; you can also pass your own `fetch` in `HelperConfig`.
 
 ## Installation
 
-### Node / Bundler
+```bash
+pnpm add @robertying/thu-learn-lib
+```
+
+## Development
 
 ```bash
-yarn add thu-learn-lib
+pnpm install
+pnpm typecheck
+pnpm lint
+pnpm format
+pnpm test
+pnpm build # emits ESM + .d.ts to lib/
 ```
 
-### Browser (IIFE)
+Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and formatting uses [oxfmt](https://oxc.rs/docs/guide/usage/formatter).
 
-```html
-<script src="https://cdn.jsdelivr.net/npm/thu-learn-lib@3"></script>
-<!-- or -->
-<script src="https://unpkg.com/thu-learn-lib@3"></script>
-```
+## Releasing
 
-The library is exposed under `window.LearnLib`.
-
-### Browser (ESM)
-
-```html
-<script type="module">
-  import { Learn2018Helper } from 'https://esm.sh/thu-learn-lib@3';
-</script>
-```
-
-## Build
-
-```
-yarn run build
-```
-
-You can find the bundled library in `lib/`.
-
-- `index.js`: ES module entry
-- `index.d.ts`: definition file for TypeScript
-- `index.global.js{,.map}`: IIFE for use in browser (with source map for debugging)
-
-## Development in browser
-
-```
-yarn run dev
-```
-
-This will open a dev browser with a testing extension. Click the `t` icon in extension bar, then execute anything you want in the Console of Chrome Developer Tool.
-The library is exposed under `window.LearnLib`.
-
-Use `yarn run dev:build` to build the extension that can be installed to your chrome browser manually.
+Bump `version` in `package.json`, merge, then push a matching tag (for example `git tag v4.1.0 && git push origin v4.1.0`). The Release workflow checks, builds, publishes to npm with provenance and creates a GitHub release.
 
 ## Usage
 
 ### Authentication related (important changes since v1.2.0)
 
 ```typescript
-import { Learn2018Helper } from 'thu-learn-lib';
+import { Learn2018Helper } from '@robertying/thu-learn-lib';
 
 // There are three ways of logging in:
 
@@ -114,7 +85,7 @@ We do not maintain a global type in `Learn2018Helper` class, for there can be th
 Note that currently fetching homework information from teacher version is **partially implemented**.
 
 ```typescript
-import { ContentType, ApiError } from 'thu-learn-lib';
+import { ContentType, ApiError } from '@robertying/thu-learn-lib';
 
 // get ids of all semesters that current account has access to
 const semesters = await helper.getSemesterIdList();
@@ -148,7 +119,7 @@ try {
 }
 ```
 
-According to security strategies (CORS, CORB) of browsers, you might need to run the code in the page context of `https://learn.tsinghua.edu.cn` and `https://id.tsinghua.edu.cn`. The simplest way is to run the code in Node.js or in [browser extension](#development-in-browser).
+According to security strategies (CORS, CORB) of browsers, you might need to run the code in the page context of `https://learn.tsinghua.edu.cn` and `https://id.tsinghua.edu.cn`. The simplest way is to run the code in Node.js.
 
 ## Typing
 
@@ -156,25 +127,30 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
 
 ## Testing
 
-Run `yarn test` for testing. It requires your personal credential since we don't have mocks for these APIs. To do this, you must touch a `.env` similar to `template.env` under /test folder.
+`pnpm test` runs the offline tests.
 
-It's ok if you meet `Timeout * Async callback was not invoked within the 5000ms timeout...` error when running tests, rerun tests may resolve this problem. If you hate this, just add the third argument `timeout` to every testcase `it("should...", async () => void, timeout)` and make sure it's greater than 5000.
+`pnpm test:live` runs the tests against the real server. It needs your own credentials: copy `test/live/template.env` to `test/live/.env` and fill it in.
 
 ## Changelog
 
+- v4.1.0
+  - Published as `@robertying/thu-learn-lib`
+  - Tooling: pnpm, TypeScript 7 (`tsc` ESM + `.d.ts` build), oxlint + oxfmt, Vitest 5, Node 26
+  - (_BREAKING CHANGE_) Drop the IIFE browser build and the browser-extension demo
+  - No API changes
 - v4.0.0
   - Upgrade cheerio to 1.0
   - Add support for questionnaire (add `getQuestionnaireList` API and some public types)
   - Add support for managing favorite items
   - Add support for sorting courses (i.e. manage the order on web learning)
   - Add support for managing comments on content (e.g. files, notifications)
-  - (*BREAKING CHANGE*) Deprecate usage of `studentHomeworkId` 
+  - (_BREAKING CHANGE_) Deprecate usage of `studentHomeworkId`
 - v3.2.1
   - Upgrade to eslint v9
   - Add `setCSRFToken` function to manually reuse previous (maybe valid) token and prevent unnecessary re-login (see [#49](https://github.com/Harry-Chen/thu-learn-lib/issues/49))  
-    *Note:* To use this feature in Node.js, `cookieJar` should also be reused, otherwise it will not work. (not the case in browser env)
+    _Note:_ To use this feature in Node.js, `cookieJar` should also be reused, otherwise it will not work. (not the case in browser env)
   - Fix `CourseContent` type: default value for type param `T` (breaking change introduced in [#53](https://github.com/Harry-Chen/thu-learn-lib/issues/53))
-  - *(Breaking...?)* Rename `File.id2` added in previous version to actual `id` and previously used `id` to  `fileId` (see [#60](https://github.com/Harry-Chen/thu-learn-lib/issues/60))
+  - _(Breaking...?)_ Rename `File.id2` added in previous version to actual `id` and previously used `id` to `fileId` (see [#60](https://github.com/Harry-Chen/thu-learn-lib/issues/60))
   - Upgrade dependencies
 - v3.2.0
   - Support file categories (see [#57](https://github.com/Harry-Chen/thu-learn-lib/issues/57)):

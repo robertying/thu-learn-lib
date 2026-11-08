@@ -1,12 +1,13 @@
-import type { GlobalSetupContext } from 'vitest/node';
-import { CourseType, Learn2018Helper } from '../src';
-import { config } from './config';
+import type { TestProject } from 'vitest/node';
+import { CourseType, Learn2018Helper } from '../../src/index.ts';
+import { config } from './config.ts';
 
 /**
  * find suitable semester and course for testing or read from environment variables
  * this also works like a gate for skipping tests if no network connection or `OPENSSL_CONF` not correctly configured
  */
-export default async function setup({ provide }: GlobalSetupContext) {
+export default async function setup(project: TestProject) {
+  const provide = project.provide.bind(project);
   const h = new Learn2018Helper(config);
 
   await h.login();
