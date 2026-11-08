@@ -36,7 +36,7 @@ Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and for
 
 ## Releasing
 
-Bump `version` in `package.json`, merge, then push a matching tag (for example `git tag v4.1.0 && git push origin v4.1.0`). The Release workflow checks, builds, publishes to npm with provenance and creates a GitHub release.
+Bump `version` in `package.json`, merge, then push a matching tag (for example `git tag v4.1.0 && git push origin v4.1.0`). The Release workflow checks, builds, publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release.
 
 ## Usage
 
@@ -49,26 +49,27 @@ import { Learn2018Helper } from '@robertying/thu-learn-lib';
 
 // 1. provide a cookie jar with existing cookies (see `tough-cookie`)
 const helper = new Learn2018Helper({ cookieJar });
-// 2. provide nothing, but invoking login with username and password
+// 2. provide nothing, and call login with your credentials
 const helper = new Learn2018Helper();
 // 3. provide a CredentialProvider function, which can be async
 const helper = new Learn2018Helper({
-  provider: () => ({ username, password }),
+  provider: () => ({ username, password, fingerPrint }),
 });
 
-// Note that by using the following two methods you may encounter problems like login time out.
-// But if you provide a credential provider, the library will retry logging in when failing, automatically resolving the cookie expiry problem.
-// So we strongly recommend using this method.
+// `fingerPrint` (and optionally `fingerGenPrint`, `fingerGenPrint3`) is the device fingerprint that
+// id.tsinghua.edu.cn asks for; login fails with `NO_CREDENTIAL` without it.
 
-// If you do not provide a cookie jar or CredentialProvider, you must log in manually. Otherwise you do not need to call login explicitly.
+// With the first two methods the session may time out. With a CredentialProvider the library logs in
+// again and retries once when a request finds the session expired, so we strongly recommend it.
+
+// Without a CredentialProvider you must log in yourself. With one, the first request logs in.
 try {
-  await helper.login(username, password);
+  await helper.login(username, password, fingerPrint);
 } catch (e) {
-  // e is a FailReason
+  // e is an ApiError: check e.reason (a FailReason) and e.extra
 }
 
-// You can also take out cookies (e.g. for file download), which will not work in browsers.
-console.log(helper.cookieJar);
+// To reuse cookies elsewhere (e.g. for file download), pass your own cookie jar in the config.
 
 // Logout if you want, but the cookie jar will not be cleared.
 await helper.logout();
@@ -121,7 +122,7 @@ try {
 }
 ```
 
-According to security strategies (CORS, CORB) of browsers, you might need to run the code in the page context of `https://learn.tsinghua.edu.cn` and `https://id.tsinghua.edu.cn`. The simplest way is to run the code in Node.js.
+Browsers block these cross-origin requests (CORS), so run the library in Node.js or React Native.
 
 ## Typing
 
