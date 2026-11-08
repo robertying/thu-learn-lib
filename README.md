@@ -144,7 +144,7 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
 
 `pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes.
 
-`pnpm test:live` runs the tests against the real server. It needs your own credentials and a device fingerprint: copy `test/live/template.env` to `test/live/.env` and fill it in. `test/live/v5.test.ts` checks the behavior the offline tests can only assume (see [TODO.md](TODO.md)).
+`pnpm test:live` runs the tests against the real server. It needs your own credentials and a device fingerprint: copy `test/live/template.env` to `test/live/.env` and fill it in. The live tests also check what the offline tests can only assume, such as how the server answers an expired session (see [TODO.md](TODO.md)).
 
 ## Changelog
 
@@ -163,7 +163,7 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
   - `logout` forgets the CSRF token, so the next request logs in instead of sending the old token
   - `getFileList` still returns the files (without `category`) when the category list fails
   - `getQuestionnaireList(courseID, { details })` can skip the questions (one request per questionnaire; default still `'all'`), with `getQuestionnaireDetail(courseID, questionnaireID)` on demand; `detail` is now optional
-  - Live tests need a fingerprint (`FP` in `test/live/.env`) and cover the v5 behavior (`test/live/v5.test.ts`)
+  - Live tests need a fingerprint, use readable `.env` names (`THU_USERNAME`, `THU_PASSWORD`, `THU_FINGERPRINT`, `STUDENT_SEMESTER`, …; see `test/live/template.env`) and cover session expiry and resume, on-demand details and windowed calendar
 - v5.0.0
   - (_BREAKING CHANGE_) Per-item detail requests are opt-in: `getHomeworkList(id, CourseType.STUDENT, { details })`, `getNotificationList(id, type, { attachments })` (notices get `attachmentName`), `getCourseList(semester, type, lang, { timeAndLocation })` (`timeAndLocation` is now optional); fetch the rest on demand with `getHomeworkDetail`, `getExcellentHomeworkDetail`, `getNotificationAttachment` and `getCourseTimeAndLocation`
   - (_BREAKING CHANGE_) The excellent homework list is fetched once per course and comes without details

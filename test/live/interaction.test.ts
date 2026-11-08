@@ -12,7 +12,7 @@ describe('helper interaction', () => {
     await h.logout();
   });
 
-  const courseTester = inject('C');
+  const courseTester = inject('studentCourse');
 
   it('should set lang', async () => {
     const pre_lang = h.getCurrentLanguage();
