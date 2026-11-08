@@ -163,4 +163,17 @@ describe('user', () => {
     expect(helper.getCurrentLanguage()).toBe(Language.EN);
     expect(server.requests[0].url.searchParams.get('websiteShowLanguage')).toBe('en_US');
   });
+
+  it('logs in again when the homepage is the short login page of an expired session', async () => {
+    const server = new FakeServer();
+    server.homepageBody = '<a class="user-log">张三</a>';
+    const helper = await server.loggedInHelper();
+    server.expiry = 'html';
+    server.expireSession();
+    // the homepage route is public in the fake server; serve it through an authenticated one
+    server.on('GET', URLS.LEARN_HOMEPAGE(CourseType.TEACHER), () => html('<a class="user-log">李四</a>'.padEnd(5000)));
+
+    expect(await helper.getUserInfo(CourseType.TEACHER)).toEqual({ name: '李四', department: '' });
+    expect(server.loginCount).toBe(2);
+  });
 });

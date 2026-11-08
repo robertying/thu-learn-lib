@@ -126,6 +126,17 @@ const EXPIRED = Symbol('expired');
  */
 const looksLikeHtml = (text: string) => text.trimStart().startsWith('<');
 
+/** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
+const MAX_LOGIN_PAGE_LENGTH = 4096;
+
+/**
+ * Whether a 200 page is the short login or redirect page of an expired session rather than the page asked for. A
+ * heuristic (not verified against the real server): short, and pointing at the login timeout page or the SSO login.
+ */
+export const looksLikeLoginPage = (text: string) =>
+  text.length < MAX_LOGIN_PAGE_LENGTH &&
+  /login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(text);
+
 /**
  * State shared by every request a `Learn2018Helper` makes: cookies, CSRF token, language and the fetch wrappers.
  * Internal; the helper keeps it in a private field.
@@ -249,6 +260,13 @@ export class Session {
     }
   };
 
+  /** the text body; a short login / redirect page with status 200 means the session has expired */
+  static readonly #text = async (res: Response, retry: boolean): Promise<string | typeof EXPIRED> => {
+    await Session.#response(res, retry);
+    const text = await res.text();
+    return res.status === 200 && looksLikeLoginPage(text) ? EXPIRED : text;
+  };
+
   #withToken = async (input: Parameters<Fetch>[0]): Promise<() => string> => {
     if (this.#csrfToken === '') {
       await this.relogin();
@@ -270,6 +288,13 @@ export class Session {
    */
   readonly fetchJsonWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<any> =>
     this.#send(await this.#withToken(input), init, Session.#json);
+
+  /**
+   * Like `fetchWithToken`, but returns the text body (an HTML page). A short login or redirect page with status 200
+   * counts as an expired session (log in again and retry once, as for a 403).
+   */
+  readonly fetchTextWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<string> =>
+    this.#send(await this.#withToken(input), init, Session.#text);
 
   /**
    * Make sure the session works: if there is a CSRF token, fetch the current semester (`probeUrl`) and log in only if

@@ -82,12 +82,10 @@ export async function getCalendar(
   const ranges = splitCalendarRange(startDate, endDate);
   if (ranges.length === 0) return { events: [], failedRanges: [] };
 
-  const ticketResponse = await s.fetchWithToken(URLS.REGISTRAR_TICKET(), {
+  let ticket = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET(), {
     method: 'POST',
     body: URLS.REGISTRAR_TICKET_FORM_DATA(),
   });
-
-  let ticket = await ticketResponse.text();
   ticket = ticket.substring(1, ticket.length - 1);
 
   await s.fetch(URLS.REGISTRAR_AUTH(ticket));

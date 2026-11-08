@@ -2,19 +2,32 @@
 
 import type { Session } from './request.ts';
 import { YES } from './request.ts';
-import type { Questionnaire, QuestionnaireDetail } from './types.ts';
+import type { ApiError, Questionnaire, QuestionnaireDetail, QuestionnaireListOptions } from './types.ts';
 import { FailReason, QuestionnaireType } from './types.ts';
 import * as URLS from './urls.ts';
-import { QNR_TYPE_MAP, decodeHTML } from './utils.ts';
+import { QNR_TYPE_MAP, decodeHTML, isSelected } from './utils.ts';
 
 /**
- * Get all questionnaires （课程问卷/QNR） of the specified course.
+ * Get all questionnaires （课程问卷/QNR） of the specified course: ongoing and ended lists.
+ * Questions (`detail`, 1 request each) only for the questionnaires `options.details` selects (default `'all'`).
  */
-export async function getQuestionnaireList(s: Session, courseID: string): Promise<Questionnaire[]> {
-  return Promise.all([
+export async function getQuestionnaireList(
+  s: Session,
+  courseID: string,
+  options: QuestionnaireListOptions = {},
+): Promise<Questionnaire[]> {
+  const details = options.details ?? 'all';
+  const lists = await Promise.all([
     getQuestionnaireListAtUrl(s, courseID, URLS.LEARN_QNR_LIST_ONGOING),
     getQuestionnaireListAtUrl(s, courseID, URLS.LEARN_QNR_LIST_ENDED),
-  ]).then((r) => r.flat());
+  ]);
+  return Promise.all(
+    lists
+      .flat()
+      .map(async (q) =>
+        isSelected(details, q) ? { ...q, detail: await getQuestionnaireDetail(s, courseID, q.id) } : q,
+      ),
+  );
 }
 
 async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: string): Promise<Questionnaire[]> {
@@ -26,34 +39,39 @@ async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: stri
     });
   }
   const result = (json.object?.aaData ?? []) as any[];
-  return Promise.all(
-    result.map(async (e) => {
-      const type = QNR_TYPE_MAP.get(e.wjlx) ?? QuestionnaireType.SURVEY;
-      return {
-        id: e.wjid,
-        type,
-        title: decodeHTML(e.wjbt),
-        startTime: e.kssj,
-        endTime: e.jssj,
-        uploadTime: e.scsj,
-        uploaderId: e.scr,
-        uploaderName: e.scrxm,
-        submitTime: e.tjsj ? e.tjsj : undefined,
-        isFavorite: e.sfsc === YES,
-        comment: e.bznr ?? undefined,
-        url: URLS.LEARN_QNR_SUBMIT_PAGE(e.wlkcid, e.wjid, type),
-        detail: await getQuestionnaireDetail(s, courseID, e.wjid),
-      } satisfies Questionnaire;
-    }),
-  );
+  return result.map((e) => {
+    const type = QNR_TYPE_MAP.get(e.wjlx) ?? QuestionnaireType.SURVEY;
+    return {
+      id: e.wjid,
+      type,
+      title: decodeHTML(e.wjbt),
+      startTime: e.kssj,
+      endTime: e.jssj,
+      uploadTime: e.scsj,
+      uploaderId: e.scr,
+      uploaderName: e.scrxm,
+      submitTime: e.tjsj ? e.tjsj : undefined,
+      isFavorite: e.sfsc === YES,
+      comment: e.bznr ?? undefined,
+      url: URLS.LEARN_QNR_SUBMIT_PAGE(e.wlkcid, e.wjid, type),
+    } satisfies Questionnaire;
+  });
 }
 
-async function getQuestionnaireDetail(s: Session, courseID: string, qnrID: string): Promise<QuestionnaireDetail[]> {
+/** Get the questions of one questionnaire (1 request). */
+export async function getQuestionnaireDetail(
+  s: Session,
+  courseID: string,
+  qnrID: string,
+): Promise<QuestionnaireDetail[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_QNR_DETAIL, {
     method: 'POST',
     body: URLS.LEARN_QNR_DETAIL_FORM(courseID, qnrID),
   });
-  return (json as any[]).map(
+  if (!Array.isArray(json)) {
+    throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+  }
+  return json.map(
     (e) =>
       ({
         id: e.wtid,
