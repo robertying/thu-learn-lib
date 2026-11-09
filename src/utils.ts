@@ -1,21 +1,61 @@
+import * as cheerio from 'cheerio';
 import { decodeHTML as _decodeHTML } from 'entities';
 
-import type { ApiError, DetailSelector } from './types.ts';
+import type { ApiError, DetailSelector, Fetch } from './types.ts';
 import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.ts';
 
-export function parseSemesterType(n: number): SemesterType {
-  if (n === 1) {
-    return SemesterType.FALL;
-  } else if (n === 2) {
-    return SemesterType.SPRING;
-  } else if (n === 3) {
-    return SemesterType.SUMMER;
-  } else {
-    return SemesterType.UNKNOWN;
-  }
+const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
+
+/**
+ * The error every API rejects with: a plain `{ reason, extra }` object (not an `Error`), so callers can compare
+ * `reason` with `FailReason`. `extra` is left out when not given.
+ */
+export const apiError = (reason: FailReason, extra?: unknown): ApiError =>
+  extra === undefined ? { reason } : { reason, extra };
+
+/** throw `apiError(reason, json)` unless the server's JSON answer says `result: 'success'` */
+export function expectSuccess(json: any, reason: FailReason): void {
+  if (json?.result !== 'success') throw apiError(reason, json);
 }
 
-const CONTENT_TYPE_MK_MAP = {
+/** a DOM element as cheerio's selections hold it (domhandler's `Element`, taken from cheerio's types so it always matches) */
+export type Element = ReturnType<ReturnType<cheerio.CheerioAPI['root']>['children']>[number];
+
+/** load an HTML page or fragment for querying */
+export const $ = (html: Parameters<typeof cheerio.load>[0]): cheerio.CheerioAPI => cheerio.load(html, CHEERIO_CONFIG);
+
+/** what the server writes for "yes" in its flags (and 否 for "no") */
+export const YES = '是';
+
+/** the URL of a `fetch` input */
+export const urlOf = (input: Parameters<Fetch>[0]): string =>
+  typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+/** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
+const MAX_LOGIN_PAGE_LENGTH = 4096;
+
+/**
+ * Whether a 200 page is the short login or redirect page of an expired session rather than the page asked for: short,
+ * and either Web Learning's "login timeout" page (what the server sends for an HTML page of an expired session, in
+ * either website language: title 登录超时, image `log_fail.png`, text 您未登录或登录失效) or a page pointing at the
+ * login timeout page or the SSO login.
+ */
+export const looksLikeLoginPage = (text: string) =>
+  text.length < MAX_LOGIN_PAGE_LENGTH &&
+  /登录超时|您未登录或登录失效|log_fail\.png|login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(
+    text,
+  );
+
+const SEMESTER_TYPES: Record<number, SemesterType> = {
+  1: SemesterType.FALL,
+  2: SemesterType.SPRING,
+  3: SemesterType.SUMMER,
+};
+
+/** the semester type from the last digit of a semester id (`2024-2025-1`) */
+export const parseSemesterType = (n: number): SemesterType => SEMESTER_TYPES[n] ?? SemesterType.UNKNOWN;
+
+const CONTENT_TYPE_MK_MAP: Record<ContentType, string> = {
   [ContentType.NOTIFICATION]: 'kcgg',
   [ContentType.FILE]: 'kcwj',
   [ContentType.HOMEWORK]: 'kczy',
@@ -25,7 +65,7 @@ const CONTENT_TYPE_MK_MAP = {
 };
 
 export function getMkFromType(type: ContentType): string {
-  return 'mk_' + (CONTENT_TYPE_MK_MAP[type] ?? 'UNKNOWN');
+  return 'mk_' + CONTENT_TYPE_MK_MAP[type];
 }
 
 export function decodeHTML(html: string): string {
@@ -106,8 +146,6 @@ export const GRADE_LEVEL_MAP = new Map([
 
 export const JSONP_EXTRACTOR_NAME = 'thu_learn_lib_jsonp_extractor';
 
-const invalidJSONP = (extra: unknown): ApiError => ({ reason: FailReason.INVALID_RESPONSE, extra });
-
 /**
  * The argument of a `thu_learn_lib_jsonp_extractor(...)` JSONP body, parsed as JSON. The body is never run as code,
  * so whatever the registrar (or anything between) sends can't execute in the app.
@@ -116,12 +154,12 @@ export function extractJSONPResult(jsonp: string): unknown {
   const prefix = `${JSONP_EXTRACTOR_NAME}(`;
   const body = jsonp.trim().replace(/;$/, '').trimEnd();
   if (!body.startsWith(prefix) || !body.endsWith(')')) {
-    throw invalidJSONP(jsonp.slice(0, 200));
+    throw apiError(FailReason.INVALID_RESPONSE, jsonp.slice(0, 200));
   }
   try {
     return JSON.parse(body.slice(prefix.length, -1));
   } catch (err) {
-    throw invalidJSONP({ error: String(err), text: jsonp.slice(0, 200) });
+    throw apiError(FailReason.INVALID_RESPONSE, { error: String(err), text: jsonp.slice(0, 200) });
   }
 }
 
@@ -142,14 +180,7 @@ export const CONTENT_TYPE_MAP = new Map([
   [ContentType.QUESTIONNAIRE, 'KCWJ'],
   // omitted: 课表(KCKB)
 ]);
-export const CONTENT_TYPE_MAP_REVERSE = new Map([
-  [CONTENT_TYPE_MAP.get(ContentType.NOTIFICATION)!, ContentType.NOTIFICATION],
-  [CONTENT_TYPE_MAP.get(ContentType.FILE)!, ContentType.FILE],
-  [CONTENT_TYPE_MAP.get(ContentType.HOMEWORK)!, ContentType.HOMEWORK],
-  [CONTENT_TYPE_MAP.get(ContentType.DISCUSSION)!, ContentType.DISCUSSION],
-  [CONTENT_TYPE_MAP.get(ContentType.QUESTION)!, ContentType.QUESTION],
-  [CONTENT_TYPE_MAP.get(ContentType.QUESTIONNAIRE)!, ContentType.QUESTIONNAIRE],
-]);
+export const CONTENT_TYPE_MAP_REVERSE = new Map([...CONTENT_TYPE_MAP].map(([type, code]) => [code, type]));
 
 export const QNR_TYPE_MAP = new Map([
   ['投票', QuestionnaireType.VOTE],

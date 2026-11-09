@@ -2,25 +2,44 @@
 
 import { Base64 } from 'js-base64';
 
-import type { Element, Session } from './request.ts';
-import { $, YES, addCSRFTokenToUrl, looksLikeLoginPage } from './request.ts';
+import type { Session } from './request.ts';
+import { addCSRFTokenToUrl } from './request.ts';
 import type {
-  ApiError,
   ExcellentHomework,
+  ExcellentHomeworkBase,
   Homework,
+  HomeworkBase,
+  HomeworkDetail,
   HomeworkListOptions,
-  HomeworkTA,
-  IExcellentHomework,
-  IHomework,
-  IHomeworkDetail,
-  IHomeworkStatus,
+  HomeworkStatus,
+  HomeworkSubmitAttachment,
   HomeworkSubmitRequest,
-  IHomeworkSubmitAttachment,
+  HomeworkTA,
   RemoteFile,
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { GRADE_LEVEL_MAP, decodeHTML, isSelected, toRequiredServerTime, toServerTime, trimAndDefine } from './utils.ts';
+import {
+  $,
+  GRADE_LEVEL_MAP,
+  YES,
+  apiError,
+  decodeHTML,
+  expectSuccess,
+  isSelected,
+  looksLikeLoginPage,
+  toRequiredServerTime,
+  toServerTime,
+  trimAndDefine,
+} from './utils.ts';
+import type { Element } from './utils.ts';
+
+/** the student homework lists, by submission status */
+export const HOMEWORK_LIST_SOURCES: readonly { url: string; status: HomeworkStatus }[] = [
+  { url: URLS.LEARN_HOMEWORK_LIST_NEW, status: { submitted: false, graded: false } },
+  { url: URLS.LEARN_HOMEWORK_LIST_SUBMITTED, status: { submitted: true, graded: false } },
+  { url: URLS.LEARN_HOMEWORK_LIST_GRADED, status: { submitted: true, graded: true } },
+];
 
 /**
  * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.
@@ -41,76 +60,70 @@ export async function getHomeworkList(
   courseType: CourseType = CourseType.STUDENT,
   options: HomeworkListOptions = {},
 ): Promise<Homework[] | HomeworkTA[]> {
-  if (courseType === CourseType.TEACHER) {
-    const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_LIST_TEACHER, {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    });
-    if (json.result !== 'success') {
-      return Promise.reject({
-        reason: FailReason.INVALID_RESPONSE,
-        extra: json,
-      });
-    }
+  return courseType === CourseType.TEACHER
+    ? getTeacherHomeworkList(s, courseID)
+    : getStudentHomeworkList(s, courseID, options);
+}
 
-    const result = (json.object?.aaData ?? []) as any[];
+async function getTeacherHomeworkList(s: Session, courseID: string): Promise<HomeworkTA[]> {
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_LIST_TEACHER, {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
-    return result.map(
-      (d) =>
-        ({
-          id: d.zyid,
-          index: d.wz,
-          title: decodeHTML(d.bt),
-          description: decodeHTML(Base64.decode(d.nr ?? '')),
-          publisherId: d.fbr,
-          publishTime: toRequiredServerTime(d.fbsj),
-          startTime: toRequiredServerTime(d.kssj),
-          deadline: toRequiredServerTime(d.jzsj),
-          lateSubmissionDeadline: toServerTime(d.bjjzsj),
-          url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
-          completionType: d.zywcfs,
-          submissionType: d.zytjfs,
-          gradedCount: d.ypys,
-          submittedCount: d.yjs,
-          unsubmittedCount: d.wjs,
-        }) satisfies HomeworkTA,
-    );
-  } else {
-    const [lists, excellentHomeworkListByHomework] = await Promise.all([
-      Promise.all(
-        URLS.LEARN_HOMEWORK_LIST_SOURCE.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status)),
-      ),
-      // a failed excellent homework list doesn't fail the homework list: its items get `excellentHomeworkList: undefined`
-      getExcellentHomeworkListByHomework(s, courseID).catch(() => undefined),
-    ]);
-    return Promise.all(
-      lists.flat().map(async (h) => {
-        const homework: Homework = {
-          ...h,
-          excellentHomeworkList: excellentHomeworkListByHomework && (excellentHomeworkListByHomework[h.baseId] ?? []),
-        };
-        return isSelected(options.details, homework) ? { ...homework, ...(await getHomeworkDetail(s, h)) } : homework;
-      }),
-    );
-  }
+  const result = (json.object?.aaData ?? []) as any[];
+
+  return result.map(
+    (d) =>
+      ({
+        id: d.zyid,
+        index: d.wz,
+        title: decodeHTML(d.bt),
+        description: decodeHTML(Base64.decode(d.nr ?? '')),
+        publisherId: d.fbr,
+        publishTime: toRequiredServerTime(d.fbsj),
+        startTime: toRequiredServerTime(d.kssj),
+        deadline: toRequiredServerTime(d.jzsj),
+        lateSubmissionDeadline: toServerTime(d.bjjzsj),
+        url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
+        completionType: d.zywcfs,
+        submissionType: d.zytjfs,
+        gradedCount: d.ypys,
+        submittedCount: d.yjs,
+        unsubmittedCount: d.wjs,
+      }) satisfies HomeworkTA,
+  );
+}
+
+async function getStudentHomeworkList(s: Session, courseID: string, options: HomeworkListOptions): Promise<Homework[]> {
+  const [lists, excellentHomeworkListByHomework] = await Promise.all([
+    Promise.all(HOMEWORK_LIST_SOURCES.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status))),
+    // a failed excellent homework list doesn't fail the homework list: its items get `excellentHomeworkList: undefined`
+    getExcellentHomeworkListByHomework(s, courseID).catch(() => undefined),
+  ]);
+  return Promise.all(
+    lists.flat().map(async (h) => {
+      const homework: Homework = {
+        ...h,
+        excellentHomeworkList: excellentHomeworkListByHomework && (excellentHomeworkListByHomework[h.baseId] ?? []),
+      };
+      return isSelected(options.details, homework) ? { ...homework, ...(await getHomeworkDetail(s, h)) } : homework;
+    }),
+  );
 }
 
 async function getHomeworkListAtUrl(
   s: Session,
   courseID: string,
   url: string,
-  status: IHomeworkStatus,
-): Promise<IHomework[]> {
+  status: HomeworkStatus,
+): Promise<HomeworkBase[]> {
   const json = await s.fetchJsonWithToken(url, {
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.aaData ?? []) as any[];
 
@@ -137,7 +150,7 @@ async function getHomeworkListAtUrl(
         isFavorite: h.sfsc === YES,
         comment: h.bznr ?? undefined,
         ...status,
-      }) satisfies IHomework,
+      }) satisfies HomeworkBase,
   );
 }
 
@@ -149,12 +162,7 @@ async function getExcellentHomeworkListByHomework(
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.aaData ?? []) as any[];
 
@@ -172,7 +180,7 @@ async function getExcellentHomeworkListByHomework(
             name: h.cy?.split(' ')?.[1],
             anonymous: h.sfzm === YES,
           },
-        }) satisfies IExcellentHomework,
+        }) satisfies ExcellentHomeworkBase,
     )
     .reduce<{ [id: string]: ExcellentHomework[] }>((acc, cur) => {
       if (!acc[cur.baseId]) {
@@ -183,7 +191,7 @@ async function getExcellentHomeworkListByHomework(
     }, {});
 }
 
-async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDetail> {
+async function parseHomeworkAtUrl(s: Session, url: string): Promise<HomeworkDetail> {
   const result = $(await s.fetchTextWithToken(url));
 
   const fileDivs = result('div.list.fujian.clearfix');
@@ -205,8 +213,8 @@ async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDet
  */
 export async function getHomeworkDetail(
   s: Session,
-  homework: Pick<IHomework | IExcellentHomework, 'url' | 'baseId'>,
-): Promise<IHomeworkDetail> {
+  homework: Pick<HomeworkBase | ExcellentHomeworkBase, 'url' | 'baseId'>,
+): Promise<HomeworkDetail> {
   const [page, description] = await Promise.all([
     parseHomeworkAtUrl(s, homework.url),
     getHomeworkDescription(s, homework.baseId),
@@ -215,17 +223,12 @@ export async function getHomeworkDetail(
   return { ...page, description: description.description ?? page.description };
 }
 
-async function getHomeworkDescription(s: Session, baseId: string): Promise<IHomeworkDetail> {
+async function getHomeworkDescription(s: Session, baseId: string): Promise<HomeworkDetail> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_DETAIL, {
     method: 'POST',
     body: URLS.LEARN_HOMEWORK_DETAIL_FORM_DATA(baseId),
   });
-  if (json.result !== 'success') {
-    throw {
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    } as ApiError;
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
   return {
     description: trimAndDefine(json.msg),
   };
@@ -240,11 +243,8 @@ function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile
     const size = trimAndDefine($(fileDiv)('.fl > span[class^="color"]').first().text()) ?? '';
     const params = new URLSearchParams(href.split('?').slice(-1)[0]);
     const attachmentId = params.get('fileId')!;
-    // so dirty here...
-    let downloadUrl = URLS.LEARN_PREFIX + href;
-    if (params.has('downloadUrl')) {
-      downloadUrl = URLS.LEARN_PREFIX + params.get('downloadUrl')!;
-    }
+    // a link to the file viewer carries the download path in its `downloadUrl` parameter
+    const downloadUrl = URLS.LEARN_PREFIX + (params.get('downloadUrl') ?? href);
     return {
       id: attachmentId,
       name: (fileNode.children[0] as { data?: string } | undefined)?.data ?? '',
@@ -261,12 +261,12 @@ export async function submitHomework(
   s: Session,
   id: string,
   content = '',
-  attachment?: IHomeworkSubmitAttachment,
+  attachment?: HomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<void> {
-  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT(), {
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT, {
     method: 'POST',
-    body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
+    body: homeworkSubmitForm(id, content, attachment, removeAttachment),
     // the response only starts after the whole upload, which can take longer than `requestTimeout`
     timeout: attachment ? 0 : undefined,
   });
@@ -282,13 +282,13 @@ export async function getHomeworkSubmitRequest(
   s: Session,
   id: string,
   content = '',
-  attachment?: IHomeworkSubmitAttachment,
+  attachment?: HomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<HomeworkSubmitRequest> {
-  await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER());
+  await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
   return {
-    url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT(), s.csrfToken),
-    body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
+    url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT, s.csrfToken),
+    body: homeworkSubmitForm(id, content, attachment, removeAttachment),
   };
 }
 
@@ -304,16 +304,41 @@ export function checkHomeworkSubmitResponse(body: unknown): void {
     try {
       json = JSON.parse(body);
     } catch {
-      throw {
-        reason: looksLikeLoginPage(body) ? FailReason.NOT_LOGGED_IN : FailReason.INVALID_RESPONSE,
-        extra: body.slice(0, 200),
-      } as ApiError;
+      throw apiError(
+        looksLikeLoginPage(body) ? FailReason.NOT_LOGGED_IN : FailReason.INVALID_RESPONSE,
+        body.slice(0, 200),
+      );
     }
   }
-  if ((json as { result?: unknown } | null | undefined)?.result !== 'success') {
-    throw { reason: FailReason.OPERATION_FAILED, extra: json } as ApiError;
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
+
+/**
+ * The form the website's submit page sends (`fileUploadProgress` in `/res/js/common/myApp.js`): `fileupload` is the
+ * picked file, or the text "undefined" when none is picked (it appends `files[0]` as is); `zynr` is the whole current
+ * answer as HTML from its editor, sent every time (also when only the attachment changes); `isDeleted` is "1" when the
+ * existing attachment is deleted, and then the server ignores `zynr` (the submitted answer stays).
+ */
+export const homeworkSubmitForm = (
+  id: string,
+  content = '',
+  attachment?: HomeworkSubmitAttachment,
+  removeAttachment = false,
+) => {
+  const form = new FormData();
+  form.append('xszyid', id);
+  form.append('zynr', content ?? '');
+  if (!attachment) form.append('fileupload', 'undefined');
+  else if (attachment.content instanceof Blob) form.append('fileupload', attachment.content, attachment.filename);
+  else {
+    // React Native's FormData reads a file from an object with its uri, name and type
+    const { uri, type } = attachment.content;
+    form.append('fileupload', { uri, name: attachment.filename, type: type || 'application/octet-stream' } as any);
+  }
+  if (removeAttachment) form.append('isDeleted', '1');
+  else form.append('isDeleted', '0');
+  return form;
+};
 
 const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 

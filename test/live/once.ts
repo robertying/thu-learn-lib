@@ -2,6 +2,8 @@ import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { DAY_MS } from './dates.ts';
+
 /**
  * Tests that leave a trace on the account (a failed login, items marked read, a favorite added and removed) run only
  * when named in `LIVE_ONCE` (comma-separated), e.g. `LIVE_ONCE=wrong-password pnpm test:live test/live/once.test.ts`.
@@ -9,7 +11,6 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
  * later runs say when the test is due again because that code changed.
  */
 const LEDGER = 'test/live/.once.json';
-const DAY = 24 * 60 * 60 * 1000;
 
 type Entry = {
   passedAt?: string;
@@ -51,7 +52,7 @@ export function shouldRun({ name, covers, maxPerDay }: OnceTest): boolean {
       );
     return false;
   }
-  const recent = (entry?.attempts ?? []).filter((t) => Date.now() - Date.parse(t) < DAY);
+  const recent = (entry?.attempts ?? []).filter((t) => Date.now() - Date.parse(t) < DAY_MS);
   if (recent.length >= maxPerDay) {
     throw new Error(`[once] "${name}" ran ${recent.length} times in the last 24 hours (limit ${maxPerDay}); try later`);
   }
@@ -61,7 +62,7 @@ export function shouldRun({ name, covers, maxPerDay }: OnceTest): boolean {
 export function recordAttempt(name: string) {
   const ledger = readLedger();
   const entry = (ledger[name] ??= { attempts: [] });
-  entry.attempts = [...entry.attempts.filter((t) => Date.now() - Date.parse(t) < DAY), new Date().toISOString()];
+  entry.attempts = [...entry.attempts.filter((t) => Date.now() - Date.parse(t) < DAY_MS), new Date().toISOString()];
   writeLedger(ledger);
 }
 

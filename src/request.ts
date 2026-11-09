@@ -1,23 +1,12 @@
-import * as cheerio from 'cheerio';
 import fetchCookie from 'fetch-cookie';
 import { fetch } from 'node-fetch-native';
 import { CookieJar } from 'tough-cookie';
 
 import type { ApiError, CredentialProvider, Fetch, HelperConfig } from './types.ts';
 import { FailReason, Language } from './types.ts';
-
-const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
-
-/** a DOM element as cheerio's selections hold it (domhandler's `Element`, taken from cheerio's types so it always matches) */
-export type Element = ReturnType<ReturnType<cheerio.CheerioAPI['root']>['children']>[number];
-
-export const $ = (html: Parameters<typeof cheerio.load>[0]): cheerio.CheerioAPI => {
-  return cheerio.load(html, CHEERIO_CONFIG);
-};
+import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
 
 export const noLogin = (res: Response) => res.url.includes('login_timeout') || res.status === 403;
-
-export const YES = '是';
 
 /** default for `HelperConfig.maxConcurrentRequests` */
 export const DEFAULT_MAX_CONCURRENT_REQUESTS = 6;
@@ -34,9 +23,6 @@ export const addCSRFTokenToUrl = (url: string, token: string): string => {
 function makeFetch(jar?: CookieJar): typeof fetch {
   return fetchCookie(fetch, jar);
 }
-
-const urlOf = (input: Parameters<Fetch>[0]): string =>
-  typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
 /**
  * Let at most `max` calls of `inner` run at once; the rest wait in FIFO order. A slot is freed when the response
@@ -102,10 +88,7 @@ export function withTimeout(inner: Fetch, ms: number): TimedFetch {
     } catch (err) {
       outer?.removeEventListener('abort', forward);
       if (timedOut) {
-        throw {
-          reason: FailReason.REQUEST_TIMEOUT,
-          extra: { url: urlOf(input), timeout },
-        } as ApiError;
+        throw apiError(FailReason.REQUEST_TIMEOUT, { url: urlOf(input), timeout });
       }
       throw err;
     } finally {
@@ -125,7 +108,7 @@ export function withNetworkError(inner: TimedFetch): TimedFetch {
       return await inner(input, init);
     } catch (err) {
       if ((err as ApiError | undefined)?.reason !== undefined || init?.signal?.aborted) throw err;
-      throw { reason: FailReason.NETWORK_ERROR, extra: err } as ApiError;
+      throw apiError(FailReason.NETWORK_ERROR, err);
     }
   };
 }
@@ -143,21 +126,6 @@ export const discard = (res: Response) => {
 
 /** returned by a read step when the response turned out to be from an expired session */
 const EXPIRED = Symbol('expired');
-
-/** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
-const MAX_LOGIN_PAGE_LENGTH = 4096;
-
-/**
- * Whether a 200 page is the short login or redirect page of an expired session rather than the page asked for: short,
- * and either Web Learning's "login timeout" page (what the server sends for an HTML page of an expired session, in
- * either website language: title 登录超时, image `log_fail.png`, text 您未登录或登录失效) or a page pointing at the
- * login timeout page or the SSO login.
- */
-export const looksLikeLoginPage = (text: string) =>
-  text.length < MAX_LOGIN_PAGE_LENGTH &&
-  /登录超时|您未登录或登录失效|log_fail\.png|login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(
-    text,
-  );
 
 /**
  * State shared by every request a `Learn2018Helper` makes: cookies, CSRF token, language and the fetch wrappers.
@@ -280,14 +248,14 @@ export class Session {
     const first = await attempt(false);
     if (first !== EXPIRED) return first;
     if (!this.provider) {
-      throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
+      throw apiError(FailReason.NOT_LOGGED_IN);
     }
     if (this.#generation === generation) {
       await this.autoRelogin();
     }
     const second = await attempt(true);
     if (second === EXPIRED) {
-      throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
+      throw apiError(FailReason.NOT_LOGGED_IN);
     }
     return second;
   }
@@ -296,25 +264,26 @@ export class Session {
   static readonly #response = async (res: Response, retry: boolean): Promise<Response> => {
     if (retry && res.status !== 200) {
       discard(res);
-      throw {
-        reason: FailReason.UNEXPECTED_STATUS,
-        extra: { code: res.status, text: res.statusText },
-      } as ApiError;
+      throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status, text: res.statusText });
     }
     return res;
   };
 
-  /** the parsed JSON body; the login page with status 200 instead means the session has expired */
-  static readonly #json = async (res: Response): Promise<any> => {
+  /**
+   * The parsed JSON body (after a re-login only from a response with status 200); the login page with status 200
+   * instead means the session has expired.
+   */
+  static readonly #json = async (res: Response, retry: boolean): Promise<any> => {
+    await Session.#response(res, retry);
     const text = await res.text();
     try {
       return JSON.parse(text);
     } catch {
       if (res.status === 200 && looksLikeLoginPage(text)) return EXPIRED;
-      throw {
-        reason: res.status === 200 ? FailReason.INVALID_RESPONSE : FailReason.UNEXPECTED_STATUS,
-        extra: { code: res.status, text: text.slice(0, 200) },
-      } as ApiError;
+      throw apiError(res.status === 200 ? FailReason.INVALID_RESPONSE : FailReason.UNEXPECTED_STATUS, {
+        code: res.status,
+        text: text.slice(0, 200),
+      });
     }
   };
 
@@ -362,7 +331,7 @@ export class Session {
     }
     const json = await this.fetchJsonWithToken(probeUrl);
     if (json?.message !== 'success') {
-      throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+      throw apiError(FailReason.INVALID_RESPONSE, json);
     }
   }
 }

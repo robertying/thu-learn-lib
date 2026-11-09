@@ -5,13 +5,20 @@ import {
   CourseType,
   Language,
   Learn2018Helper,
+  SemesterType,
   parseCourseMeeting,
   semesterWeek,
 } from '../../src/index.ts';
 import { config } from './config.ts';
+import { addDays, sameDate, toYyyymmdd } from './dates.ts';
 
-/** whether two dates are the same day, written as YYYY-MM-DD or yyyymmdd */
-const sameDate = (a: string, b: string) => a.replaceAll('-', '') === b.replaceAll('-', '');
+/** `list` is an array whose items all have a string (possibly empty) at each of `keys` */
+const expectItems = (list: unknown, keys: string[]) => {
+  expect(Array.isArray(list)).toBe(true);
+  for (const item of list as Record<string, unknown>[]) {
+    for (const key of keys) expect(typeof item[key], `${key} of ${JSON.stringify(item).slice(0, 200)}`).toBe('string');
+  }
+};
 
 /** a course name as the registrar's calendar and Web Learning may each write it */
 const normalize = (name: string) => name.replace(/\s/g, '').replace(/（/g, '(').replace(/）/g, ')');
@@ -34,86 +41,99 @@ describe('helper data retrieval', () => {
   const semesterTATester = inject('teacherSemester');
   const courseTATester = inject('teacherCourse');
 
-  it('should get correct language', async () => {
+  it('gives course names in the website language', async () => {
     const lang = h.getCurrentLanguage();
-    expect(lang).toBeDefined();
+    expect(Object.values(Language)).toContain(lang);
     const courses = await h.getCourseList(semesterTester);
     courses.forEach((course) => {
       expect(course.name).toBe(lang === Language.EN ? course.englishName : course.chineseName);
     });
   });
 
-  it('should get semesterIdList correctly', async () => {
+  it('lists the semester ids, including the tested semesters', async () => {
     const semesters = await h.getSemesterIdList();
-    expect(Array.isArray(semesters)).toEqual(true);
-    for (const semester of semesters) {
-      expect(typeof semester).toBe('string');
-    }
+    expect(Array.isArray(semesters)).toBe(true);
+    for (const semester of semesters) expect(typeof semester).toBe('string');
     expect(semesters).toContain(semesterTester);
     expect(semesters).toContain(semesterTATester);
   });
 
-  it('should get currentSemester correctly', async () => {
-    const currSemester = await h.getCurrentSemester();
-    expect(currSemester).not.toBeUndefined();
-    expect(currSemester).not.toBeNull();
+  it('gets the current semester', async () => {
+    const semester = await h.getCurrentSemester();
+    expect(semester.id).toBeTruthy();
+    expect(semester.startDate).toMatch(/^\d{4}-\d{2}-\d{2}/);
+    expect(semester.endDate).toMatch(/^\d{4}-\d{2}-\d{2}/);
+    expect(semester.endYear).toBe(semester.startYear + 1);
+    expect(Object.values(SemesterType)).toContain(semester.type);
   });
 
-  it('should get courseList correctly', async () => {
+  it('lists the student courses of the tested semester', async () => {
     const courses = await h.getCourseList(semesterTester);
-    expect(courses.length).toBeGreaterThanOrEqual(0);
-    if (courses.length > 0) {
-      expect(courses.map((c) => c.id)).toContain(courseTester);
-    }
+    expectItems(courses, ['id', 'name', 'chineseName', 'url']);
+    for (const c of courses) expect(c.courseType).toBe(CourseType.STUDENT);
   });
 
-  it('should get TAcourses correctly', async () => {
+  it.skipIf(!courseTester)('includes the tested course in the student course list', async () => {
+    const courses = await h.getCourseList(semesterTester);
+    expect(courses.map((c) => c.id)).toContain(courseTester);
+  });
+
+  it('lists the teacher courses of the tested semester', async () => {
     const courses = await h.getCourseList(semesterTATester, CourseType.TEACHER);
-    expect(courses.length).toBeGreaterThanOrEqual(0);
-    if (courses.length > 0) {
-      expect(courses.map((c) => c.id)).toContain(courseTATester);
-    }
+    expectItems(courses, ['id', 'name', 'url']);
+    for (const c of courses) expect(c.courseType).toBe(CourseType.TEACHER);
   });
 
-  it('should get contents (or throw on unimplemented function) correctly', async () => {
-    if (courseTester !== undefined) {
-      expect((await h.getHomeworkList(courseTester)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getDiscussionList(courseTester)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getNotificationList(courseTester)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getFileList(courseTester)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getAnsweredQuestionList(courseTester)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getQuestionnaireList(courseTester)).length).toBeGreaterThanOrEqual(0);
-    }
-    if (courseTATester !== undefined) {
-      // expect((await h.getDiscussionList(courseTATester, CourseType.TEACHER)).length).toBeGreaterThanOrEqual(0);
-      // expect((await h.getNotificationList(courseTATester, CourseType.TEACHER)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getFileList(courseTATester, CourseType.TEACHER)).length).toBeGreaterThanOrEqual(0);
-      // expect((await h.getAnsweredQuestionList(courseTATester, CourseType.TEACHER)).length).toBeGreaterThanOrEqual(0);
-      expect((await h.getHomeworkList(courseTATester, CourseType.TEACHER)).length).toBeGreaterThanOrEqual(0);
-    }
+  it.skipIf(!courseTATester)('includes the tested course in the teacher course list', async () => {
+    const courses = await h.getCourseList(semesterTATester, CourseType.TEACHER);
+    expect(courses.map((c) => c.id)).toContain(courseTATester);
   });
 
-  it('should get file categories and list correctly', async () => {
-    if (courseTester !== undefined) {
-      const categories = await h.getFileCategoryList(courseTester);
-      expect(categories.length).toBeGreaterThanOrEqual(0);
-      expect((await h.getFileListByCategory(courseTester, categories[0].id)).length).toBeGreaterThanOrEqual(0);
-    }
-    if (courseTATester !== undefined) {
-      const categories = await h.getFileCategoryList(courseTATester, CourseType.TEACHER);
-      expect(categories.length).toBeGreaterThanOrEqual(0);
-      expect(
-        (await h.getFileListByCategory(courseTATester, categories[0].id, CourseType.TEACHER)).length,
-      ).toBeGreaterThanOrEqual(0);
-    }
+  it.skipIf(!courseTester)('gets every kind of content of a student course', async () => {
+    const id = courseTester!;
+    expectItems(await h.getHomeworkList(id), ['id', 'title', 'url', 'deadline']);
+    expectItems(await h.getDiscussionList(id), ['id', 'title', 'url']);
+    expectItems(await h.getNotificationList(id), ['id', 'title', 'content', 'url', 'publishTime']);
+    expectItems(await h.getFileList(id), ['id', 'title', 'downloadUrl', 'previewUrl']);
+    expectItems(await h.getAnsweredQuestionList(id), ['id', 'title', 'question', 'url']);
+    expectItems(await h.getQuestionnaireList(id), ['id', 'type', 'title', 'url']);
   });
 
-  it('should get user info correctly', async () => {
+  it.skipIf(!courseTATester)('gets the files and homework of a teacher course', async () => {
+    const id = courseTATester!;
+    expectItems(await h.getFileList(id, CourseType.TEACHER), ['id', 'title', 'downloadUrl']);
+    expectItems(await h.getHomeworkList(id, CourseType.TEACHER), ['id', 'title', 'url', 'deadline']);
+  });
+
+  // the library has teacher URLs for these too; this checks they work against the real server
+  it.skipIf(!courseTATester)('gets the discussions, notifications and questions of a teacher course', async () => {
+    const id = courseTATester!;
+    expectItems(await h.getDiscussionList(id, CourseType.TEACHER), ['id', 'title', 'url']);
+    expectItems(await h.getNotificationList(id, CourseType.TEACHER), ['id', 'title', 'url']);
+    expectItems(await h.getAnsweredQuestionList(id, CourseType.TEACHER), ['id', 'title', 'url']);
+  });
+
+  it.skipIf(!courseTester)('lists the files of the first file category of a student course', async ({ skip }) => {
+    const categories = await h.getFileCategoryList(courseTester!);
+    expectItems(categories, ['id', 'title']);
+    skip(categories.length === 0, 'the course has no file categories');
+    const files = await h.getFileListByCategory(courseTester!, categories[0].id);
+    expectItems(files, ['id', 'title', 'size', 'downloadUrl']);
+    for (const f of files) expect(typeof f.isFavorite).toBe('boolean');
+  });
+
+  it.skipIf(!courseTATester)('lists the files of the first file category of a teacher course', async ({ skip }) => {
+    const categories = await h.getFileCategoryList(courseTATester!, CourseType.TEACHER);
+    expectItems(categories, ['id', 'title']);
+    skip(categories.length === 0, 'the course has no file categories');
+    const files = await h.getFileListByCategory(courseTATester!, categories[0].id, CourseType.TEACHER);
+    expectItems(files, ['id', 'title', 'downloadUrl']);
+  });
+
+  it('reads the user name and department', async () => {
     const userInfo = await h.getUserInfo();
-    expect(userInfo).toBeDefined();
-
-    expect(userInfo.name).toBeTruthy();
     expect(typeof userInfo.name).toBe('string');
+    expect(userInfo.name).toBeTruthy();
 
     expect(typeof userInfo.department).toBe('string');
     // in English, the page shows `none` for a 书院 (and some departments)
@@ -121,10 +141,9 @@ describe('helper data retrieval', () => {
     expect(userInfo.department.toLowerCase()).not.toBe('none');
   });
 
-  it('gets the same homework details from the list option and on demand', async () => {
-    if (!courseTester) return;
-    const plain = await h.getHomeworkList(courseTester);
-    const detailed = await h.getHomeworkList(courseTester, undefined, { details: 'all' });
+  it.skipIf(!courseTester)('gets the same homework details from the list option and on demand', async () => {
+    const plain = await h.getHomeworkList(courseTester!);
+    const detailed = await h.getHomeworkList(courseTester!, undefined, { details: 'all' });
     expect(detailed.map((hw) => hw.id)).toEqual(plain.map((hw) => hw.id));
     for (const [i, hw] of plain.entries()) {
       const detail = await h.getHomeworkDetail(hw);
@@ -143,9 +162,8 @@ describe('helper data retrieval', () => {
     }
   });
 
-  it('gets an attachment for every notice that names one', async () => {
-    if (!courseTester) return;
-    const notices = await h.getNotificationList(courseTester, CourseType.STUDENT, { attachments: 'all' });
+  it.skipIf(!courseTester)('gets an attachment for every notice that names one', async () => {
+    const notices = await h.getNotificationList(courseTester!, CourseType.STUDENT, { attachments: 'all' });
     for (const n of notices) {
       if (n.attachmentName) expect(n.attachment?.id).toBeTruthy();
       else expect(n.attachment).toBeUndefined();
@@ -165,41 +183,28 @@ describe('helper data retrieval', () => {
     expect(Object.keys(contents).toSorted()).toEqual(ids.toSorted());
   });
 
-  it('gives every time as ISO 8601 with an offset', async () => {
-    if (!courseTester) return;
+  it.skipIf(!courseTester)('gives every time as ISO 8601 with an offset', async () => {
     const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/;
     const times = [
-      ...(await h.getHomeworkList(courseTester)).flatMap((hw) => [hw.deadline, hw.submitTime, hw.gradeTime]),
-      ...(await h.getNotificationList(courseTester)).flatMap((n) => [n.publishTime, n.expireTime]),
-      ...(await h.getFileList(courseTester)).flatMap((f) => [f.uploadTime, f.publishTime]),
-      ...(await h.getDiscussionList(courseTester)).flatMap((d) => [d.publishTime, d.lastReplyTime]),
+      ...(await h.getHomeworkList(courseTester!)).flatMap((hw) => [hw.deadline, hw.submitTime, hw.gradeTime]),
+      ...(await h.getNotificationList(courseTester!)).flatMap((n) => [n.publishTime, n.expireTime]),
+      ...(await h.getFileList(courseTester!)).flatMap((f) => [f.uploadTime, f.publishTime]),
+      ...(await h.getDiscussionList(courseTester!)).flatMap((d) => [d.publishTime, d.lastReplyTime]),
     ].filter((t) => t !== undefined);
     for (const t of times) expect(t).toMatch(iso);
   });
 
-  it('maps every grade code the server sends to a grade level', async () => {
-    if (!courseTester) return;
-    const homework = await h.getHomeworkList(courseTester);
+  it.skipIf(!courseTester)('maps every grade code the server sends to a grade level', async () => {
+    const homework = await h.getHomeworkList(courseTester!);
     for (const hw of homework) {
       if (hw.grade !== undefined && hw.grade < 0) expect(hw.gradeLevel, `grade code ${hw.grade}`).toBeDefined();
     }
   });
 
-  it('parses favorite state of files by category as a boolean', async () => {
-    if (!courseTester) return;
-    const categories = await h.getFileCategoryList(courseTester);
-    if (categories.length === 0) return;
-    const files = await h.getFileListByCategory(courseTester, categories[0].id);
-    for (const f of files) expect(typeof f.isFavorite).toBe('boolean');
-  });
-
   it('fetches calendar ranges longer than one window without failed windows', async () => {
-    const current = await h.getCurrentSemester();
-    const start = current.startDate.replaceAll('-', '').slice(0, 8);
-    const startTime = Date.UTC(Number(start.slice(0, 4)), Number(start.slice(4, 6)) - 1, Number(start.slice(6, 8)));
-    const end = new Date(startTime + 89 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replaceAll('-', '');
-
-    const { events, failedRanges } = await h.getCalendar(start, end);
+    const { startDate } = await h.getCurrentSemester();
+    // 90 days: four windows
+    const { events, failedRanges } = await h.getCalendar(toYyyymmdd(startDate), toYyyymmdd(addDays(startDate, 89)));
     expect(failedRanges).toEqual([]);
     expect(events.length).toBeGreaterThan(0);
   });
@@ -218,23 +223,16 @@ describe('helper data retrieval', () => {
     const { startDate } = await h.getCurrentSemester();
     // the first day is in week 1, or week 0 when it is a weekend before classes
     expect([0, 1]).toContain(semesterWeek(startDate, startDate));
-    const day = (offset: number) =>
-      new Date(Date.parse(`${startDate.slice(0, 10)}T00:00:00Z`) + offset * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
-    expect(semesterWeek(startDate, day(14)) - semesterWeek(startDate, day(7))).toBe(1);
+    expect(semesterWeek(startDate, addDays(startDate, 14)) - semesterWeek(startDate, addDays(startDate, 7))).toBe(1);
   });
 
   it("works out class times that the registrar's calendar agrees with", { timeout: 120_000 }, async () => {
     const semester = await h.getCurrentSemester();
     const courses = await h.getCourseList(semester.id, CourseType.STUDENT, Language.ZH, { timeAndLocation: true });
     // week 3: past any first-week changes
-    const first = Date.parse(`${semester.startDate.slice(0, 10)}T00:00:00Z`);
-    const days = Array.from({ length: 28 }, (_, i) =>
-      new Date(first + i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-    );
+    const days = Array.from({ length: 28 }, (_, i) => addDays(semester.startDate, i));
     const week = days.filter((d) => semesterWeek(semester.startDate, d) === 3);
-    const { events } = await h.getCalendar(week[0].replaceAll('-', ''), week.at(-1)!.replaceAll('-', ''));
+    const { events } = await h.getCalendar(toYyyymmdd(week[0]), toYyyymmdd(week.at(-1)!));
 
     const expected = courses.flatMap((c) =>
       (c.timeAndLocation ?? []).flatMap((text) => {

@@ -1,7 +1,9 @@
-import { FormData } from 'node-fetch-native';
-import type { ContentType, IHomeworkSubmitAttachment, QuestionnaireType } from './types.ts';
+import type { ContentType, QuestionnaireType } from './types.ts';
 import { CourseType, Language } from './types.ts';
 import { CONTENT_TYPE_MAP, getMkFromType } from './utils.ts';
+
+// URLs without parameters are constants; URLs with parameters, and form bodies (a new `FormData` each time), are
+// functions. Form bodies use the global `FormData`, which Node (22+) and React Native both have.
 
 export const ID_PREFIX = 'https://id.tsinghua.edu.cn';
 export const LEARN_PREFIX = 'https://learn.tsinghua.edu.cn';
@@ -9,28 +11,21 @@ export const REGISTRAR_PREFIX = 'https://zhjw.cic.tsinghua.edu.cn';
 
 const MAX_SIZE = 200;
 
-export const ID_LOGIN = () => 'https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/bb5df85216504820be7bba2b0ae1535b/0';
+export const ID_LOGIN = `${ID_PREFIX}/do/off/ui/auth/login/form/bb5df85216504820be7bba2b0ae1535b/0`;
 
-export const ID_LOGIN_CHECK = () => 'https://id.tsinghua.edu.cn/do/off/ui/auth/login/check';
+export const ID_LOGIN_CHECK = `${ID_PREFIX}/do/off/ui/auth/login/check`;
 
 export const LEARN_AUTH_ROAM = (ticket: string) =>
   `${LEARN_PREFIX}/b/j_spring_security_thauth_roaming_entry?ticket=${ticket}`;
 
-export const LEARN_LOGOUT = () => `${LEARN_PREFIX}/f/j_spring_security_logout`;
+export const LEARN_LOGOUT = `${LEARN_PREFIX}/f/j_spring_security_logout`;
 
-export const LEARN_HOMEPAGE = (courseType: CourseType) => {
-  if (courseType === CourseType.STUDENT) {
-    return `${LEARN_PREFIX}/f/wlxt/index/course/student/`;
-  } else {
-    return `${LEARN_PREFIX}/f/wlxt/index/course/teacher/`;
-  }
-};
+/** the homepage (course list) of a student or a teacher; login reads the CSRF token from the student one */
+export const LEARN_HOMEPAGE = (courseType: CourseType) => `${LEARN_PREFIX}/f/wlxt/index/course/${courseType}/`;
 
-export const LEARN_STUDENT_COURSE_LIST_PAGE = () => `${LEARN_PREFIX}/f/wlxt/index/course/student/`;
+export const LEARN_SEMESTER_LIST = `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xktjb_coassb/queryxnxq`;
 
-export const LEARN_SEMESTER_LIST = () => `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xktjb_coassb/queryxnxq`;
-
-export const LEARN_CURRENT_SEMESTER = () => `${LEARN_PREFIX}/b/kc/zhjw_v_code_xnxq/getCurrentAndNextSemester`;
+export const LEARN_CURRENT_SEMESTER = `${LEARN_PREFIX}/b/kc/zhjw_v_code_xnxq/getCurrentAndNextSemester`;
 
 export const LEARN_COURSE_LIST = (semester: string, courseType: CourseType, lang: Language) =>
   courseType === CourseType.STUDENT
@@ -90,30 +85,6 @@ export const LEARN_HOMEWORK_LIST_NEW = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/z
 export const LEARN_HOMEWORK_LIST_SUBMITTED = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListYjwg`;
 export const LEARN_HOMEWORK_LIST_GRADED = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListYpg`;
 export const LEARN_HOMEWORK_LIST_EXCELLENT = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/yxzylist`;
-export const LEARN_HOMEWORK_LIST_SOURCE = [
-  {
-    url: LEARN_HOMEWORK_LIST_NEW,
-    status: {
-      submitted: false,
-      graded: false,
-    },
-  },
-  {
-    url: LEARN_HOMEWORK_LIST_SUBMITTED,
-    status: {
-      submitted: true,
-      graded: false,
-    },
-  },
-  {
-    url: LEARN_HOMEWORK_LIST_GRADED,
-    status: {
-      submitted: true,
-      graded: true,
-    },
-  },
-];
-
 export const LEARN_HOMEWORK_PAGE = (courseID: string, id: string) =>
   `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewCj?wlkcid=${courseID}&xszyid=${id}`;
 
@@ -131,34 +102,7 @@ export const LEARN_HOMEWORK_DETAIL_FORM_DATA = (baseId: string) => {
 export const LEARN_HOMEWORK_SUBMIT_PAGE = (courseID: string, id: string) =>
   `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${courseID}&xszyid=${id}`;
 
-export const LEARN_HOMEWORK_SUBMIT = () => `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/tjzy`;
-
-/**
- * The form the website's submit page sends (`fileUploadProgress` in `/res/js/common/myApp.js`): `fileupload` is the
- * picked file, or the text "undefined" when none is picked (it appends `files[0]` as is); `zynr` is the whole current
- * answer as HTML from its editor, sent every time (also when only the attachment changes); `isDeleted` is "1" when the
- * existing attachment is deleted, and then the server ignores `zynr` (the submitted answer stays).
- */
-export const LEARN_HOMEWORK_SUBMIT_FORM_DATA = (
-  id: string,
-  content = '',
-  attachment?: IHomeworkSubmitAttachment,
-  removeAttachment = false,
-) => {
-  const form = new FormData();
-  form.append('xszyid', id);
-  form.append('zynr', content ?? '');
-  if (!attachment) form.append('fileupload', 'undefined');
-  else if (attachment.content instanceof Blob) form.append('fileupload', attachment.content, attachment.filename);
-  else {
-    // React Native's FormData reads a file from an object with its uri, name and type
-    const { uri, type } = attachment.content;
-    form.append('fileupload', { uri, name: attachment.filename, type: type || 'application/octet-stream' } as any);
-  }
-  if (removeAttachment) form.append('isDeleted', '1');
-  else form.append('isDeleted', '0');
-  return form;
-};
+export const LEARN_HOMEWORK_SUBMIT = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/tjzy`;
 
 export const LEARN_HOMEWORK_LIST_TEACHER = `${LEARN_PREFIX}/b/wlxt/kczy/zy/teacher/pageList`;
 
@@ -252,7 +196,7 @@ export const REGISTRAR_TICKET_FORM_DATA = () => {
   return form;
 };
 
-export const REGISTRAR_TICKET = () => `${LEARN_PREFIX}/b/wlxt/common/auth/gnt`;
+export const REGISTRAR_TICKET = `${LEARN_PREFIX}/b/wlxt/common/auth/gnt`;
 
 export const REGISTRAR_AUTH = (ticket: string) => `${REGISTRAR_PREFIX}/j_acegi_login.do?url=/&ticket=${ticket}`;
 

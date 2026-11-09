@@ -2,6 +2,7 @@
 
 import type { Session } from './request.ts';
 import type { AllContentsOptions, AllContentsResult, ContentTypeMap, CourseContent } from './types.ts';
+import { apiError } from './utils.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import { getAnsweredQuestionList, getDiscussionList } from './discussions.ts';
 import { getFileList } from './files.ts';
@@ -20,7 +21,7 @@ export async function getAllContents<T extends ContentType>(
   options: AllContentsOptions<T> = {},
 ): Promise<AllContentsResult<T>> {
   const courseType = options.courseType ?? CourseType.STUDENT;
-  const fetchContentForCourse = (id: string): Promise<ContentTypeMap[T][]> => {
+  const fetchContentForCourse = async (id: string): Promise<ContentTypeMap[T][]> => {
     switch (type) {
       case ContentType.NOTIFICATION:
         return getNotificationList(s, id, courseType, {
@@ -31,10 +32,10 @@ export async function getAllContents<T extends ContentType>(
       case ContentType.HOMEWORK:
         if (courseType === CourseType.TEACHER) {
           // the teacher list has another shape (`HomeworkTA`); use `getHomeworkList(id, CourseType.TEACHER)`
-          return Promise.reject({
-            reason: FailReason.NOT_IMPLEMENTED,
-            extra: 'homework of a teacher course; use getHomeworkList(courseID, CourseType.TEACHER)',
-          });
+          throw apiError(
+            FailReason.NOT_IMPLEMENTED,
+            'homework of a teacher course; use getHomeworkList(courseID, CourseType.TEACHER)',
+          );
         }
         return getHomeworkList(s, id, CourseType.STUDENT, {
           details: (options as AllContentsOptions<ContentType.HOMEWORK>).details,
@@ -48,10 +49,7 @@ export async function getAllContents<T extends ContentType>(
           details: (options as AllContentsOptions<ContentType.QUESTIONNAIRE>).details,
         }) as Promise<ContentTypeMap[T][]>;
       default:
-        return Promise.reject({
-          reason: FailReason.NOT_IMPLEMENTED,
-          extra: 'Unknown content type',
-        });
+        throw apiError(FailReason.NOT_IMPLEMENTED, 'Unknown content type');
     }
   };
 

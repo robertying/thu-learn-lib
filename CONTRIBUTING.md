@@ -17,7 +17,7 @@ Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and for
 
 ## Testing
 
-`pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes.
+`pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes. `pnpm test:coverage` runs them with a coverage report (V8) for `src`.
 
 `pnpm test:live` runs the tests against the real server. It needs your own credentials and a device fingerprint: copy `test/live/template.env` to `test/live/.env` and fill it in. The live tests also check what the offline tests can only assume, such as how the server answers an expired session; [TODO.md](TODO.md) lists what is still unconfirmed.
 

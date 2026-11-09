@@ -5,11 +5,11 @@ import { FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
 import { JSONP_EXTRACTOR_NAME } from '../src/utils.ts';
 import type { Request } from './helpers/fake-server.ts';
-import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, field, html } from './helpers/fake-server.ts';
+import { FINGERPRINT, FakeServer, PASSWORD, credential, field, html } from './helpers/fake-server.ts';
 
 const setup = (calendar: (req: Request) => Response | Promise<Response>) =>
   new FakeServer()
-    .on('POST', URLS.REGISTRAR_TICKET(), () => html('"registrar-ticket"'))
+    .on('POST', URLS.REGISTRAR_TICKET, () => html('"registrar-ticket"'))
     .on('GET', URLS.REGISTRAR_AUTH(''), () => html(''))
     .on('GET', URLS.REGISTRAR_CALENDAR('', ''), calendar);
 
@@ -198,12 +198,12 @@ describe('getCalendar', () => {
   it('does not log in to Web Learning again when the registrar answers 403', async () => {
     const server = setup(() => new Response('', { status: 403 }));
     const helper = await server.loggedInHelper();
-    const logins = server.count(URLS.ID_LOGIN_CHECK());
+    const logins = server.count(URLS.ID_LOGIN_CHECK);
     await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
       'reason',
       FailReason.INVALID_RESPONSE,
     );
-    expect(server.count(URLS.ID_LOGIN_CHECK())).toBe(logins);
+    expect(server.count(URLS.ID_LOGIN_CHECK)).toBe(logins);
     expect(calendarRequests(server)).toHaveLength(2);
   });
 
@@ -292,7 +292,7 @@ describe('getCalendar', () => {
       expect(await helper.getCalendar('20250301', '20250328')).toEqual({ events: [], failedRanges: [] });
 
       expect(server.requests.map((r) => `${r.method} ${r.path}`)).toEqual([
-        `POST ${URLS.REGISTRAR_TICKET()}`,
+        `POST ${URLS.REGISTRAR_TICKET}`,
         `GET ${new URL(URLS.REGISTRAR_AUTH('')).origin}/j_acegi_login.do`,
         `POST ${ID_CHECK_SINGLE}`,
         `GET ${OAUTH_CALLBACK}`,
@@ -344,7 +344,7 @@ describe('getCalendar', () => {
         const helper = await server.loggedInHelper();
         expect(await helper.getCalendar('20250301', '20250328')).toEqual({ events: [], failedRanges: [] });
         expect(server.loginCount).toBe(2);
-        expect(server.count(URLS.REGISTRAR_TICKET(), 'POST')).toBe(2);
+        expect(server.count(URLS.REGISTRAR_TICKET, 'POST')).toBe(2);
         expect(calendarRequests(server)).toHaveLength(1);
       });
 
@@ -374,7 +374,7 @@ describe('getCalendar', () => {
       it('does not log in without a provider', async () => {
         const server = offCampus(passwordForm);
         const helper = server.helper();
-        await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+        await helper.login(credential);
         await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
           'reason',
           FailReason.ERROR_REGISTRAR_AUTH,

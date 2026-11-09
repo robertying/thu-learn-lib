@@ -1,10 +1,11 @@
 // User info and website language.
 
 import type { Session } from './request.ts';
-import { $, discard } from './request.ts';
-import type { ApiError, Language, UserInfo } from './types.ts';
+import { discard } from './request.ts';
+import type { Language, UserInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
+import { $, apiError } from './utils.ts';
 
 /** what the English homepage shows for a department without an English name (as for the 书院) */
 const NO_DEPARTMENT = 'none';
@@ -36,10 +37,7 @@ export async function setLanguage(s: Session, lang: Language): Promise<void> {
   // free the connection; only the status matters
   discard(response);
   if (!response.ok) {
-    throw {
-      reason: FailReason.OPERATION_FAILED,
-      extra: { code: response.status, text: response.statusText },
-    } as ApiError;
+    throw apiError(FailReason.OPERATION_FAILED, { code: response.status, text: response.statusText });
   }
   s.lang = lang;
 }

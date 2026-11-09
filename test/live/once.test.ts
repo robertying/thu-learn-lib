@@ -4,7 +4,7 @@ import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
 import type { Fetch } from '../../src/index.ts';
-import type { Homework, IHomeworkDetail } from '../../src/index.ts';
+import type { Homework, HomeworkDetail } from '../../src/index.ts';
 import {
   ContentType,
   CourseType,
@@ -13,6 +13,7 @@ import {
   checkHomeworkSubmitResponse,
   homeworkContentHtml,
 } from '../../src/index.ts';
+import { HOMEWORK_LIST_SOURCES } from '../../src/homework.ts';
 import * as URLS from '../../src/urls.ts';
 import { FINGERPRINT, config } from './config.ts';
 import { ALLOW_WRITES } from './guard.ts';
@@ -53,7 +54,9 @@ describe('one-time checks', () => {
     recordResult(wrongPassword.name, 'started');
     // a made-up user, so the failed login doesn't count against the real account
     const helper = new Learn2018Helper();
-    const err = await helper.login('nouser', 'nopass', FINGERPRINT).catch((e: unknown) => e);
+    const err = await helper
+      .login({ username: 'nouser', password: 'nopass', fingerPrint: FINGERPRINT })
+      .catch((e: unknown) => e);
     recordResult(wrongPassword.name, `rejected with ${JSON.stringify(err)}`);
     expect(err).toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
     recordPass(
@@ -137,7 +140,7 @@ describe('one-time checks', () => {
       /** the raw homework rows of a course in every student list, by `xszyid` */
       const rawRows = async (courseID: string) => {
         const rows = new Map<string, { list: string; row: Record<string, unknown> }>();
-        for (const { url } of URLS.LEARN_HOMEWORK_LIST_SOURCE) {
+        for (const { url } of HOMEWORK_LIST_SOURCES) {
           const u = new URL(url);
           u.searchParams.set('_csrf', h.getCSRFToken());
           const json = await (
@@ -242,7 +245,7 @@ describe('one-time checks', () => {
       const detail = () => h.getHomeworkDetail(target);
 
       // what to put back afterwards: the submitted answer and attachment (downloaded), if any
-      const before: IHomeworkDetail = await detail();
+      const before: HomeworkDetail = await detail();
       let previousFile: { filename: string; content: Blob } | undefined;
       if (before.submittedAttachment) {
         const res = await raw(withToken(before.submittedAttachment.downloadUrl));

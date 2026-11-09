@@ -1,11 +1,17 @@
 // Favorites (收藏) and comments (备注).
 
 import type { Session } from './request.ts';
-import { YES } from './request.ts';
 import type { CommentItem, FavoriteItem } from './types.ts';
 import { ContentType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { CONTENT_TYPE_MAP_REVERSE, decodeHTML, toRequiredServerTime, toServerTime } from './utils.ts';
+import {
+  CONTENT_TYPE_MAP_REVERSE,
+  YES,
+  decodeHTML,
+  expectSuccess,
+  toRequiredServerTime,
+  toServerTime,
+} from './utils.ts';
 
 /**
  * Add an item to favorites. (收藏)
@@ -13,12 +19,7 @@ import { CONTENT_TYPE_MAP_REVERSE, decodeHTML, toRequiredServerTime, toServerTim
  */
 export async function addToFavorites(s: Session, type: ContentType, id: string): Promise<void> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_ADD(type, id));
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
 /**
@@ -26,12 +27,7 @@ export async function addToFavorites(s: Session, type: ContentType, id: string):
  */
 export async function removeFromFavorites(s: Session, id: string): Promise<void> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_REMOVE(id));
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
 /**
@@ -43,12 +39,7 @@ export async function getFavorites(s: Session, courseID?: string, type?: Content
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
   const result = (json.object?.aaData ?? []) as any[];
   return result
     .map((e): FavoriteItem | undefined => {
@@ -83,12 +74,7 @@ export async function pinFavoriteItem(s: Session, id: string): Promise<void> {
     method: 'POST',
     body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
 /**
@@ -99,12 +85,7 @@ export async function unpinFavoriteItem(s: Session, id: string): Promise<void> {
     method: 'POST',
     body: URLS.LEARN_FAVORITE_PIN_UNPIN_FORM_DATA(id),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
 /**
@@ -116,12 +97,7 @@ export async function setComment(s: Session, type: ContentType, id: string, cont
     method: 'POST',
     body: URLS.LEARN_COMMENT_SET_FORM_DATA(type, id, content),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
 /**
@@ -133,12 +109,7 @@ export async function getComments(s: Session, courseID?: string, type?: ContentT
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
   const result = (json.object?.aaData ?? []) as any[];
   return result
     .map((e): CommentItem | undefined => {

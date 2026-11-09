@@ -11,37 +11,39 @@ import * as questionnaires from './questionnaires.ts';
 import { Session } from './request.ts';
 import type {
   AllContentsOptions,
+  Credential,
   AllContentsResult,
   CalendarOptions,
   CalendarResult,
-  CourseListOptions,
-  ExcellentHomework,
-  HomeworkListOptions,
-  IHomeworkDetail,
-  NotificationListOptions,
-  RemoteFile,
   CommentItem,
+  ContentType,
+  CourseFile,
   CourseInfo,
+  CourseListOptions,
+  CourseNotification,
   Discussion,
+  ExcellentHomework,
   FavoriteItem,
-  File,
   FileCategory,
   HelperConfig,
   Homework,
-  HomeworkTA,
+  HomeworkDetail,
+  HomeworkListOptions,
+  HomeworkSubmitAttachment,
   HomeworkSubmitRequest,
-  IHomeworkSubmitAttachment,
+  HomeworkTA,
   Language,
-  Notification,
+  NotificationListOptions,
   Question,
   Questionnaire,
   QuestionnaireDetail,
   QuestionnaireListOptions,
+  RemoteFile,
   SemesterInfo,
   UserInfo,
-  ContentType,
 } from './types.ts';
-import { CourseType } from './types.ts';
+import { CourseType, FailReason } from './types.ts';
+import { apiError } from './utils.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
@@ -56,7 +58,7 @@ export class Learn2018Helper {
 
   /** you can provide a CookieJar and / or CredentialProvider in the configuration */
   constructor(config?: HelperConfig) {
-    this.#session = new Session(config, () => auth.login(this.#session));
+    this.#session = new Session(config, () => auth.loginWithProvider(this.#session));
   }
 
   /** whether preview URLs open the first page only (`HelperConfig.generatePreviewUrlForFirstPage`) */
@@ -79,35 +81,25 @@ export class Learn2018Helper {
   }
 
   /**
-   * If using alternative cookie management systems,
-   * be sure to clear id.tsinghua.edu.cn cookies before calling this function
+   * Sign in to id.tsinghua.edu.cn and return the Web Learning roaming ticket, without logging in to Web Learning.
+   * Rejects with `NO_CREDENTIAL` unless `credential` has a username, a password and a fingerprint. If using
+   * alternative cookie management systems, be sure to clear id.tsinghua.edu.cn cookies before calling this function.
    */
-  public async getRoamingTicket(
-    username: string,
-    password: string,
-    fingerPrint: string,
-    fingerGenPrint: string = '',
-    fingerGenPrint3: string = '',
-  ): Promise<string> {
-    return auth.getRoamingTicket(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
+  public async getRoamingTicket(credential: Credential): Promise<string> {
+    if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
+    return auth.getRoamingTicket(this.#session, credential);
   }
 
   /**
    * Login is necessary if you do not provide a `CredentialProvider`.
-   * Without credentials it uses the provider, and concurrent calls share one SSO login. Logins never overlap: one with
-   * credentials waits for a login in progress, and requests that find the session expired meanwhile wait for it.
+   * Without a credential it uses the provider, and concurrent calls share one SSO login; a credential without a
+   * username, a password and a fingerprint rejects with `NO_CREDENTIAL`. Logins never overlap: one with a credential
+   * waits for a login in progress, and requests that find the session expired meanwhile wait for it.
    */
-  public async login(
-    username?: string,
-    password?: string,
-    fingerPrint?: string,
-    fingerGenPrint?: string,
-    fingerGenPrint3?: string,
-  ): Promise<void> {
-    if (!username || !password || !fingerPrint) return this.#session.relogin();
-    return this.#session.runLogin(() =>
-      auth.login(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3),
-    );
+  public async login(credential?: Credential): Promise<void> {
+    if (credential === undefined) return this.#session.relogin();
+    if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
+    return this.#session.runLogin(() => auth.login(this.#session, credential));
   }
 
   /**
@@ -116,7 +108,7 @@ export class Learn2018Helper {
    * Use it when resuming an app instead of `login()`.
    */
   public async ensureSession(): Promise<void> {
-    return this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER());
+    return this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
   }
 
   /**  logout (to make everyone happy) */
@@ -190,20 +182,20 @@ export class Learn2018Helper {
     courseID: string,
     courseType: CourseType = CourseType.STUDENT,
     options?: NotificationListOptions,
-  ): Promise<Notification[]> {
+  ): Promise<CourseNotification[]> {
     return notices.getNotificationList(this.#session, courseID, courseType, options);
   }
 
   /** Get the attachment of a notice (one request), `undefined` if it has none. */
   public async getNotificationAttachment(
-    notification: Pick<Notification, 'url' | 'attachmentName'>,
+    notification: Pick<CourseNotification, 'url' | 'attachmentName'>,
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<RemoteFile | undefined> {
     return notices.getNotificationAttachment(this.#session, notification, courseType);
   }
 
   /** Get all files （课程文件） of the specified course. */
-  public async getFileList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<File[]> {
+  public async getFileList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<CourseFile[]> {
     return files.getFileList(this.#session, courseID, courseType);
   }
 
@@ -223,7 +215,7 @@ export class Learn2018Helper {
     courseID: string,
     categoryId: string,
     courseType: CourseType = CourseType.STUDENT,
-  ): Promise<File[]> {
+  ): Promise<CourseFile[]> {
     return files.getFileListByCategory(this.#session, courseID, categoryId, courseType);
   }
 
@@ -249,12 +241,12 @@ export class Learn2018Helper {
   }
 
   /** Get the detail (page content, attachments and description) of one homework. */
-  public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<IHomeworkDetail> {
+  public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
     return homework.getHomeworkDetail(this.#session, item);
   }
 
   /** Get the detail (page content, attachments and description) of one excellent homework. */
-  public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<IHomeworkDetail> {
+  public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
     return homework.getHomeworkDetail(this.#session, item);
   }
 
@@ -354,7 +346,7 @@ export class Learn2018Helper {
   public async submitHomework(
     id: string,
     content = '',
-    attachment?: IHomeworkSubmitAttachment,
+    attachment?: HomeworkSubmitAttachment,
     removeAttachment = false,
   ): Promise<void> {
     return homework.submitHomework(this.#session, id, content, attachment, removeAttachment);
@@ -368,7 +360,7 @@ export class Learn2018Helper {
   public async getHomeworkSubmitRequest(
     id: string,
     content = '',
-    attachment?: IHomeworkSubmitAttachment,
+    attachment?: HomeworkSubmitAttachment,
     removeAttachment = false,
   ): Promise<HomeworkSubmitRequest> {
     return homework.getHomeworkSubmitRequest(this.#session, id, content, attachment, removeAttachment);
