@@ -92,7 +92,7 @@ const submission: OnceTest = {
 };
 
 /**
- * The homework the submission check may submit to: its `studentHomeworkId` (or homework id). Never picked
+ * The homework the submission check may submit to: its `id`. Never picked
  * automatically, since a submission can't be taken back: name one whose owner agreed to it, ungraded and still open.
  */
 const SUBMIT_HOMEWORK = process.env.SUBMIT_HOMEWORK;
@@ -239,13 +239,13 @@ describe('one-time checks', () => {
 
       const semester = await h.getCurrentSemester();
       const favoritesBefore = await h.getFavorites();
-      let target: { courseID: string; id: string; studentHomeworkId: string } | undefined;
+      let target: { courseID: string; id: string } | undefined;
       for (const c of await h.getCourseList(semester.id)) {
         const hw = (await h.getHomeworkList(c.id)).find(
           (x) => !x.isFavorite && !favoritesBefore.some((f) => f.id === x.id),
         );
         if (hw) {
-          target = { courseID: c.id, id: hw.id, studentHomeworkId: hw.studentHomeworkId };
+          target = { courseID: c.id, id: hw.id };
           break;
         }
       }
@@ -255,7 +255,7 @@ describe('one-time checks', () => {
       }
 
       const findings: string[] = [];
-      const before = (await rawRows(target.courseID)).get(target.studentHomeworkId)!;
+      const before = (await rawRows(target.courseID)).get(target.id)!;
       try {
         try {
           await h.addToFavorites(ContentType.HOMEWORK, target.id);
@@ -267,7 +267,7 @@ describe('one-time checks', () => {
           );
           throw e;
         }
-        const after = (await rawRows(target.courseID)).get(target.studentHomeworkId)!;
+        const after = (await rawRows(target.courseID)).get(target.id)!;
         findings.push(
           `homework row (${after.list}) changed keys: ${changedKeys(before.row, after.row).join(', ') || 'none'}`,
           `sfsc ${JSON.stringify(before.row.sfsc)} -> ${JSON.stringify(after.row.sfsc)}`,
@@ -575,9 +575,7 @@ describe('one-time checks', () => {
 
       let target: Homework | undefined;
       for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
-        target = (await h.getHomeworkList(c.id)).find(
-          (x) => x.studentHomeworkId === SUBMIT_HOMEWORK || x.id === SUBMIT_HOMEWORK,
-        );
+        target = (await h.getHomeworkList(c.id)).find((x) => x.id === SUBMIT_HOMEWORK);
         if (target) break;
       }
       if (!target) {
@@ -589,7 +587,7 @@ describe('one-time checks', () => {
         recordResult(submission.name, `refused: homework is ${target.graded ? 'graded' : 'closed'}`);
         throw new Error(`refusing to submit to a ${target.graded ? 'graded' : 'closed'} homework`);
       }
-      const id = target.studentHomeworkId;
+      const id = target.id;
       const detail = () => h.getHomeworkDetail(target);
 
       // what to put back afterwards: the submitted answer and attachment (downloaded), if any

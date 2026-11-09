@@ -288,8 +288,6 @@ export declare namespace HomeworkGradeLevel {
 /** a homework as the lists give it, without its detail */
 export interface HomeworkBase extends HomeworkStatus {
   id: string;
-  /** @deprecated use `id` */
-  studentHomeworkId: string;
   baseId: string;
   title: string;
   deadline: ServerTime;
@@ -300,6 +298,7 @@ export interface HomeworkBase extends HomeworkStatus {
   submitUrl: string;
   submitTime?: ServerTime;
   isLateSubmission: boolean;
+  /** the numeric grade; left out for a grade level (`gradeLevel`) */
   grade?: number;
   /** some homework has levels but not grades, like A/B/.../F */
   gradeLevel?: HomeworkGradeLevel;
@@ -482,7 +481,7 @@ export interface Questionnaire {
   isFavorite: boolean;
   comment?: string;
   url: string;
-  /** the questions; only for the questionnaires `getQuestionnaireList`'s `details` selects (by default all) */
+  /** the questions; only for the questionnaires `getQuestionnaireList`'s `details` selects (by default none) */
   detail?: QuestionnaireDetail[];
 }
 
@@ -522,8 +521,8 @@ export interface NotificationListOptions {
 
 export interface QuestionnaireListOptions {
   /**
-   * Which questionnaires get their questions (`detail`, 1 request each); default `'all'` (unlike the other lists, for
-   * compatibility). The same as calling `getQuestionnaireDetail` for those items.
+   * Which questionnaires get their questions (`detail`, 1 request each); default `'none'`.
+   * The same as calling `getQuestionnaireDetail` for those items.
    */
   details?: DetailSelector<Questionnaire>;
 }

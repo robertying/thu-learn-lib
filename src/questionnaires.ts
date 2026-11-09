@@ -18,14 +18,13 @@ import {
 
 /**
  * Get all questionnaires （课程问卷/QNR） of the specified course: ongoing and ended lists.
- * Questions (`detail`, 1 request each) only for the questionnaires `options.details` selects (default `'all'`).
+ * Questions (`detail`, 1 request each) only for the questionnaires `options.details` selects (default `'none'`).
  */
 export async function getQuestionnaireList(
   s: Session,
   courseID: string,
   options: QuestionnaireListOptions = {},
 ): Promise<Questionnaire[]> {
-  const details = options.details ?? 'all';
   const lists = await Promise.all([
     getQuestionnaireListAtUrl(s, courseID, URLS.LEARN_QNR_LIST_ONGOING),
     getQuestionnaireListAtUrl(s, courseID, URLS.LEARN_QNR_LIST_ENDED),
@@ -34,7 +33,7 @@ export async function getQuestionnaireList(
     lists
       .flat()
       .map(async (q) =>
-        isSelected(details, q) ? { ...q, detail: await getQuestionnaireDetail(s, courseID, q.id) } : q,
+        isSelected(options.details, q) ? { ...q, detail: await getQuestionnaireDetail(s, courseID, q.id) } : q,
       ),
   );
 }

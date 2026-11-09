@@ -133,7 +133,6 @@ async function getHomeworkListAtUrl(
     (h) =>
       ({
         id: h.xszyid,
-        studentHomeworkId: h.xszyid,
         baseId: h.zyid,
         title: decodeHTML(h.bt),
         url: URLS.LEARN_HOMEWORK_PAGE(h.wlkcid, h.xszyid),
@@ -144,7 +143,8 @@ async function getHomeworkListAtUrl(
         submissionType: h.zytjfs,
         submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
         submitTime: toServerTime(h.scsj),
-        grade: h.cj === null ? undefined : h.cj,
+        // a grade level comes as a negative grade; then `grade` is left out
+        grade: h.cj == null || GRADE_LEVEL_MAP.has(h.cj) ? undefined : h.cj,
         gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
         graderName: trimAndDefine(h.jsm),
         gradeContent: trimAndDefine(h.pynr),

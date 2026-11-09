@@ -276,8 +276,8 @@ export class Learn2018Helper {
 
   /**
    * Get all questionnaires （课程问卷/QNR） of the specified course.
-   * Questions (`detail`, one request per questionnaire) for the questionnaires `options.details` selects, by default
-   * all; use `getQuestionnaireDetail` for the others.
+   * Questions (`detail`, one request per questionnaire) only for the questionnaires `options.details` selects;
+   * use `getQuestionnaireDetail` for the others.
    */
   public async getQuestionnaireList(courseID: string, options?: QuestionnaireListOptions): Promise<Questionnaire[]> {
     return parsed(questionnaires.getQuestionnaireList(this.#session, courseID, options));
@@ -348,7 +348,7 @@ export class Learn2018Helper {
   }
 
   /**
-   * Submit homework `id` (the `studentHomeworkId`), the way the website's submit page does. `content` is the whole
+   * Submit homework `id` (`Homework.id`, the student's homework id), the way the website's submit page does. `content` is the whole
    * answer as HTML (the website sends its editor's HTML) and replaces the submitted one, so pass the current answer
    * when only changing the attachment (`homeworkContentHtml` turns plain text into the editor's HTML). With no
    * `attachment` the existing one is kept, unless `removeAttachment`: that only deletes the attachment, and `content` is

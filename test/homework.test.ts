@@ -91,7 +91,6 @@ describe('getHomeworkList (student)', () => {
     const [h1, h2, h3] = list;
     expect(h1).toMatchObject({
       id: 's-h1',
-      studentHomeworkId: 's-h1',
       baseId: 'h1',
       title: 'HW & h1',
       url: URLS.LEARN_HOMEWORK_PAGE('c1', 's-h1'),
@@ -121,7 +120,7 @@ describe('getHomeworkList (student)', () => {
       submitTime: '2025-02-08T15:33:20+08:00',
     });
     expect(h3).toMatchObject({
-      grade: -99,
+      grade: undefined,
       gradeLevel: HomeworkGradeLevel.A_PLUS,
       graderName: 'TA',
       gradeContent: 'good',
@@ -232,14 +231,14 @@ describe('getHomeworkList (student)', () => {
     });
   });
 
-  it('maps grade levels, with -63 as P and -60 as pass', async () => {
+  it('maps grade levels (leaving out the negative grade), with -63 as P and -60 as pass', async () => {
     const server = new FakeServer();
     for (const source of HOMEWORK_LIST_SOURCES) {
       server.on('POST', source.url, () =>
         success({
           aaData:
             source.url === URLS.LEARN_HOMEWORK_LIST_GRADED
-              ? [homework('p', { cj: -63 }), homework('q', { cj: -60 })]
+              ? [homework('p', { cj: -63 }), homework('q', { cj: -60 }), homework('n', { cj: 95 })]
               : [],
         }),
       );
@@ -247,7 +246,11 @@ describe('getHomeworkList (student)', () => {
     server.on('POST', URLS.LEARN_HOMEWORK_LIST_EXCELLENT, () => success({ aaData: [] }));
     const helper = await server.loggedInHelper();
     const list = await helper.getHomeworkList('c1');
-    expect(list.map((h) => h.gradeLevel)).toEqual([HomeworkGradeLevel.P, HomeworkGradeLevel.PASS]);
+    expect(list.map((h) => [h.grade, h.gradeLevel])).toEqual([
+      [undefined, HomeworkGradeLevel.P],
+      [undefined, HomeworkGradeLevel.PASS],
+      [95, undefined],
+    ]);
   });
 
   it('gives [] to homework without excellent homework, so a failed list (undefined) stands out', async () => {
