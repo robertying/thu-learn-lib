@@ -1,5 +1,8 @@
 # Changelog
 
+- Unreleased
+  - Notice and homework attachment links are resolved against Web Learning (`learnUrl`) instead of prefixed to it, and an attachment whose link points to another site comes back as `undefined`, so `downloadUrl` (which apps fetch with the session's cookies) is always on learn.tsinghua.edu.cn
+
 - v6.1.0
   - `getFileList(courseID, courseType, { favorites: true })` fills `isFavorite` (student only). The file list itself has no favorite flag, so this fetches the course's file favorites (`getFavorites(courseID, ContentType.FILE)`) in parallel, one more request; the list rejects if it fails
 

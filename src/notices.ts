@@ -83,19 +83,18 @@ export async function getNotificationAttachment(
 ): Promise<RemoteFile | undefined> {
   if (!notification.attachmentName) return undefined;
   const result = $(await s.fetchTextWithToken(notification.url));
-  let path = (courseType === CourseType.STUDENT ? result('.ml-10') : result('#wjid')).attr('href');
+  const path = (courseType === CourseType.STUDENT ? result('.ml-10') : result('#wjid')).attr('href');
   // the page has no attachment link (removed since the list was fetched, or the page changed)
   if (!path) return undefined;
+  const downloadUrl = URLS.learnUrl(path);
+  if (!downloadUrl) return undefined;
   const size = trimAndDefine(result('div#attachment > div.fl > span[class^="color"]').first().text()) ?? '';
   const params = new URLSearchParams(path.split('?').slice(-1)[0]);
   const attachmentId = params.get('wjid')!;
-  if (!path.startsWith(URLS.LEARN_PREFIX)) {
-    path = URLS.LEARN_PREFIX + path;
-  }
   return {
     name: notification.attachmentName,
     id: attachmentId,
-    downloadUrl: path,
+    downloadUrl,
     previewUrl: URLS.LEARN_FILE_PREVIEW(ContentType.NOTIFICATION, attachmentId, courseType, s.previewFirstPage),
     size,
   };
