@@ -36,7 +36,18 @@
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
     "typescript/await-thenable": "error",
-    "typescript/no-unsafe-type-assertion": "off"
+    "typescript/no-unsafe-type-assertion": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "cheerio",
+            "message": "Import 'cheerio/slim': the main entry pulls in undici and node:stream, which React Native can't bundle."
+          }
+        ]
+      }
+    ]
   },
   "options": {
     "reportUnusedDisableDirectives": "warn",
