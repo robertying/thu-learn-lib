@@ -173,7 +173,13 @@ export class FakeServer {
 
   #expired(): Response {
     if (this.expiry === 'status') return new Response('', { status: 403 });
-    const page = html('<html><head><script>window.location.href="/f/login_timeout";</script></head></html>');
+    // what Web Learning sends for an HTML page of an expired session (in either language), without its styles
+    const page = html(
+      '<html><head><title>登录超时</title></head><body><div class="bground">' +
+        '<div class="log"><img src="/res/app/wlxt/img/log_fail.png"></div>' +
+        '<div class="wenzi"><p class="infoo">您未登录或登录失效</p><p class="re_log">' +
+        '<a class="chongxin" onclick="top.document.location=\'/\'">登录网络学堂</a></p></div></div></body></html>',
+    );
     // a followed redirect ends on the login_timeout page
     if (this.expiry === 'redirect')
       Object.defineProperty(page, 'url', { value: `${URLS.LEARN_PREFIX}/f/login_timeout` });
