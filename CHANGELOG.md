@@ -1,5 +1,8 @@
 # Changelog
 
+- v6.1.0
+  - `getFileList(courseID, courseType, { favorites: true })` fills `isFavorite` (student only). The file list itself has no favorite flag, so this fetches the course's file favorites (`getFavorites(courseID, ContentType.FILE)`) in parallel, one more request; the list rejects if it fails
+
 - v6.0.1
   - Imports `cheerio/slim` instead of `cheerio`, so React Native (Metro) bundles the library without undici or `node:stream` and needs no resolver workaround. Parsing is unchanged: the library already parsed with htmlparser2 (`xml: true`), which is all `cheerio/slim` contains
 

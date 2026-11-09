@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ContentType, CourseType, FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
-import { FakeServer, json, success } from './helpers/fake-server.ts';
+import { FakeServer, courseIdOf, json, success } from './helpers/fake-server.ts';
 
 const categories = () =>
   success({
@@ -29,6 +29,44 @@ const studentFile = {
 };
 
 describe('getFileList', () => {
+  it('fills isFavorite from the course file favorites when asked', async () => {
+    const server = new FakeServer()
+      .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () =>
+        success([studentFile, { ...studentFile, kjxxid: 'k2' }]),
+      )
+      .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.STUDENT), categories)
+      .on('POST', URLS.LEARN_FAVORITE_LIST(ContentType.FILE), (req) => {
+        expect(courseIdOf(req)).toBe('c1');
+        return success({
+          aaData: [
+            { ywid: 'k2', ywlx: 'KCKJ', ywbt: 'f', ywsj: '2025-03-05 08:00', scsj: '2025-03-05 08:00', wlkcid: 'c1' },
+          ],
+        });
+      });
+    const helper = await server.loggedInHelper();
+
+    const files = await helper.getFileList('c1', CourseType.STUDENT, { favorites: true });
+    expect(files.map((f) => [f.id, f.isFavorite])).toEqual([
+      ['k1', false],
+      ['k2', true],
+    ]);
+    // without the option, no favorites request and no flag
+    expect((await helper.getFileList('c1')).map((f) => f.isFavorite)).toEqual([undefined, undefined]);
+    expect(server.count(URLS.LEARN_FAVORITE_LIST(ContentType.FILE), 'POST')).toBe(1);
+  });
+
+  it('rejects when the favorites asked for fail', async () => {
+    const server = new FakeServer()
+      .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () => success([studentFile]))
+      .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.STUDENT), categories)
+      .on('POST', URLS.LEARN_FAVORITE_LIST(ContentType.FILE), () => json({ result: 'error' }));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getFileList('c1', CourseType.STUDENT, { favorites: true })).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
+  });
+
   it('still returns the files without category when the category list fails', async () => {
     const server = new FakeServer()
       .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () => success([studentFile]))

@@ -37,6 +37,7 @@ import type {
   Question,
   Questionnaire,
   QuestionnaireDetail,
+  FileListOptions,
   QuestionnaireListOptions,
   RemoteFile,
   SemesterInfo,
@@ -194,9 +195,16 @@ export class Learn2018Helper {
     return notices.getNotificationAttachment(this.#session, notification, courseType);
   }
 
-  /** Get all files （课程文件） of the specified course. */
-  public async getFileList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<CourseFile[]> {
-    return files.getFileList(this.#session, courseID, courseType);
+  /**
+   * Get all files （课程文件） of the specified course. With `options.favorites` (student only), `isFavorite` is filled from
+   * the course's file favorites, one more request sent in parallel; the list rejects if it fails.
+   */
+  public async getFileList(
+    courseID: string,
+    courseType: CourseType = CourseType.STUDENT,
+    options: FileListOptions = {},
+  ): Promise<CourseFile[]> {
+    return files.getFileList(this.#session, courseID, courseType, options);
   }
 
   /** Get file categories of the specified course. */

@@ -396,6 +396,14 @@ export interface CourseListOptions {
   timeAndLocation?: boolean;
 }
 
+export interface FileListOptions {
+  /**
+   * Fill `isFavorite` (student only). The file list has no favorite flag, so this adds one request for the course's
+   * file favorites (`getFavorites(courseID, ContentType.FILE)`), sent in parallel; the list rejects if it fails.
+   */
+  favorites?: boolean;
+}
+
 export interface HomeworkListOptions {
   /**
    * Which homework gets its detail (page + description JSON, 2 requests each); default `'none'`.
