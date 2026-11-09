@@ -15,12 +15,13 @@ export async function getFileList(
   options: FileListOptions = {},
 ): Promise<CourseFile[]> {
   // the file list has no favorite flag; the course's file favorites are fetched next to it
-  const withFavorites = !!options.favorites && courseType === CourseType.STUDENT;
+  const withFavorites = options.favorites === true && courseType === CourseType.STUDENT;
+  const given = Array.isArray(options.favorites) && courseType === CourseType.STUDENT ? options.favorites : undefined;
   // categories only fill `category`; don't fail the whole list when they can't be fetched
   const [json, categoryList, favorites] = await Promise.all([
     s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
     getFileCategoryList(s, courseID, courseType).catch((): FileCategory[] => []),
-    withFavorites ? getFavorites(s, courseID, ContentType.FILE) : undefined,
+    withFavorites ? getFavorites(s, courseID, ContentType.FILE) : given,
   ]);
   expectSuccess(json, FailReason.INVALID_RESPONSE);
 
@@ -34,7 +35,7 @@ export async function getFileList(
   }
 
   const categories = new Map(categoryList.map((c) => [c.id, c]));
-  const favoriteIds = favorites && new Set(favorites.map((f) => f.id));
+  const favoriteIds = favorites && new Set(favorites.filter((f) => f.type === ContentType.FILE).map((f) => f.id));
   return result.map((f) => {
     const file: CourseFile = { ...parseFile(s, f, courseType), category: categories.get(f.kjflid) };
     return favoriteIds ? { ...file, isFavorite: favoriteIds.has(file.id) } : file;

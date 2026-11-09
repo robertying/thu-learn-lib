@@ -2,7 +2,7 @@
 
 import type { Session } from './request.ts';
 import { discard } from './request.ts';
-import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
+import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult, ServerTime } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { $, JSONP_EXTRACTOR_NAME, apiError, extractJSONPResult } from './utils.ts';
@@ -135,6 +135,12 @@ async function signInToRegistrar(s: Session): Promise<void> {
   }
 }
 
+/** a registrar date (`YYYY-MM-DD`) and time (`HH:mm`) as a `ServerTime`; `undefined` for any other shape */
+const beijingTime = (date: unknown, time: unknown): ServerTime | undefined =>
+  typeof date === 'string' && typeof time === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time)
+    ? `${date}T${time}:00+08:00`
+    : undefined;
+
 async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean): Promise<CalendarEvent[]> {
   const response = await s.rawFetch(
     URLS.REGISTRAR_CALENDAR(range.startDate, range.endDate, graduate, JSONP_EXTRACTOR_NAME),
@@ -156,6 +162,8 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
     startTime: i.kssj,
     endTime: i.jssj,
     date: i.nq,
+    start: beijingTime(i.nq, i.kssj),
+    end: beijingTime(i.nq, i.jssj),
     courseName: i.nr,
   }));
 }

@@ -76,7 +76,9 @@ export interface UserInfo {
 
 export interface SemesterInfo {
   id: string;
+  /** the term's first day, a Beijing date (`YYYY-MM-DD`) */
   startDate: string;
+  /** the term's last day, a Beijing date (`YYYY-MM-DD`) */
   endDate: string;
   startYear: number;
   endYear: number;
@@ -398,10 +400,12 @@ export interface CourseListOptions {
 
 export interface FileListOptions {
   /**
-   * Fill `isFavorite` (student only). The file list has no favorite flag, so this adds one request for the course's
-   * file favorites (`getFavorites(courseID, ContentType.FILE)`), sent in parallel; the list rejects if it fails.
+   * Fill `isFavorite` (student only). The file list has no favorite flag: `true` adds one request for the course's
+   * file favorites (`getFavorites(courseID, ContentType.FILE)`), sent in parallel, and the list rejects if it fails.
+   * Pass favorites you already have instead (e.g. one `getFavorites(undefined, ContentType.FILE)` for every course)
+   * to fill it without a request; only file favorites are used.
    */
-  favorites?: boolean;
+  favorites?: boolean | readonly FavoriteItem[];
 }
 
 export interface HomeworkListOptions {
@@ -505,9 +509,16 @@ export interface CourseMeeting {
 export interface CalendarEvent {
   location: string;
   status: string;
+  /** Beijing wall-clock time, `HH:mm` */
   startTime: string;
+  /** Beijing wall-clock time, `HH:mm` */
   endTime: string;
+  /** Beijing date, `YYYY-MM-DD` */
   date: string;
+  /** `date` and `startTime` as one `ServerTime`; `undefined` if the registrar sent them in another shape */
+  start?: ServerTime;
+  /** `date` and `endTime` as one `ServerTime`; `undefined` if the registrar sent them in another shape */
+  end?: ServerTime;
   courseName: string;
 }
 
