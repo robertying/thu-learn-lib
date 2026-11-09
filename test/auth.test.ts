@@ -458,6 +458,19 @@ describe('expired sessions that are not a 403', () => {
     expect(server.loginCount).toBe(1);
   });
 
+  it('rejects JSON with another status than 200 after logging in again with UNEXPECTED_STATUS', async () => {
+    const server = new FakeServer();
+    server.on('GET', URLS.LEARN_SEMESTER_LIST, () => new Response('["2024-2025-1"]', { status: 500 }));
+    const helper = await server.loggedInHelper();
+    server.expireSession();
+
+    await expect(helper.getSemesterIdList()).rejects.toEqual({
+      reason: FailReason.UNEXPECTED_STATUS,
+      extra: { code: 500, text: '' },
+    });
+    expect(server.loginCount).toBe(2);
+  });
+
   it('ensureSession rejects with INVALID_RESPONSE when the probe is not a success', async () => {
     const server = new FakeServer();
     server.on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'error' }));

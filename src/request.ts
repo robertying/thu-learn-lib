@@ -269,8 +269,12 @@ export class Session {
     return res;
   };
 
-  /** the parsed JSON body; the login page with status 200 instead means the session has expired */
-  static readonly #json = async (res: Response): Promise<any> => {
+  /**
+   * The parsed JSON body (after a re-login only from a response with status 200); the login page with status 200
+   * instead means the session has expired.
+   */
+  static readonly #json = async (res: Response, retry: boolean): Promise<any> => {
+    await Session.#response(res, retry);
     const text = await res.text();
     try {
       return JSON.parse(text);
