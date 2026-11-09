@@ -2,6 +2,10 @@
 
 ## Check against the real server
 
+- Not run yet: the `file-favorite-field` and `read-mark` one-time checks (`LIVE_ONCE=file-favorite-field,read-mark
+  LIVE_ALLOW_WRITES=1 pnpm test:live test/live/once.test.ts`). learnX's favorites sync wants to know whether
+  `getFileList` rows say a file is favorited (the library sets no `isFavorite` there), and whether opening a notice
+  marks it read, so reads made offline can be replayed.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
