@@ -1,7 +1,8 @@
 import * as dotenv from 'dotenv';
 
-// override: a shell's own USERNAME (set on Windows) must not win over the file
-dotenv.config({ path: 'test/live/.env', override: true });
+// The shell wins (so `LIVE_ONCE=… pnpm test:live` works), except for USERNAME: Windows sets its own
+const { parsed } = dotenv.config({ path: 'test/live/.env' });
+if (parsed?.USERNAME) process.env.USERNAME = parsed.USERNAME;
 
 export const USERNAME = process.env.USERNAME!;
 export const PASSWORD = process.env.PASSWORD!;
