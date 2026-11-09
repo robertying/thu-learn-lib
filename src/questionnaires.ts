@@ -82,7 +82,7 @@ export async function getQuestionnaireDetail(
         type: e.type,
         required: e.require === YES,
         title: decodeHTML(e.wtbt),
-        score: e.wtfz ? Number(e.wtfz) : undefined, // unsure about original type
+        score: e.wtfz ? Number(e.wtfz) : undefined, // a number or a string of digits; none when missing or 0
         options: (e.list as any[])?.map((o) => ({
           id: o.xxid,
           index: Number(o.xxbh),

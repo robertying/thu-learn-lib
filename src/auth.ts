@@ -22,11 +22,7 @@ export const isComplete = (credential: Credential | undefined): credential is Co
  */
 export async function getRoamingTicket(s: Session, credential: CompleteCredential): Promise<string> {
   const { username, password, fingerPrint, fingerGenPrint = '', fingerGenPrint3 = '' } = credential;
-  // Make sure we always start with the form page
-  // More code is needed to handle the case where the user is already logged in (i.e. cookies are set)
-  // It won't be a problem if it is always the same user,
-  // but if the current cookies are from a different user than the one trying to log in,
-  // it will cause problems.
+  // start from the login form without an id.tsinghua.edu.cn session: one left in the cookies may be another user's
   try {
     await s.cookieJar.setCookie('JSESSIONID=; path=/; HttpOnly', URLS.ID_PREFIX);
   } catch (err) {

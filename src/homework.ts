@@ -243,11 +243,8 @@ function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile
     const size = trimAndDefine($(fileDiv)('.fl > span[class^="color"]').first().text()) ?? '';
     const params = new URLSearchParams(href.split('?').slice(-1)[0]);
     const attachmentId = params.get('fileId')!;
-    // so dirty here...
-    let downloadUrl = URLS.LEARN_PREFIX + href;
-    if (params.has('downloadUrl')) {
-      downloadUrl = URLS.LEARN_PREFIX + params.get('downloadUrl')!;
-    }
+    // a link to the file viewer carries the download path in its `downloadUrl` parameter
+    const downloadUrl = URLS.LEARN_PREFIX + (params.get('downloadUrl') ?? href);
     return {
       id: attachmentId,
       name: (fileNode.children[0] as { data?: string } | undefined)?.data ?? '',

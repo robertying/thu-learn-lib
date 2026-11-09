@@ -12,7 +12,7 @@ export async function getSemesterIdList(s: Session): Promise<string[]> {
     throw apiError(FailReason.INVALID_RESPONSE, json);
   }
   const semesters = json as string[];
-  // sometimes web learning returns null, so confusing...
+  // the list can contain null entries
   return semesters.filter((semester) => semester != null);
 }
 

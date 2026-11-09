@@ -153,9 +153,9 @@ interface IFileCategory {
 export type FileCategory = IFileCategory;
 
 interface IFile {
-  /** previously `id2` */
+  /** the id of this file entry in the course (`kjxxid`) */
   id: string;
-  /** previously `id` */
+  /** the id of the stored file (`wjid`), which the download and preview URLs use */
   fileId: string;
   /** note: will be unset when calling `getFileListByCategory` */
   category?: FileCategory;
@@ -175,7 +175,7 @@ interface IFile {
   visitCount: number;
   downloadCount: number;
   fileType: string;
-  /** for compatibility */
+  /** the same file as a `RemoteFile`, the shape attachments have */
   remoteFile: RemoteFile;
   /** could not get favorite or comment info when using `getFileList` or in TA mode */
   isFavorite?: boolean;
