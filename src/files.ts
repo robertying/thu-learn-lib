@@ -4,7 +4,7 @@ import type { Session } from './request.ts';
 import type { File, FileCategory } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { YES, decodeHTML, formatFileSize, toRequiredServerTime } from './utils.ts';
+import { YES, decodeHTML, expectSuccess, formatFileSize, toRequiredServerTime } from './utils.ts';
 
 /** Get all files （课程文件） of the specified course; `category` is left out if the categories can't be fetched. */
 export async function getFileList(
@@ -17,12 +17,7 @@ export async function getFileList(
     s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
     getFileCategoryList(s, courseID, courseType).catch((): FileCategory[] => []),
   ]);
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   let result: any[] = [];
   if (Array.isArray(json.object?.resultsList)) {
@@ -83,12 +78,7 @@ export async function getFileCategoryList(
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<FileCategory[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_CATEGORY_LIST(courseID, courseType));
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.rows ?? []) as any[];
 
@@ -114,12 +104,7 @@ export async function getFileListByCategory(
 ): Promise<File[]> {
   if (courseType === CourseType.STUDENT) {
     const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT(courseID, categoryId));
-    if (json.result !== 'success') {
-      return Promise.reject({
-        reason: FailReason.INVALID_RESPONSE,
-        extra: json,
-      });
-    }
+    expectSuccess(json, FailReason.INVALID_RESPONSE);
 
     const result = (json.object ?? []) as any[];
 
@@ -162,12 +147,7 @@ export async function getFileListByCategory(
       method: 'POST',
       body: URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA(courseID, categoryId),
     });
-    if (json.result !== 'success') {
-      return Promise.reject({
-        reason: FailReason.INVALID_RESPONSE,
-        extra: json,
-      });
-    }
+    expectSuccess(json, FailReason.INVALID_RESPONSE);
 
     const result = (json.object?.aaData ?? []) as any[];
 

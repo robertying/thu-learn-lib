@@ -6,7 +6,7 @@ import type { Session } from './request.ts';
 import type { Discussion, IDiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { YES, decodeHTML, toRequiredServerTime } from './utils.ts';
+import { YES, decodeHTML, expectSuccess, toRequiredServerTime } from './utils.ts';
 
 /** Get all discussions （课程讨论） of the specified course. */
 export async function getDiscussionList(
@@ -15,12 +15,7 @@ export async function getDiscussionList(
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<Discussion[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_DISCUSSION_LIST(courseID, courseType));
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.resultsList ?? []) as any[];
 
@@ -44,12 +39,7 @@ export async function getAnsweredQuestionList(
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<Question[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType));
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.resultsList ?? []) as any[];
 

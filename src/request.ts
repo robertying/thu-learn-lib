@@ -4,7 +4,7 @@ import { CookieJar } from 'tough-cookie';
 
 import type { ApiError, CredentialProvider, Fetch, HelperConfig } from './types.ts';
 import { FailReason, Language } from './types.ts';
-import { looksLikeLoginPage, urlOf } from './utils.ts';
+import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
 
 export const noLogin = (res: Response) => res.url.includes('login_timeout') || res.status === 403;
 
@@ -88,10 +88,7 @@ export function withTimeout(inner: Fetch, ms: number): TimedFetch {
     } catch (err) {
       outer?.removeEventListener('abort', forward);
       if (timedOut) {
-        throw {
-          reason: FailReason.REQUEST_TIMEOUT,
-          extra: { url: urlOf(input), timeout },
-        } as ApiError;
+        throw apiError(FailReason.REQUEST_TIMEOUT, { url: urlOf(input), timeout });
       }
       throw err;
     } finally {
@@ -111,7 +108,7 @@ export function withNetworkError(inner: TimedFetch): TimedFetch {
       return await inner(input, init);
     } catch (err) {
       if ((err as ApiError | undefined)?.reason !== undefined || init?.signal?.aborted) throw err;
-      throw { reason: FailReason.NETWORK_ERROR, extra: err } as ApiError;
+      throw apiError(FailReason.NETWORK_ERROR, err);
     }
   };
 }
@@ -251,14 +248,14 @@ export class Session {
     const first = await attempt(false);
     if (first !== EXPIRED) return first;
     if (!this.provider) {
-      throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
+      throw apiError(FailReason.NOT_LOGGED_IN);
     }
     if (this.#generation === generation) {
       await this.autoRelogin();
     }
     const second = await attempt(true);
     if (second === EXPIRED) {
-      throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
+      throw apiError(FailReason.NOT_LOGGED_IN);
     }
     return second;
   }
@@ -267,10 +264,7 @@ export class Session {
   static readonly #response = async (res: Response, retry: boolean): Promise<Response> => {
     if (retry && res.status !== 200) {
       discard(res);
-      throw {
-        reason: FailReason.UNEXPECTED_STATUS,
-        extra: { code: res.status, text: res.statusText },
-      } as ApiError;
+      throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status, text: res.statusText });
     }
     return res;
   };
@@ -282,10 +276,10 @@ export class Session {
       return JSON.parse(text);
     } catch {
       if (res.status === 200 && looksLikeLoginPage(text)) return EXPIRED;
-      throw {
-        reason: res.status === 200 ? FailReason.INVALID_RESPONSE : FailReason.UNEXPECTED_STATUS,
-        extra: { code: res.status, text: text.slice(0, 200) },
-      } as ApiError;
+      throw apiError(res.status === 200 ? FailReason.INVALID_RESPONSE : FailReason.UNEXPECTED_STATUS, {
+        code: res.status,
+        text: text.slice(0, 200),
+      });
     }
   };
 
@@ -333,7 +327,7 @@ export class Session {
     }
     const json = await this.fetchJsonWithToken(probeUrl);
     if (json?.message !== 'success') {
-      throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+      throw apiError(FailReason.INVALID_RESPONSE, json);
     }
   }
 }

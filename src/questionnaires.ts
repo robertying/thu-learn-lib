@@ -1,10 +1,19 @@
 // Questionnaires (课程问卷).
 
 import type { Session } from './request.ts';
-import type { ApiError, Questionnaire, QuestionnaireDetail, QuestionnaireListOptions } from './types.ts';
+import type { Questionnaire, QuestionnaireDetail, QuestionnaireListOptions } from './types.ts';
 import { FailReason, QuestionnaireType } from './types.ts';
 import * as URLS from './urls.ts';
-import { QNR_TYPE_MAP, YES, decodeHTML, isSelected, toRequiredServerTime, toServerTime } from './utils.ts';
+import {
+  QNR_TYPE_MAP,
+  YES,
+  apiError,
+  decodeHTML,
+  expectSuccess,
+  isSelected,
+  toRequiredServerTime,
+  toServerTime,
+} from './utils.ts';
 
 /**
  * Get all questionnaires （课程问卷/QNR） of the specified course: ongoing and ended lists.
@@ -31,12 +40,7 @@ export async function getQuestionnaireList(
 
 async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: string): Promise<Questionnaire[]> {
   const json = await s.fetchJsonWithToken(url, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID) });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
   const result = (json.object?.aaData ?? []) as any[];
   return result.map((e) => {
     const type = QNR_TYPE_MAP.get(e.wjlx) ?? QuestionnaireType.SURVEY;
@@ -68,7 +72,7 @@ export async function getQuestionnaireDetail(
     body: URLS.LEARN_QNR_DETAIL_FORM(courseID, qnrID),
   });
   if (!Array.isArray(json)) {
-    throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+    throw apiError(FailReason.INVALID_RESPONSE, json);
   }
   return json.map(
     (e) =>

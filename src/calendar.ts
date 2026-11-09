@@ -5,7 +5,7 @@ import { discard } from './request.ts';
 import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { $, JSONP_EXTRACTOR_NAME, extractJSONPResult } from './utils.ts';
+import { $, JSONP_EXTRACTOR_NAME, apiError, extractJSONPResult } from './utils.ts';
 
 /**
  * The registrar often fails for ranges longer than about a month, so longer ranges are fetched in windows of this many
@@ -46,8 +46,6 @@ export function splitCalendarRange(startDate: string, endDate: string, days = CA
 const FINGERPRINT_FIELDS = ['fingerPrint', 'fingerGenPrint', 'fingerGenPrint3'] as const;
 const isFingerprintField = (name: string): name is (typeof FINGERPRINT_FIELDS)[number] =>
   (FINGERPRINT_FIELDS as readonly string[]).includes(name);
-
-const registrarAuthError = (extra: unknown): ApiError => ({ reason: FailReason.ERROR_REGISTRAR_AUTH, extra });
 
 /** `extra.step` of an `ERROR_REGISTRAR_AUTH` that id.tsinghua.edu.cn turned down (rather than the registrar failing) */
 const ID_STEP = 'id.tsinghua.edu.cn';
@@ -101,17 +99,17 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
     const link = check.ok ? $(await readText(check))('a').attr('href') : undefined;
     if (!link) {
       discard(check);
-      throw registrarAuthError({ step: ID_STEP, code: check.status });
+      throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { step: ID_STEP, code: check.status });
     }
     res = await s.rawFetch(new URL(link, check.url || action).href);
     page = await readText(res);
   }
 
   if (isIdLoginPage(res, page)) {
-    throw registrarAuthError({ step: ID_STEP, code: res.status, url: res.url.split('?')[0] });
+    throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { step: ID_STEP, code: res.status, url: res.url.split('?')[0] });
   }
   if (!res.ok) {
-    throw registrarAuthError({ code: res.status, url: res.url.split('?')[0] });
+    throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { code: res.status, url: res.url.split('?')[0] });
   }
 }
 
@@ -144,15 +142,12 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
 
   if (!response.ok) {
     discard(response);
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: { code: response.status, text: response.statusText },
-    });
+    throw apiError(FailReason.INVALID_RESPONSE, { code: response.status, text: response.statusText });
   }
 
   const result: unknown = extractJSONPResult(await response.text());
   if (!Array.isArray(result)) {
-    throw { reason: FailReason.INVALID_RESPONSE, extra: result } as ApiError;
+    throw apiError(FailReason.INVALID_RESPONSE, result);
   }
 
   return result.map<CalendarEvent>((i) => ({

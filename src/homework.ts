@@ -6,7 +6,6 @@ import { Base64 } from 'js-base64';
 import type { Session } from './request.ts';
 import { addCSRFTokenToUrl } from './request.ts';
 import type {
-  ApiError,
   ExcellentHomework,
   Homework,
   HomeworkListOptions,
@@ -25,7 +24,9 @@ import {
   $,
   GRADE_LEVEL_MAP,
   YES,
+  apiError,
   decodeHTML,
+  expectSuccess,
   isSelected,
   looksLikeLoginPage,
   toRequiredServerTime,
@@ -57,12 +58,7 @@ export async function getHomeworkList(
       method: 'POST',
       body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
     });
-    if (json.result !== 'success') {
-      return Promise.reject({
-        reason: FailReason.INVALID_RESPONSE,
-        extra: json,
-      });
-    }
+    expectSuccess(json, FailReason.INVALID_RESPONSE);
 
     const result = (json.object?.aaData ?? []) as any[];
 
@@ -116,12 +112,7 @@ async function getHomeworkListAtUrl(
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.aaData ?? []) as any[];
 
@@ -160,12 +151,7 @@ async function getExcellentHomeworkListByHomework(
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
   const result = (json.object?.aaData ?? []) as any[];
 
@@ -231,12 +217,7 @@ async function getHomeworkDescription(s: Session, baseId: string): Promise<IHome
     method: 'POST',
     body: URLS.LEARN_HOMEWORK_DETAIL_FORM_DATA(baseId),
   });
-  if (json.result !== 'success') {
-    throw {
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    } as ApiError;
-  }
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
   return {
     description: trimAndDefine(json.msg),
   };
@@ -315,15 +296,13 @@ export function checkHomeworkSubmitResponse(body: unknown): void {
     try {
       json = JSON.parse(body);
     } catch {
-      throw {
-        reason: looksLikeLoginPage(body) ? FailReason.NOT_LOGGED_IN : FailReason.INVALID_RESPONSE,
-        extra: body.slice(0, 200),
-      } as ApiError;
+      throw apiError(
+        looksLikeLoginPage(body) ? FailReason.NOT_LOGGED_IN : FailReason.INVALID_RESPONSE,
+        body.slice(0, 200),
+      );
     }
   }
-  if ((json as { result?: unknown } | null | undefined)?.result !== 'success') {
-    throw { reason: FailReason.OPERATION_FAILED, extra: json } as ApiError;
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
 const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };

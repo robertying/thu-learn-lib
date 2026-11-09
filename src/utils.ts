@@ -7,6 +7,18 @@ import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, Semeste
 
 const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
 
+/**
+ * The error every API rejects with: a plain `{ reason, extra }` object (not an `Error`), so callers can compare
+ * `reason` with `FailReason`. `extra` is left out when not given.
+ */
+export const apiError = (reason: FailReason, extra?: unknown): ApiError =>
+  extra === undefined ? { reason } : { reason, extra };
+
+/** throw `apiError(reason, json)` unless the server's JSON answer says `result: 'success'` */
+export function expectSuccess(json: any, reason: FailReason): void {
+  if (json?.result !== 'success') throw apiError(reason, json);
+}
+
 /** load an HTML page or fragment for querying */
 export const $ = (html: string | Element | Element[]): cheerio.CheerioAPI => cheerio.load(html, CHEERIO_CONFIG);
 
@@ -135,8 +147,6 @@ export const GRADE_LEVEL_MAP = new Map([
 
 export const JSONP_EXTRACTOR_NAME = 'thu_learn_lib_jsonp_extractor';
 
-const invalidJSONP = (extra: unknown): ApiError => ({ reason: FailReason.INVALID_RESPONSE, extra });
-
 /**
  * The argument of a `thu_learn_lib_jsonp_extractor(...)` JSONP body, parsed as JSON. The body is never run as code,
  * so whatever the registrar (or anything between) sends can't execute in the app.
@@ -145,12 +155,12 @@ export function extractJSONPResult(jsonp: string): unknown {
   const prefix = `${JSONP_EXTRACTOR_NAME}(`;
   const body = jsonp.trim().replace(/;$/, '').trimEnd();
   if (!body.startsWith(prefix) || !body.endsWith(')')) {
-    throw invalidJSONP(jsonp.slice(0, 200));
+    throw apiError(FailReason.INVALID_RESPONSE, jsonp.slice(0, 200));
   }
   try {
     return JSON.parse(body.slice(prefix.length, -1));
   } catch (err) {
-    throw invalidJSONP({ error: String(err), text: jsonp.slice(0, 200) });
+    throw apiError(FailReason.INVALID_RESPONSE, { error: String(err), text: jsonp.slice(0, 200) });
   }
 }
 

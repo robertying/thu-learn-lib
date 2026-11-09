@@ -4,10 +4,9 @@ import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
 import { discard, isConnectionError } from './request.ts';
-import type { ApiError } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
-import { $ } from './utils.ts';
+import { $, apiError } from './utils.ts';
 
 /**
  * If using alternative cookie management systems,
@@ -29,10 +28,7 @@ export async function getRoamingTicket(
   try {
     await s.cookieJar.setCookie('JSESSIONID=; path=/; HttpOnly', URLS.ID_PREFIX);
   } catch (err) {
-    throw {
-      reason: FailReason.ERROR_SETTING_COOKIES,
-      extra: err,
-    } as ApiError;
+    throw apiError(FailReason.ERROR_SETTING_COOKIES, err);
   }
 
   let page: string;
@@ -61,10 +57,7 @@ export async function getRoamingTicket(
   } catch (err) {
     // no answer at all: the device is offline or id.tsinghua.edu.cn is unreachable, not a refused login
     if (isConnectionError(err)) throw err;
-    throw {
-      reason: FailReason.ERROR_FETCH_FROM_ID,
-      extra: err,
-    } as ApiError;
+    throw apiError(FailReason.ERROR_FETCH_FROM_ID, err);
   }
 
   // id.tsinghua.edu.cn answers with a page whose only link is the roaming URL (with the ticket), or with the login form
@@ -73,16 +66,13 @@ export async function getRoamingTicket(
   const ticket = ticketOf(body('a[href*="ticket="]').attr('href'));
   if (ticket) return ticket;
   if (body('#theform, form[action*="/auth/login/check"]').length > 0 && body('#i_pass').length > 0) {
-    throw {
-      reason: FailReason.BAD_CREDENTIAL,
-      extra: textOf(body('#msg_note, .alert-danger')) || undefined,
-    } as ApiError;
+    throw apiError(FailReason.BAD_CREDENTIAL, textOf(body('#msg_note, .alert-danger')) || undefined);
   }
   // something else, e.g. a second factor, a locked account or maintenance: not a wrong password
-  throw {
-    reason: FailReason.ERROR_FETCH_FROM_ID,
-    extra: textOf(body('body').clone().find('script, style').remove().end()).slice(0, 200),
-  } as ApiError;
+  throw apiError(
+    FailReason.ERROR_FETCH_FROM_ID,
+    textOf(body('body').clone().find('script, style').remove().end()).slice(0, 200),
+  );
 }
 
 const textOf = (el: { text(): string }) => el.text().replace(/\s+/g, ' ').trim();
@@ -106,10 +96,7 @@ export async function login(
   fingerGenPrint3?: string,
 ): Promise<void> {
   if (!username || !password || !fingerPrint) {
-    if (!s.provider)
-      return Promise.reject({
-        reason: FailReason.NO_CREDENTIAL,
-      });
+    if (!s.provider) throw apiError(FailReason.NO_CREDENTIAL);
     const credential = await s.provider();
     username = credential.username;
     password = credential.password;
@@ -117,9 +104,7 @@ export async function login(
     fingerGenPrint = credential.fingerGenPrint;
     fingerGenPrint3 = credential.fingerGenPrint3;
     if (!username || !password || !fingerPrint) {
-      return Promise.reject({
-        reason: FailReason.NO_CREDENTIAL,
-      });
+      throw apiError(FailReason.NO_CREDENTIAL);
     }
   }
 
@@ -131,18 +116,13 @@ export async function login(
   // only the status matters
   discard(loginResponse);
   if (!loginResponse.ok) {
-    return Promise.reject({
-      reason: FailReason.ERROR_ROAMING,
-    });
+    throw apiError(FailReason.ERROR_ROAMING);
   }
   const courseListPageSource: string = await (await s.rawFetch(URLS.LEARN_STUDENT_COURSE_LIST_PAGE())).text();
   const tokenRegex = /^.*&_csrf=(\S*)".*$/gm;
   const tokenMatches = [...courseListPageSource.matchAll(tokenRegex)];
   if (tokenMatches.length === 0) {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: 'cannot fetch CSRF token from source',
-    });
+    throw apiError(FailReason.INVALID_RESPONSE, 'cannot fetch CSRF token from source');
   }
   s.csrfToken = tokenMatches[0][1];
   // the homepage loads e.g. `/f/wlxt/common/languagejs?lang=zh_CN&v=845`

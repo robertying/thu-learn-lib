@@ -1,18 +1,15 @@
 // Semesters and courses.
 
 import type { Session } from './request.ts';
-import type { ApiError, CourseInfo, CourseListOptions, SemesterInfo } from './types.ts';
+import type { CourseInfo, CourseListOptions, SemesterInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, parseSemesterType } from './utils.ts';
+import { apiError, decodeHTML, expectSuccess, parseSemesterType } from './utils.ts';
 
 export async function getSemesterIdList(s: Session): Promise<string[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_SEMESTER_LIST());
   if (!Array.isArray(json)) {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
+    throw apiError(FailReason.INVALID_RESPONSE, json);
   }
   const semesters = json as string[];
   // sometimes web learning returns null, so confusing...
@@ -22,10 +19,7 @@ export async function getSemesterIdList(s: Session): Promise<string[]> {
 export async function getCurrentSemester(s: Session): Promise<SemesterInfo> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_CURRENT_SEMESTER());
   if (json.message !== 'success') {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
+    throw apiError(FailReason.INVALID_RESPONSE, json);
   }
   const result = json.result;
   return {
@@ -48,10 +42,7 @@ export async function getCourseList(
 ): Promise<CourseInfo[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, lang));
   if (json.message !== 'success' || !Array.isArray(json.resultList)) {
-    return Promise.reject({
-      reason: FailReason.INVALID_RESPONSE,
-      extra: json,
-    });
+    throw apiError(FailReason.INVALID_RESPONSE, json);
   }
   const result = json.resultList as any[];
 
@@ -87,7 +78,7 @@ export async function getCourseTimeAndLocation(s: Session, courseID: string): Pr
   // see https://github.com/Harry-Chen/Learn-Helper/issues/145
   const json = await s.fetchJsonWithToken(URLS.LEARN_COURSE_TIME_LOCATION(courseID));
   if (!Array.isArray(json)) {
-    throw { reason: FailReason.INVALID_RESPONSE, extra: json } as ApiError;
+    throw apiError(FailReason.INVALID_RESPONSE, json);
   }
   return json as string[];
 }
@@ -100,10 +91,5 @@ export async function sortCourses(s: Session, courseIDs: string[]): Promise<void
       'Content-Type': 'application/json',
     },
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
-  }
+  expectSuccess(json, FailReason.OPERATION_FAILED);
 }
