@@ -56,7 +56,7 @@ export class Learn2018Helper {
 
   /** you can provide a CookieJar and / or CredentialProvider in the configuration */
   constructor(config?: HelperConfig) {
-    this.#session = new Session(config, () => auth.login(this.#session));
+    this.#session = new Session(config, () => auth.loginWithProvider(this.#session));
   }
 
   /** whether preview URLs open the first page only (`HelperConfig.generatePreviewUrlForFirstPage`) */
@@ -89,7 +89,7 @@ export class Learn2018Helper {
     fingerGenPrint: string = '',
     fingerGenPrint3: string = '',
   ): Promise<string> {
-    return auth.getRoamingTicket(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
+    return auth.getRoamingTicket(this.#session, { username, password, fingerPrint, fingerGenPrint, fingerGenPrint3 });
   }
 
   /**
@@ -104,10 +104,9 @@ export class Learn2018Helper {
     fingerGenPrint?: string,
     fingerGenPrint3?: string,
   ): Promise<void> {
-    if (!username || !password || !fingerPrint) return this.#session.relogin();
-    return this.#session.runLogin(() =>
-      auth.login(this.#session, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3),
-    );
+    const credential = { username, password, fingerPrint, fingerGenPrint, fingerGenPrint3 };
+    if (!auth.isComplete(credential)) return this.#session.relogin();
+    return this.#session.runLogin(() => auth.login(this.#session, credential));
   }
 
   /**

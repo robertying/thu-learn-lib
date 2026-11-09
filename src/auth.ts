@@ -4,22 +4,24 @@ import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
 import { discard, isConnectionError } from './request.ts';
+import type { Credential } from './types.ts';
 import { CourseType, FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
 import { $, apiError } from './utils.ts';
+
+/** a `Credential` with everything an SSO login needs */
+export type CompleteCredential = Credential & { username: string; password: string; fingerPrint: string };
+
+/** whether `credential` has a username, a password and a fingerprint */
+export const isComplete = (credential: Credential | undefined): credential is CompleteCredential =>
+  !!credential?.username && !!credential.password && !!credential.fingerPrint;
 
 /**
  * If using alternative cookie management systems,
  * be sure to clear id.tsinghua.edu.cn cookies before calling this function
  */
-export async function getRoamingTicket(
-  s: Session,
-  username: string,
-  password: string,
-  fingerPrint: string,
-  fingerGenPrint: string = '',
-  fingerGenPrint3: string = '',
-) {
+export async function getRoamingTicket(s: Session, credential: CompleteCredential): Promise<string> {
+  const { username, password, fingerPrint, fingerGenPrint = '', fingerGenPrint3 = '' } = credential;
   // Make sure we always start with the form page
   // More code is needed to handle the case where the user is already logged in (i.e. cookies are set)
   // It won't be a problem if it is always the same user,
@@ -42,8 +44,8 @@ export async function getRoamingTicket(
     formData.append('i_pass', '04' + sm2.doEncrypt(password, sm2publicKey));
     formData.append('singleLogin', 'on');
     formData.append('fingerPrint', fingerPrint);
-    formData.append('fingerGenPrint', fingerGenPrint ?? '');
-    formData.append('fingerGenPrint3', fingerGenPrint3 ?? '');
+    formData.append('fingerGenPrint', fingerGenPrint);
+    formData.append('fingerGenPrint3', fingerGenPrint3);
     formData.append('i_captcha', '');
     const checkResponse = await s.rawFetch(URLS.ID_LOGIN_CHECK, {
       method: 'POST',
@@ -86,31 +88,18 @@ const ticketOf = (href: string | undefined): string | undefined => {
   }
 };
 
-/** login is necessary if you do not provide a `CredentialProvider` */
-export async function login(
-  s: Session,
-  username?: string,
-  password?: string,
-  fingerPrint?: string,
-  fingerGenPrint?: string,
-  fingerGenPrint3?: string,
-): Promise<void> {
-  if (!username || !password || !fingerPrint) {
-    if (!s.provider) throw apiError(FailReason.NO_CREDENTIAL);
-    const credential = await s.provider();
-    username = credential.username;
-    password = credential.password;
-    fingerPrint = credential.fingerPrint;
-    fingerGenPrint = credential.fingerGenPrint;
-    fingerGenPrint3 = credential.fingerGenPrint3;
-    if (!username || !password || !fingerPrint) {
-      throw apiError(FailReason.NO_CREDENTIAL);
-    }
-  }
+/** log in with the `CredentialProvider`; `NO_CREDENTIAL` without one, or when it gives an incomplete credential */
+export async function loginWithProvider(s: Session): Promise<void> {
+  const credential = await s.provider?.();
+  if (!isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
+  return login(s, credential);
+}
 
-  // check response from id.tsinghua.edu.cn
-  const ticket = await getRoamingTicket(s, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
-  s.fingerprints = { fingerPrint, fingerGenPrint: fingerGenPrint ?? '', fingerGenPrint3: fingerGenPrint3 ?? '' };
+/** log in through id.tsinghua.edu.cn, then read the CSRF token and the website language from the homepage */
+export async function login(s: Session, credential: CompleteCredential): Promise<void> {
+  const ticket = await getRoamingTicket(s, credential);
+  const { fingerPrint, fingerGenPrint = '', fingerGenPrint3 = '' } = credential;
+  s.fingerprints = { fingerPrint, fingerGenPrint, fingerGenPrint3 };
 
   const loginResponse = await s.rawFetch(URLS.LEARN_AUTH_ROAM(ticket));
   // only the status matters
