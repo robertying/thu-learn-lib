@@ -58,7 +58,7 @@ export async function getAnsweredQuestionList(
     (q) =>
       ({
         ...parseDiscussionBase(q),
-        question: Base64.decode(q.wtnr),
+        question: Base64.decode(q.wtnr ?? ''),
         url: URLS.LEARN_QUESTION_DETAIL(q.wlkcid, q.id, courseType),
       }) satisfies Question,
   );

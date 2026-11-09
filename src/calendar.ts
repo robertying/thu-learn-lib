@@ -1,6 +1,7 @@
 // Course calendar from the registrar (academic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
+import { addCSRFTokenToUrl } from './request.ts';
 import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
@@ -39,18 +40,30 @@ export function splitCalendarRange(startDate: string, endDate: string, days = CA
   return ranges;
 }
 
+/**
+ * Registrar requests skip the Web Learning login check: a 403 or login page from the registrar says nothing about the
+ * Web Learning session, and logging in there again wouldn't renew the registrar ticket.
+ */
+const fetchRegistrar = (s: Session, url: string) => s.rawFetch(addCSRFTokenToUrl(url, s.csrfToken));
+
 async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean): Promise<CalendarEvent[]> {
-  const response = await s.fetchWithToken(
+  const response = await fetchRegistrar(
+    s,
     URLS.REGISTRAR_CALENDAR(range.startDate, range.endDate, graduate, JSONP_EXTRACTOR_NAME),
   );
 
   if (!response.ok) {
+    response.body?.cancel().catch(() => {});
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
+      extra: { code: response.status, text: response.statusText },
     });
   }
 
-  const result = extractJSONPResult(await response.text()) as any[];
+  const result: unknown = extractJSONPResult(await response.text());
+  if (!Array.isArray(result)) {
+    throw { reason: FailReason.INVALID_RESPONSE, extra: result } as ApiError;
+  }
 
   return result.map<CalendarEvent>((i) => ({
     location: i.dd,
@@ -88,7 +101,8 @@ export async function getCalendar(
   });
   ticket = ticket.substring(1, ticket.length - 1);
 
-  await s.fetch(URLS.REGISTRAR_AUTH(ticket));
+  const auth = await fetchRegistrar(s, URLS.REGISTRAR_AUTH(ticket));
+  auth.body?.cancel().catch(() => {});
 
   const events: CalendarEvent[] = [];
   const failedRanges: CalendarRange[] = [];

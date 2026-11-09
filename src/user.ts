@@ -2,8 +2,8 @@
 
 import type { Session } from './request.ts';
 import { $ } from './request.ts';
-import type { UserInfo, Language } from './types.ts';
-import { CourseType } from './types.ts';
+import type { ApiError, Language, UserInfo } from './types.ts';
+import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 
 /** get user's name and department */
@@ -21,8 +21,16 @@ export async function getUserInfo(s: Session, courseType = CourseType.STUDENT): 
 }
 
 export async function setLanguage(s: Session, lang: Language): Promise<void> {
-  await s.fetchWithToken(URLS.LEARN_WEBSITE_LANGUAGE(lang), {
+  const response = await s.fetchWithToken(URLS.LEARN_WEBSITE_LANGUAGE(lang), {
     method: 'POST',
   });
+  // free the connection; only the status matters
+  response.body?.cancel().catch(() => {});
+  if (!response.ok) {
+    throw {
+      reason: FailReason.OPERATION_FAILED,
+      extra: { code: response.status, text: response.statusText },
+    } as ApiError;
+  }
   s.lang = lang;
 }

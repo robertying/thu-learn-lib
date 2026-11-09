@@ -26,7 +26,7 @@ const homework = (id: string, overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-// The real page always has four attachment blocks (attachment, answer, submitted, grade); the parser expects them.
+// The real page usually has four attachment blocks (attachment, answer, submitted, grade); missing ones are skipped.
 const page = (id: string) => `<html><body>
 <div class="list calendar clearfix"><div class="fl right"><div class="c55">page description ${id}</div></div></div>
 <div class="list calendar clearfix"><div class="fl right"><div class="c55">answer ${id}</div></div></div>
@@ -184,6 +184,41 @@ describe('getHomeworkList (student)', () => {
     expect(server.requests).toHaveLength(4);
   });
 
+  it('reads a page with fewer attachment blocks, and falls back to its description when the JSON is empty', async () => {
+    const server = setup()
+      .on('GET', URLS.LEARN_HOMEWORK_PAGE('', ''), () =>
+        html(`<html><body>
+<div class="list calendar clearfix"><div class="fl right"><div class="c55">page description</div></div></div>
+<div class="list fujian clearfix"></div>
+</body></html>`),
+      )
+      .on('POST', URLS.LEARN_HOMEWORK_DETAIL, () => json({ result: 'success', msg: '  ' }));
+    const helper = await server.loggedInHelper();
+    const [h1] = await helper.getHomeworkList('c1');
+    const detail = await helper.getHomeworkDetail(h1);
+    expect(detail.description).toBe('page description');
+    expect(detail.attachment).toBeUndefined();
+    expect(detail.gradeAttachment).toBeUndefined();
+  });
+
+  it('maps grade levels, with -63 as P and -60 as pass', async () => {
+    const server = new FakeServer();
+    for (const source of URLS.LEARN_HOMEWORK_LIST_SOURCE) {
+      server.on('POST', source.url, () =>
+        success({
+          aaData:
+            source.url === URLS.LEARN_HOMEWORK_LIST_GRADED
+              ? [homework('p', { cj: -63 }), homework('q', { cj: -60 })]
+              : [],
+        }),
+      );
+    }
+    server.on('POST', URLS.LEARN_HOMEWORK_LIST_EXCELLENT, () => success({ aaData: [] }));
+    const helper = await server.loggedInHelper();
+    const list = await helper.getHomeworkList('c1');
+    expect(list.map((h) => h.gradeLevel)).toEqual([HomeworkGradeLevel.P, HomeworkGradeLevel.PASS]);
+  });
+
   it('still returns homework when the excellent list fails', async () => {
     const server = setup().on('POST', URLS.LEARN_HOMEWORK_LIST_EXCELLENT, () => json({ result: 'error' }));
     const helper = await server.loggedInHelper();
@@ -200,6 +235,15 @@ describe('getHomeworkList (student)', () => {
 });
 
 describe('getHomeworkList (teacher)', () => {
+  it('reads a homework without content as an empty description', async () => {
+    const server = new FakeServer().on('POST', URLS.LEARN_HOMEWORK_LIST_TEACHER, () =>
+      success({ aaData: [{ zyid: 'h1', bt: 'HW 1', nr: null }] }),
+    );
+    const helper = await server.loggedInHelper();
+    const [h] = await helper.getHomeworkList('c1', CourseType.TEACHER);
+    expect(h.description).toBe('');
+  });
+
   it('parses the teacher list with one request', async () => {
     const server = new FakeServer().on('POST', URLS.LEARN_HOMEWORK_LIST_TEACHER, () =>
       success({

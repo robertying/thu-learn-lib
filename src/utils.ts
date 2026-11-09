@@ -64,7 +64,7 @@ export const GRADE_LEVEL_MAP = new Map([
   [-66, HomeworkGradeLevel.D_PLUS],
   [-64, HomeworkGradeLevel.D],
   [-65, HomeworkGradeLevel.EXEMPTED_COURSE],
-  [-63, HomeworkGradeLevel.PASS],
+  [-63, HomeworkGradeLevel.P],
   [-62, HomeworkGradeLevel.EX],
   [-61, HomeworkGradeLevel.EXEMPTION],
   [-60, HomeworkGradeLevel.PASS],
@@ -80,17 +80,20 @@ export const JSONP_EXTRACTOR_NAME = 'thu_learn_lib_jsonp_extractor';
 
 const invalidJSONP = (extra: unknown): ApiError => ({ reason: FailReason.INVALID_RESPONSE, extra });
 
-export function extractJSONPResult(jsonp: string): any {
-  // check jsonp format
-  if (!jsonp.startsWith(JSONP_EXTRACTOR_NAME)) {
+/**
+ * The argument of a `thu_learn_lib_jsonp_extractor(...)` JSONP body, parsed as JSON. The body is never run as code,
+ * so whatever the registrar (or anything between) sends can't execute in the app.
+ */
+export function extractJSONPResult(jsonp: string): unknown {
+  const prefix = `${JSONP_EXTRACTOR_NAME}(`;
+  const body = jsonp.trim().replace(/;$/, '').trimEnd();
+  if (!body.startsWith(prefix) || !body.endsWith(')')) {
     throw invalidJSONP(jsonp.slice(0, 200));
   }
-  // evaluate the result
   try {
-    // oxlint-disable-next-line typescript/no-implied-eval -- JSONP from the registrar is a JS expression, not JSON
-    return Function(`"use strict";const ${JSONP_EXTRACTOR_NAME}=(s)=>s;return ${jsonp};`)();
+    return JSON.parse(body.slice(prefix.length, -1));
   } catch (err) {
-    throw invalidJSONP(err);
+    throw invalidJSONP({ error: String(err), text: jsonp.slice(0, 200) });
   }
 }
 

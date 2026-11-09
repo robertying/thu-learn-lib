@@ -53,7 +53,7 @@ export async function getCourseList(
       extra: json,
     });
   }
-  const result = (json.resultList ?? []) as any[];
+  const result = json.resultList as any[];
 
   return Promise.all(
     result.map(async (c) => {
@@ -62,7 +62,7 @@ export async function getCourseList(
         try {
           timeAndLocation = await getCourseTimeAndLocation(s, c.wlkcid);
         } catch {
-          timeAndLocation = [];
+          // left out, so a failure doesn't look like a course without a schedule; see `getCourseTimeAndLocation`
         }
       }
       return {

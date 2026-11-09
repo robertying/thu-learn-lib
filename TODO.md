@@ -29,5 +29,11 @@ whatever it finds:
 - A wrong password answers the SSO check with a page that has no ticket link (`BAD_CREDENTIAL`), not an error status.
 - On-demand details match the old eager ones (homework, excellent homework, notice attachments, course time/location).
 - `getCalendar` over more than 28 days returns every window.
+- `getCalendar` parses the registrar's JSONP argument as JSON (it used to be run as code). Check the live calendar
+  test still passes; if the registrar sends a JS literal that isn't JSON (single quotes, trailing commas), make
+  `extractJSONPResult` tolerate it rather than evaluating it.
+- Homework `favoriteTime` is read from `scsj`, the same field as `submitTime` (in the favorites list `scsj` is the
+  time an item was favorited). Check what the homework lists send and use the right field, or drop `favoriteTime`.
+- Grade code -63 maps to `HomeworkGradeLevel.P` (it used to map to `PASS`, like -60); confirm with a P grade.
 - `getFileListByCategory` (student) reads `isFavorite` from `f[11]` without converting it; check whether the server
   sends a boolean or `'是'` / `'否'` like the other lists.

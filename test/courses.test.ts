@@ -100,7 +100,8 @@ describe('getCourseList', () => {
         courseIndex: 0,
         courseType: CourseType.STUDENT,
       },
-      expect.objectContaining({ id: 'c2', name: 'A & B', teacherName: '', timeAndLocation: [] }),
+      // the failed time/location request leaves the field out instead of looking like an empty schedule
+      expect.objectContaining({ id: 'c2', name: 'A & B', teacherName: '', timeAndLocation: undefined }),
     ]);
     // 1 list + 1 time/location request per course
     expect(server.requests).toHaveLength(3);
@@ -162,6 +163,17 @@ describe('user', () => {
     await helper.setLanguage(Language.EN);
     expect(helper.getCurrentLanguage()).toBe(Language.EN);
     expect(server.requests[0].url.searchParams.get('websiteShowLanguage')).toBe('en_US');
+  });
+
+  it('keeps the language when the server refuses to switch', async () => {
+    const server = new FakeServer().on(
+      'POST',
+      URLS.LEARN_WEBSITE_LANGUAGE(Language.EN),
+      () => new Response('oops', { status: 500 }),
+    );
+    const helper = await server.loggedInHelper();
+    await expect(helper.setLanguage(Language.EN)).rejects.toHaveProperty('reason', FailReason.OPERATION_FAILED);
+    expect(helper.getCurrentLanguage()).toBe(Language.ZH);
   });
 
   it('logs in again when the homepage is the short login page of an expired session', async () => {

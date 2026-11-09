@@ -79,13 +79,15 @@ await helper.logout();
 
 ### Content related
 
-We currently support both student and teacher (or TA) version of web learning. To keep backwards compatibility, the **default behavior of all APIs is to use the student version**. The following APIs needs `CourseType.TEACHER` as the last (optional) parameter to access the teacher version. You **should use them when you are the teacher / TA** of one course, for you will get nothing from the student version in that case.
+We currently support both student and teacher (or TA) version of web learning. To keep backwards compatibility, the **default behavior of all APIs is to use the student version**. The following APIs take an optional `courseType`; pass `CourseType.TEACHER` to access the teacher version. You **should use them when you are the teacher / TA** of one course, for you will get nothing from the student version in that case.
 
 We do not maintain a global type in `Learn2018Helper` class, for there can be the situation that one can be a student and teacher of the same course simultaneously, on which by using different `CourseType` you can get different results.
 
-- `getCourseList`
-- `getNotificationList/getFileList/getHomeworkList/getDiscussionList/getAnsweredQuestionList`
-- `getAllContents`
+- `getCourseList(semesterID, courseType, lang, options)`
+- `getNotificationList(courseID, courseType, options)`, `getHomeworkList(courseID, courseType, options)`
+- `getFileList/getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, courseType)`, `getFileListByCategory(courseID, categoryID, courseType)`
+- `getNotificationAttachment(notification, courseType)`, `getUserInfo(courseType)`
+- `getAllContents(courseIDs, type, { courseType })`
 
 Note that currently fetching homework information from teacher version is **partially implemented**.
 
@@ -148,6 +150,16 @@ See `src/types.ts` for type definitions. Note that `ApiError` represents the typ
 
 ## Changelog
 
+- v5.2.0
+  - `getHomeworkDetail`: a homework page with fewer attachment blocks no longer throws, and an empty description JSON falls back to the page's description instead of erasing it
+  - Answered questions and teacher homework with an empty body no longer throw
+  - `getCalendar` parses the registrar's JSONP as JSON instead of running it as code, and a registrar 403 no longer triggers a Web Learning re-login
+  - (_BREAKING CHANGE_) `getCourseList(..., { timeAndLocation: true })` leaves `timeAndLocation` out for a course whose request failed, instead of `[]`
+  - (_BREAKING CHANGE_) Grade code -63 is `HomeworkGradeLevel.P` (was `PASS`, the same as -60)
+  - Teacher files read `markedImportant` from a string `sfqd` too
+  - `setLanguage` rejects with `OPERATION_FAILED` when the server refuses, instead of changing the language anyway
+  - `getFileList` fetches the file list and categories in parallel
+  - CI also tests on Node 22
 - v5.1.0
   - Treat a 200 HTML page where JSON was expected as an expired session: log in again and retry once, like a 403
   - `ensureSession` checks the probe's body (the current semester) instead of only its status

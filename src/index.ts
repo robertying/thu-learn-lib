@@ -146,7 +146,8 @@ export class Learn2018Helper {
 
   /**
    * Get all courses in the specified semester.
-   * `timeAndLocation` is only fetched (one request per course) with `options.timeAndLocation`.
+   * `timeAndLocation` is only fetched (one request per course) with `options.timeAndLocation`, and left out for a
+   * course whose request failed.
    */
   public async getCourseList(
     semesterID: string,

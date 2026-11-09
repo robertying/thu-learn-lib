@@ -163,6 +163,34 @@ describe('getCalendar', () => {
     );
   });
 
+  it('does not run the JSONP body as code', async () => {
+    const server = setup(() => html(`${JSONP_EXTRACTOR_NAME}((globalThis.thuLearnLibJsonpRan = true, []))`));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
+    expect((globalThis as { thuLearnLibJsonpRan?: boolean }).thuLearnLibJsonpRan).toBeUndefined();
+  });
+
+  it('accepts a trailing semicolon and whitespace', async () => {
+    const server = setup(() => html(`${JSONP_EXTRACTOR_NAME}([]);\n`));
+    const helper = await server.loggedInHelper();
+    expect(await helper.getCalendar('20250301', '20250328')).toEqual({ events: [], failedRanges: [] });
+  });
+
+  it('does not log in to Web Learning again when the registrar answers 403', async () => {
+    const server = setup(() => new Response('', { status: 403 }));
+    const helper = await server.loggedInHelper();
+    const logins = server.count(URLS.ID_LOGIN_CHECK());
+    await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
+    expect(server.count(URLS.ID_LOGIN_CHECK())).toBe(logins);
+    expect(calendarRequests(server)).toHaveLength(2);
+  });
+
   it('makes no requests for an empty or invalid range', async () => {
     const server = setup(eventPerWindow);
     const helper = await server.loggedInHelper();
