@@ -1,7 +1,7 @@
 // Course files (课程文件) and file categories.
 
 import type { Session } from './request.ts';
-import type { File, FileCategory } from './types.ts';
+import type { File as CourseFile, FileCategory } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { YES, decodeHTML, expectSuccess, formatFileSize, toRequiredServerTime } from './utils.ts';
@@ -11,7 +11,7 @@ export async function getFileList(
   s: Session,
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
-): Promise<File[]> {
+): Promise<CourseFile[]> {
   // categories only fill `category`; don't fail the whole list when they can't be fetched
   const [json, categoryList] = await Promise.all([
     s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
@@ -39,7 +39,7 @@ const isSet = (flag: unknown): boolean => flag === true || Number(flag) === 1;
 const toNumber = (value: unknown): number => Number(value ?? 0) || 0;
 
 /** a file of the object-shaped lists (`getFileList`, and `getFileListByCategory` for a teacher) */
-function parseFile(s: Session, f: any, courseType: CourseType): File {
+function parseFile(s: Session, f: any, courseType: CourseType): CourseFile {
   const title = decodeHTML(f.bt);
   const fileId = f.wjid;
   const uploadTime = toRequiredServerTime(f.scsj);
@@ -101,56 +101,79 @@ export async function getFileListByCategory(
   courseID: string,
   categoryId: string,
   courseType: CourseType = CourseType.STUDENT,
-): Promise<File[]> {
-  if (courseType === CourseType.STUDENT) {
-    const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT(courseID, categoryId));
-    expectSuccess(json, FailReason.INVALID_RESPONSE);
+): Promise<CourseFile[]> {
+  return courseType === CourseType.STUDENT
+    ? getStudentFileListByCategory(s, courseID, categoryId)
+    : getTeacherFileListByCategory(s, courseID, categoryId);
+}
 
-    const result = (json.object ?? []) as any[];
+/** the columns of a row of the student's file list of a category, which is an array instead of an object */
+const COLUMN = {
+  ID: 0,
+  TITLE: 1,
+  MARKED_IMPORTANT: 2,
+  DESCRIPTION: 5,
+  UPLOAD_TIME: 6,
+  FILE_ID: 7,
+  IS_NEW: 8,
+  RAW_SIZE: 9,
+  PUBLISH_TIME: 10,
+  IS_FAVORITE: 11,
+  FILE_TYPE: 13,
+  COMMENT: 14,
+} as const;
 
-    return result.map((f) => {
-      const fileId = f[7];
-      const title = decodeHTML(f[1]);
-      const rawSize = toNumber(f[9]);
-      const size = formatFileSize(rawSize);
-      const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
-      const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, s.previewFirstPage);
-      return {
-        id: f[0],
-        fileId,
-        title,
-        description: decodeHTML(f[5]),
-        rawSize,
-        size,
-        uploadTime: toRequiredServerTime(f[6]),
-        publishTime: toRequiredServerTime(f[10]),
+async function getStudentFileListByCategory(s: Session, courseID: string, categoryId: string): Promise<CourseFile[]> {
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT(courseID, categoryId));
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
+
+  const result = (json.object ?? []) as any[][];
+
+  return result.map((f) => {
+    const fileId = f[COLUMN.FILE_ID];
+    const title = decodeHTML(f[COLUMN.TITLE]);
+    const rawSize = toNumber(f[COLUMN.RAW_SIZE]);
+    const size = formatFileSize(rawSize);
+    const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, CourseType.STUDENT);
+    const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, CourseType.STUDENT, s.previewFirstPage);
+    return {
+      id: f[COLUMN.ID],
+      fileId,
+      title,
+      description: decodeHTML(f[COLUMN.DESCRIPTION]),
+      rawSize,
+      size,
+      uploadTime: toRequiredServerTime(f[COLUMN.UPLOAD_TIME]),
+      publishTime: toRequiredServerTime(f[COLUMN.PUBLISH_TIME]),
+      downloadUrl,
+      previewUrl,
+      isNew: isSet(f[COLUMN.IS_NEW]),
+      markedImportant: isSet(f[COLUMN.MARKED_IMPORTANT]),
+      // not in this list
+      visitCount: 0,
+      downloadCount: 0,
+      fileType: f[COLUMN.FILE_TYPE],
+      remoteFile: {
+        id: fileId,
+        name: title,
         downloadUrl,
         previewUrl,
-        isNew: isSet(f[8]),
-        markedImportant: isSet(f[2]),
-        visitCount: 0,
-        downloadCount: 0,
-        fileType: f[13],
-        remoteFile: {
-          id: fileId,
-          name: title,
-          downloadUrl,
-          previewUrl,
-          size,
-        },
-        isFavorite: f[11] === YES, // '是' / '否' like the other lists
-        comment: f[14] ?? undefined,
-      } satisfies File;
-    });
-  } else {
-    const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER, {
-      method: 'POST',
-      body: URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA(courseID, categoryId),
-    });
-    expectSuccess(json, FailReason.INVALID_RESPONSE);
+        size,
+      },
+      isFavorite: f[COLUMN.IS_FAVORITE] === YES, // '是' / '否' like the other lists
+      comment: f[COLUMN.COMMENT] ?? undefined,
+    } satisfies CourseFile;
+  });
+}
 
-    const result = (json.object?.aaData ?? []) as any[];
+async function getTeacherFileListByCategory(s: Session, courseID: string, categoryId: string): Promise<CourseFile[]> {
+  const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER, {
+    method: 'POST',
+    body: URLS.LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA(courseID, categoryId),
+  });
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
-    return result.map((f) => parseFile(s, f, courseType));
-  }
+  const result = (json.object?.aaData ?? []) as any[];
+
+  return result.map((f) => parseFile(s, f, CourseType.TEACHER));
 }

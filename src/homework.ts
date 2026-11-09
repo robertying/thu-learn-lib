@@ -60,51 +60,57 @@ export async function getHomeworkList(
   courseType: CourseType = CourseType.STUDENT,
   options: HomeworkListOptions = {},
 ): Promise<Homework[] | HomeworkTA[]> {
-  if (courseType === CourseType.TEACHER) {
-    const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_LIST_TEACHER, {
-      method: 'POST',
-      body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
-    });
-    expectSuccess(json, FailReason.INVALID_RESPONSE);
+  return courseType === CourseType.TEACHER
+    ? getTeacherHomeworkList(s, courseID)
+    : getStudentHomeworkList(s, courseID, options);
+}
 
-    const result = (json.object?.aaData ?? []) as any[];
+async function getTeacherHomeworkList(s: Session, courseID: string): Promise<HomeworkTA[]> {
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_LIST_TEACHER, {
+    method: 'POST',
+    body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
+  });
+  expectSuccess(json, FailReason.INVALID_RESPONSE);
 
-    return result.map(
-      (d) =>
-        ({
-          id: d.zyid,
-          index: d.wz,
-          title: decodeHTML(d.bt),
-          description: decodeHTML(Base64.decode(d.nr ?? '')),
-          publisherId: d.fbr,
-          publishTime: toRequiredServerTime(d.fbsj),
-          startTime: toRequiredServerTime(d.kssj),
-          deadline: toRequiredServerTime(d.jzsj),
-          lateSubmissionDeadline: toServerTime(d.bjjzsj),
-          url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
-          completionType: d.zywcfs,
-          submissionType: d.zytjfs,
-          gradedCount: d.ypys,
-          submittedCount: d.yjs,
-          unsubmittedCount: d.wjs,
-        }) satisfies HomeworkTA,
-    );
-  } else {
-    const [lists, excellentHomeworkListByHomework] = await Promise.all([
-      Promise.all(HOMEWORK_LIST_SOURCES.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status))),
-      // a failed excellent homework list doesn't fail the homework list: its items get `excellentHomeworkList: undefined`
-      getExcellentHomeworkListByHomework(s, courseID).catch(() => undefined),
-    ]);
-    return Promise.all(
-      lists.flat().map(async (h) => {
-        const homework: Homework = {
-          ...h,
-          excellentHomeworkList: excellentHomeworkListByHomework && (excellentHomeworkListByHomework[h.baseId] ?? []),
-        };
-        return isSelected(options.details, homework) ? { ...homework, ...(await getHomeworkDetail(s, h)) } : homework;
-      }),
-    );
-  }
+  const result = (json.object?.aaData ?? []) as any[];
+
+  return result.map(
+    (d) =>
+      ({
+        id: d.zyid,
+        index: d.wz,
+        title: decodeHTML(d.bt),
+        description: decodeHTML(Base64.decode(d.nr ?? '')),
+        publisherId: d.fbr,
+        publishTime: toRequiredServerTime(d.fbsj),
+        startTime: toRequiredServerTime(d.kssj),
+        deadline: toRequiredServerTime(d.jzsj),
+        lateSubmissionDeadline: toServerTime(d.bjjzsj),
+        url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
+        completionType: d.zywcfs,
+        submissionType: d.zytjfs,
+        gradedCount: d.ypys,
+        submittedCount: d.yjs,
+        unsubmittedCount: d.wjs,
+      }) satisfies HomeworkTA,
+  );
+}
+
+async function getStudentHomeworkList(s: Session, courseID: string, options: HomeworkListOptions): Promise<Homework[]> {
+  const [lists, excellentHomeworkListByHomework] = await Promise.all([
+    Promise.all(HOMEWORK_LIST_SOURCES.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status))),
+    // a failed excellent homework list doesn't fail the homework list: its items get `excellentHomeworkList: undefined`
+    getExcellentHomeworkListByHomework(s, courseID).catch(() => undefined),
+  ]);
+  return Promise.all(
+    lists.flat().map(async (h) => {
+      const homework: Homework = {
+        ...h,
+        excellentHomeworkList: excellentHomeworkListByHomework && (excellentHomeworkListByHomework[h.baseId] ?? []),
+      };
+      return isSelected(options.details, homework) ? { ...homework, ...(await getHomeworkDetail(s, h)) } : homework;
+    }),
+  );
 }
 
 async function getHomeworkListAtUrl(
