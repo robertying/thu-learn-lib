@@ -30,6 +30,12 @@ const readMark: OnceTest = {
 
 const favorite: OnceTest = { name: 'favorite', covers: ['src/favorites.ts', 'src/homework.ts'], maxPerDay: 1 };
 
+const favoriteTypes: OnceTest = {
+  name: 'favorite-types',
+  covers: ['src/favorites.ts', 'src/notices.ts', 'src/files.ts'],
+  maxPerDay: 1,
+};
+
 const submission: OnceTest = {
   name: 'submission',
   covers: ['src/homework.ts', 'src/urls.ts', 'src/request.ts'],
@@ -47,6 +53,17 @@ const changedKeys = (before: Record<string, unknown>, after: Record<string, unkn
   [...new Set([...Object.keys(before), ...Object.keys(after)])]
     .filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))
     .toSorted();
+
+/** what a call answers, without account data: ok, or its fail reason and the server's result field */
+const outcome = async (call: () => Promise<unknown>) => {
+  try {
+    await call();
+    return 'ok';
+  } catch (e) {
+    const err = e as { reason?: string; message?: string; extra?: { result?: unknown } };
+    return `${err.reason ?? err.message} (result ${JSON.stringify(err.extra?.result)})`;
+  }
+};
 
 describe('one-time checks', () => {
   it.runIf(shouldRun(wrongPassword))('answers a wrong password with BAD_CREDENTIAL', { retry: 0 }, async () => {
@@ -206,6 +223,101 @@ describe('one-time checks', () => {
       recordResult(favorite.name, findings.join('; '));
       expect(left).toBe(false);
       recordPass(favorite, findings.join('; '));
+    },
+  );
+
+  it.runIf(ALLOW_WRITES && shouldRun(favoriteTypes))(
+    'records how notices and files are favorited, and what odd calls answer (adds and removes a few favorites)',
+    { retry: 0, timeout: 180_000 },
+    async () => {
+      recordAttempt(favoriteTypes.name);
+      const cookieJar = new CookieJar();
+      const h = new Learn2018Helper({ ...config, cookieJar });
+      await h.login();
+      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
+      const findings: string[] = [];
+      /** ids added by this test, removed at the end whatever happens */
+      const added = new Set<string>();
+
+      try {
+        // the raw favorites list: does it page?
+        const u = new URL(URLS.LEARN_FAVORITE_LIST());
+        u.searchParams.set('_csrf', h.getCSRFToken());
+        const json = await (await raw(u.href, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA() })).json();
+        const obj = json.object ?? {};
+        findings.push(
+          `list object keys: ${Object.keys(obj).toSorted().join(', ')}`,
+          `list rows ${(obj.aaData ?? []).length}, iTotalRecords ${obj.iTotalRecords}, iTotalDisplayRecords ${obj.iTotalDisplayRecords}`,
+        );
+
+        const favoritesBefore = await h.getFavorites();
+        const isFav = (id: string) => favoritesBefore.some((f) => f.id === id);
+        const semester = await h.getCurrentSemester();
+        const courses = await h.getCourseList(semester.id);
+
+        // a notice
+        for (const c of courses) {
+          const notice = (await h.getNotificationList(c.id)).find((n) => !n.isFavorite && !isFav(n.id));
+          if (!notice) continue;
+          findings.push(`notice add: ${await outcome(() => h.addToFavorites(ContentType.NOTIFICATION, notice.id))}`);
+          added.add(notice.id);
+          const listed = (await h.getFavorites()).find((f) => f.id === notice.id);
+          findings.push(`notice listed by id: ${!!listed}, courseId matches: ${listed?.courseId === c.id}`);
+          const after = (await h.getNotificationList(c.id)).find((n) => n.id === notice.id);
+          findings.push(`notice isFavorite after add: ${after?.isFavorite}`);
+          findings.push(
+            `notice add again: ${await outcome(() => h.addToFavorites(ContentType.NOTIFICATION, notice.id))}`,
+          );
+          findings.push(
+            `notice favorites after adding twice: ${(await h.getFavorites()).filter((f) => f.id === notice.id).length}`,
+          );
+          break;
+        }
+
+        // a file: which of its ids (kjxxid as id, wjid as fileId) the server takes
+        for (const c of courses) {
+          const file = (await h.getFileList(c.id)).find((f) => !isFav(f.id) && !isFav(f.fileId));
+          if (!file) continue;
+          for (const [name, id] of [
+            ['id (kjxxid)', file.id],
+            ['fileId (wjid)', file.fileId],
+          ] as const) {
+            const result = await outcome(() => h.addToFavorites(ContentType.FILE, id));
+            const listed = (await h.getFavorites()).filter((f) => f.type === ContentType.FILE);
+            const byId = listed.find((f) => f.id === file.id);
+            const byFileId = listed.find((f) => f.id === file.fileId);
+            for (const f of [byId, byFileId]) if (f) added.add(f.id);
+            added.add(id);
+            findings.push(`file add with ${name}: ${result}; listed under id ${!!byId}, under fileId ${!!byFileId}`);
+            if (byId && file.category) {
+              const inCategory = (await h.getFileListByCategory(c.id, file.category.id)).find((f) => f.id === file.id);
+              findings.push(`file isFavorite in category list: ${inCategory?.isFavorite}`);
+            }
+            for (const f of [byId, byFileId]) if (f) await h.removeFromFavorites(f.id);
+          }
+          break;
+        }
+
+        // ids the server doesn't know, and removing what isn't a favorite
+        findings.push(
+          `add unknown homework id: ${await outcome(() => h.addToFavorites(ContentType.HOMEWORK, 'no-such-id'))}`,
+        );
+        added.add('no-such-id');
+        const listedUnknown = (await h.getFavorites()).some((f) => f.id === 'no-such-id');
+        findings.push(`unknown id listed: ${listedUnknown}`);
+        findings.push(
+          `remove an id that isn't a favorite: ${await outcome(() => h.removeFromFavorites('not-a-favorite'))}`,
+        );
+      } finally {
+        for (const id of added) await h.removeFromFavorites(id).catch(() => {});
+      }
+      const left = (await h.getFavorites()).filter((f) => added.has(f.id)).length;
+      findings.push(`left behind: ${left}`);
+      await h.logout();
+      recordResult(favoriteTypes.name, findings.join('; '));
+      expect(left).toBe(0);
+      if (findings.some((f) => f.startsWith('notice add:')) && findings.some((f) => f.startsWith('file add')))
+        recordPass(favoriteTypes, findings.join('; '));
     },
   );
 

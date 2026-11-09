@@ -2,6 +2,9 @@
 
 ## Check against the real server
 
+- Not run yet: the `favorite-types` one-time check (`LIVE_ONCE=favorite-types LIVE_ALLOW_WRITES=1 pnpm test:live
+  test/live/once.test.ts`). learnX's favorites sync needs it: which file id the server takes, whether the favorites list
+  pages, and what adding an unknown id or removing a non-favorite answers.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
