@@ -6,13 +6,22 @@ import type { ApiError, Language, UserInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 
-/** get user's name and department */
+/** what the English homepage shows for a department without an English name (as for the 书院) */
+const NO_DEPARTMENT = 'none';
+
+/**
+ * get user's name and department (`''` if the page shows none)
+ *
+ * The homepage's profile card (`.fl.up-img-info`) has two `<p>`: the name and role labels (同学 / Student), then the
+ * department label (for undergraduates, their 书院). The name is also in the header's `a.user-log`.
+ */
 export async function getUserInfo(s: Session, courseType = CourseType.STUDENT): Promise<UserInfo> {
   const content = await s.fetchTextWithToken(URLS.LEARN_HOMEPAGE(courseType));
 
   const dom = $(content);
   const name = dom('a.user-log').text().trim();
-  const department = dom('.fl.up-img-info p:nth-child(2) label').text().trim();
+  const label = dom('.fl.up-img-info p:nth-child(2) label').text().trim();
+  const department = label.toLowerCase() === NO_DEPARTMENT ? '' : label;
 
   return {
     name,

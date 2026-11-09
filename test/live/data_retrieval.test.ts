@@ -101,8 +101,10 @@ describe('helper data retrieval', () => {
     expect(userInfo.name).toBeTruthy();
     expect(typeof userInfo.name).toBe('string');
 
-    expect(userInfo.department).toBeTruthy();
     expect(typeof userInfo.department).toBe('string');
+    // in English, the page shows `none` for a 书院 (and some departments)
+    if (h.getCurrentLanguage() === Language.ZH) expect(userInfo.department).toBeTruthy();
+    expect(userInfo.department.toLowerCase()).not.toBe('none');
   });
 
   it('gets the same homework details from the list option and on demand', async () => {
