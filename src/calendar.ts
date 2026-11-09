@@ -57,6 +57,16 @@ const isIdLoginPage = (res: Response, page: string) =>
   res.url.startsWith(URLS.ID_PREFIX) || /action="[^"]*\/do\/off\/ui\/auth\/login\//.test(page);
 
 /**
+ * The body of a sign-in step, or '' when there is no text. The registrar's own pages are GBK, which React Native's
+ * fetch can't decode: its `text()` then gives `undefined` instead of a string. Only id.tsinghua.edu.cn pages (UTF-8)
+ * are looked into here, so an undecodable registrar page is as good as an empty one.
+ */
+const readText = async (res: Response): Promise<string> => {
+  const text: unknown = await res.text();
+  return typeof text === 'string' ? text : '';
+};
+
+/**
  * Sign in to the registrar with a Web Learning ticket.
  *
  * Off campus the registrar is only reachable through WebVPN (webvpn.tsinghua.edu.cn): the auth URL redirects there,
@@ -67,7 +77,7 @@ const isIdLoginPage = (res: Response, page: string) =>
  */
 async function authenticateRegistrar(s: Session, ticket: string): Promise<void> {
   let res = await fetchRegistrar(s, URLS.REGISTRAR_AUTH(ticket));
-  let page = await res.text();
+  let page = await readText(res);
 
   const form = $(page)('form#logined');
   if (form.length > 0) {
@@ -80,13 +90,13 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
     });
     const action = new URL(form.attr('action') ?? '', res.url || URLS.ID_PREFIX).href;
     const check = await s.rawFetch(action, { method: 'POST', body: data });
-    const link = check.ok ? $(await check.text())('a').attr('href') : undefined;
+    const link = check.ok ? $(await readText(check))('a').attr('href') : undefined;
     if (!link) {
       check.body?.cancel().catch(() => {});
       throw registrarAuthError({ step: 'id.tsinghua.edu.cn', code: check.status });
     }
     res = await s.rawFetch(new URL(link, check.url || action).href);
-    page = await res.text();
+    page = await readText(res);
   }
 
   if (!res.ok || isIdLoginPage(res, page)) {

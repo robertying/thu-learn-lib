@@ -19,6 +19,12 @@ const at = (res: Response, url: string) => {
   return res;
 };
 
+/** the registrar's pages are GBK, which React Native's fetch can't decode: `text()` gives undefined */
+const undecodable = (res: Response) => {
+  Object.defineProperty(res, 'text', { value: async () => undefined });
+  return res;
+};
+
 const jsonp = (items: unknown[]) => html(`${JSONP_EXTRACTOR_NAME}(${JSON.stringify(items)})`);
 
 /** one event on the first day of the requested window, named after the window */
@@ -292,6 +298,22 @@ describe('getCalendar', () => {
       server.reset();
       await helper.getCalendar('20250301', '20250328');
       expect(server.count(ID_CHECK_SINGLE)).toBe(0);
+    });
+
+    it('signs in again on later calls when the registrar page has no text (GBK in React Native)', async () => {
+      const server = offCampus();
+      const signedIn = () => server.count(OAUTH_CALLBACK) > 0;
+      server
+        .on('GET', URLS.REGISTRAR_AUTH(''), () =>
+          signedIn() ? undecodable(at(html('<html></html>'), URLS.REGISTRAR_PREFIX)) : loginedForm(),
+        )
+        .on('GET', OAUTH_CALLBACK, () => undecodable(at(html('<html></html>'), URLS.REGISTRAR_PREFIX)), {
+          public: true,
+        })
+        .on('GET', URLS.REGISTRAR_CALENDAR('', ''), () => (signedIn() ? jsonp([]) : loginedForm()));
+      const helper = await server.loggedInHelper();
+      expect((await helper.getCalendar('20250301', '20250328')).failedRanges).toEqual([]);
+      expect((await helper.getCalendar('20250329', '20250404')).failedRanges).toEqual([]);
     });
 
     it('rejects with ERROR_REGISTRAR_AUTH without fetching the calendar when id.tsinghua.edu.cn wants the password', async () => {
