@@ -4,11 +4,12 @@ import type { Session } from './request.ts';
 import type { Questionnaire, QuestionnaireDetail, QuestionnaireListOptions } from './types.ts';
 import { FailReason, QuestionnaireType } from './types.ts';
 import * as URLS from './urls.ts';
+import { QNR_TYPE_MAP } from './codes.ts';
 import {
-  QNR_TYPE_MAP,
   YES,
   apiError,
   decodeHTML,
+  favoriteFields,
   expectSuccess,
   isSelected,
   toRequiredServerTime,
@@ -54,8 +55,7 @@ async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: stri
       uploaderId: e.scr,
       uploaderName: e.scrxm,
       submitTime: toServerTime(e.tjsj),
-      isFavorite: e.sfsc === YES,
-      comment: e.bznr ?? undefined,
+      ...favoriteFields(e),
       url: URLS.LEARN_QNR_SUBMIT_PAGE(e.wlkcid, e.wjid, type),
     } satisfies Questionnaire;
   });

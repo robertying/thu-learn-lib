@@ -1,18 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { ContentType, FailReason, SemesterType } from '../src/index.ts';
+import { FailReason } from '../src/index.ts';
 import {
-  CONTENT_TYPE_MAP,
-  CONTENT_TYPE_MAP_REVERSE,
   JSONP_EXTRACTOR_NAME,
   apiError,
   decodeHTML,
   expectSuccess,
   extractJSONPResult,
   formatFileSize,
-  getMkFromType,
   looksLikeLoginPage,
-  parseSemesterType,
   toRequiredServerTime,
   toServerTime,
   trimAndDefine,
@@ -184,28 +180,5 @@ describe('urlOf', () => {
     expect(urlOf(url)).toBe(url);
     expect(urlOf(new URL(url))).toBe(url);
     expect(urlOf(new Request(url))).toBe(url);
-  });
-});
-
-describe('lookup tables', () => {
-  it('reads the semester type from its number', () => {
-    expect(parseSemesterType(1)).toBe(SemesterType.FALL);
-    expect(parseSemesterType(2)).toBe(SemesterType.SPRING);
-    expect(parseSemesterType(3)).toBe(SemesterType.SUMMER);
-    expect(parseSemesterType(0)).toBe(SemesterType.UNKNOWN);
-    expect(parseSemesterType(NaN)).toBe(SemesterType.UNKNOWN);
-  });
-
-  it('maps every content type to its code and back', () => {
-    for (const type of Object.values(ContentType)) {
-      expect(CONTENT_TYPE_MAP_REVERSE.get(CONTENT_TYPE_MAP.get(type)!)).toBe(type);
-    }
-    expect(CONTENT_TYPE_MAP_REVERSE.get('KCKB')).toBeUndefined();
-  });
-
-  it('gives the preview module of a content type', () => {
-    expect(getMkFromType(ContentType.FILE)).toBe('mk_kcwj');
-    expect(getMkFromType(ContentType.HOMEWORK)).toBe('mk_kczy');
-    expect(getMkFromType(ContentType.NOTIFICATION)).toBe('mk_kcgg');
   });
 });

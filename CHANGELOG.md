@@ -1,6 +1,9 @@
 # Changelog
 
 - Unreleased
+  - Every `Learn2018Helper` method (and each course in `getAllContents` errors) rejects with `INVALID_RESPONSE` instead of a bare `TypeError` when the server answers in a shape the parser doesn't expect (a missing field, a `null` row), so errors are always `{ reason, extra }`
+  - A homework attachment's `name` is the link's whole text (it was empty when the name was wrapped in another element)
+  - Roaming and registrar tickets and favorite ids are URL-encoded in the URLs they go into
   - Uses the global `fetch` (Node 22 and later, React Native, browsers) instead of `node-fetch-native`, which only passed it through. It is looked up on each request, so a `fetch` polyfill installed after the library loads is used too
   - `cheerio`, `fetch-cookie` and `tough-cookie` take caret ranges instead of exact versions, so apps can share one copy
 

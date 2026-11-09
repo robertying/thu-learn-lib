@@ -11,7 +11,7 @@ pnpm test
 pnpm build # emits ESM + .d.ts to lib/
 ```
 
-The code is split by area under `src/`: `request.ts` (session, CSRF token, re-login), `auth.ts`, `courses.ts`, `notices.ts`, `files.ts`, `homework.ts`, `discussions.ts`, `questionnaires.ts`, `favorites.ts`, `calendar.ts`, `timetable.ts` (reading `Course.timeAndLocation`, class periods and teaching weeks), `contents.ts`, `user.ts` and `utils.ts`. `index.ts` holds the public `Learn2018Helper` class, which passes its private session to those functions. Types are in `types.ts` and URLs in `urls.ts`.
+The code is split by area under `src/`: `request.ts` (session, CSRF token, re-login), `auth.ts`, `courses.ts`, `notices.ts`, `files.ts`, `homework.ts`, `discussions.ts`, `questionnaires.ts`, `favorites.ts`, `calendar.ts`, `timetable.ts` (reading `Course.timeAndLocation`, class periods and teaching weeks), `contents.ts`, `user.ts`, `attachments.ts` (attachment links on detail pages) and `utils.ts`. `index.ts` holds the public `Learn2018Helper` class, which passes its private session to those functions. Types are in `types.ts`, URLs in `urls.ts`, and the server's codes (content types, grade levels, semester and questionnaire types) in `codes.ts`.
 
 Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and formatting uses [oxfmt](https://oxc.rs/docs/guide/usage/formatter).
 

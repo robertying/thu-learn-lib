@@ -2,6 +2,7 @@
 
 import { Base64 } from 'js-base64';
 
+import { attachmentOf } from './attachments.ts';
 import type { Session } from './request.ts';
 import type { CourseNotification, CourseNotificationBase, NotificationListOptions, RemoteFile } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
@@ -11,7 +12,9 @@ import {
   YES,
   decodeHTML,
   expectSuccess,
+  favoriteFields,
   isSelected,
+  isSet,
   toRequiredServerTime,
   toServerTime,
   trimAndDefine,
@@ -62,11 +65,10 @@ async function getNotificationListKind(
       url: URLS.LEARN_NOTIFICATION_DETAIL(courseID, n.ggid, courseType),
       publisher: n.fbrxm,
       hasRead: n.sfyd === YES,
-      markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
+      markedImportant: isSet(n.sfqd), // string '1' for a teacher, number 1 for a student
       publishTime: toRequiredServerTime(n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr),
       expireTime: toServerTime(n.jzsj),
-      isFavorite: n.sfsc === YES,
-      comment: n.bznr ?? undefined,
+      ...favoriteFields(n),
       attachmentName: typeof attachmentName === 'string' && attachmentName ? attachmentName : undefined,
     } satisfies CourseNotificationBase;
   });
@@ -86,16 +88,12 @@ export async function getNotificationAttachment(
   const path = (courseType === CourseType.STUDENT ? result('.ml-10') : result('#wjid')).attr('href');
   // the page has no attachment link (removed since the list was fetched, or the page changed)
   if (!path) return undefined;
-  const downloadUrl = URLS.learnUrl(path);
-  if (!downloadUrl) return undefined;
-  const size = trimAndDefine(result('div#attachment > div.fl > span[class^="color"]').first().text()) ?? '';
-  const params = new URLSearchParams(path.split('?').slice(-1)[0]);
-  const attachmentId = params.get('wjid')!;
-  return {
+  return attachmentOf(s, {
+    href: path,
+    idParam: 'wjid',
     name: notification.attachmentName,
-    id: attachmentId,
-    downloadUrl,
-    previewUrl: URLS.LEARN_FILE_PREVIEW(ContentType.NOTIFICATION, attachmentId, courseType, s.previewFirstPage),
-    size,
-  };
+    size: trimAndDefine(result('div#attachment > div.fl > span[class^="color"]').first().text()) ?? '',
+    type: ContentType.NOTIFICATION,
+    courseType,
+  });
 }

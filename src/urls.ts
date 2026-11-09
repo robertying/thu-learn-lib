@@ -1,6 +1,7 @@
+import type { PreviewContentType } from './codes.ts';
+import { contentTypeCode, previewModule } from './codes.ts';
 import type { ContentType, QuestionnaireType } from './types.ts';
 import { CourseType, Language } from './types.ts';
-import { CONTENT_TYPE_MAP, getMkFromType } from './utils.ts';
 
 // URLs without parameters are constants; URLs with parameters, and form bodies (a new `FormData` each time), are
 // functions. Form bodies use the global `FormData`, which Node (22+) and React Native both have.
@@ -29,7 +30,7 @@ export const ID_LOGIN = `${ID_PREFIX}/do/off/ui/auth/login/form/bb5df85216504820
 export const ID_LOGIN_CHECK = `${ID_PREFIX}/do/off/ui/auth/login/check`;
 
 export const LEARN_AUTH_ROAM = (ticket: string) =>
-  `${LEARN_PREFIX}/b/j_spring_security_thauth_roaming_entry?ticket=${ticket}`;
+  `${LEARN_PREFIX}/b/j_spring_security_thauth_roaming_entry?ticket=${encodeURIComponent(ticket)}`;
 
 export const LEARN_LOGOUT = `${LEARN_PREFIX}/f/j_spring_security_logout`;
 
@@ -79,10 +80,13 @@ export const LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA = (courseID: string, 
 export const LEARN_FILE_DOWNLOAD = (fileID: string, courseType: CourseType) =>
   `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/${courseType}/downloadFile?sfgk=0&wjid=${fileID}`;
 
-export const LEARN_FILE_PREVIEW = (type: ContentType, fileID: string, courseType: CourseType, firstPageOnly = false) =>
-  `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=${getMkFromType(
-    type,
-  )}&browser=-1&sfgk=0&pageType=${firstPageOnly ? 'first' : 'all'}`;
+export const LEARN_FILE_PREVIEW = (
+  type: PreviewContentType,
+  fileID: string,
+  courseType: CourseType,
+  firstPageOnly = false,
+) =>
+  `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=${previewModule(type)}&browser=-1&sfgk=0&pageType=${firstPageOnly ? 'first' : 'all'}`;
 
 export const LEARN_NOTIFICATION_LIST = (courseType: CourseType, expired: boolean) =>
   `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/` +
@@ -165,12 +169,13 @@ export const LEARN_WEBSITE_LANGUAGE = (lang: Language) =>
   `${LEARN_PREFIX}/f/wlxt/common/language?websiteShowLanguage=${WebsiteShowLanguage[lang]}`;
 
 export const LEARN_FAVORITE_ADD = (type: ContentType, id: string) =>
-  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/add?ywid=${id}&ywlx=${CONTENT_TYPE_MAP.get(type)}`;
+  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/add?ywid=${encodeURIComponent(id)}&ywlx=${contentTypeCode(type)}`;
 
-export const LEARN_FAVORITE_REMOVE = (id: string) => `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/delete?ywid=${id}`;
+export const LEARN_FAVORITE_REMOVE = (id: string) =>
+  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/delete?ywid=${encodeURIComponent(id)}`;
 
 export const LEARN_FAVORITE_LIST = (type?: ContentType) =>
-  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/pageList?ywlx=${type ? CONTENT_TYPE_MAP.get(type) : 'ALL'}`;
+  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/pageList?ywlx=${type ? contentTypeCode(type) : 'ALL'}`;
 
 export const LEARN_FAVORITE_PIN = `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/addZd`;
 
@@ -186,14 +191,14 @@ export const LEARN_COMMENT_SET = `${LEARN_PREFIX}/b/wlxt/xt/wlkc_xsbjb/add`;
 
 export const LEARN_COMMENT_SET_FORM_DATA = (type: ContentType, id: string, content: string) => {
   const form = new FormData();
-  form.append('ywlx', CONTENT_TYPE_MAP.get(type) ?? '');
+  form.append('ywlx', contentTypeCode(type));
   form.append('ywid', id);
   form.append('bznr', content);
   return form;
 };
 
 export const LEARN_COMMENT_LIST = (type?: ContentType) =>
-  `${LEARN_PREFIX}/b/wlxt/xt/wlkc_xsbjb/student/pageList?ywlx=${type ? CONTENT_TYPE_MAP.get(type) : 'ALL'}`;
+  `${LEARN_PREFIX}/b/wlxt/xt/wlkc_xsbjb/student/pageList?ywlx=${type ? contentTypeCode(type) : 'ALL'}`;
 
 export const LEARN_PAGE_LIST_FORM_DATA = (courseID?: string) => {
   const form = new FormData();
@@ -211,7 +216,8 @@ export const REGISTRAR_TICKET_FORM_DATA = () => {
 
 export const REGISTRAR_TICKET = `${LEARN_PREFIX}/b/wlxt/common/auth/gnt`;
 
-export const REGISTRAR_AUTH = (ticket: string) => `${REGISTRAR_PREFIX}/j_acegi_login.do?url=/&ticket=${ticket}`;
+export const REGISTRAR_AUTH = (ticket: string) =>
+  `${REGISTRAR_PREFIX}/j_acegi_login.do?url=/&ticket=${encodeURIComponent(ticket)}`;
 
 export const REGISTRAR_CALENDAR = (startDate: string, endDate: string, graduate = false, callbackName = 'unknown') =>
   `${REGISTRAR_PREFIX}/jxmh_out.do?m=${

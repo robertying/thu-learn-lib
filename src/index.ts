@@ -44,7 +44,7 @@ import type {
   UserInfo,
 } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
-import { apiError } from './utils.ts';
+import { apiError, parsed } from './utils.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
@@ -88,7 +88,7 @@ export class Learn2018Helper {
    */
   public async getRoamingTicket(credential: Credential): Promise<string> {
     if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
-    return auth.getRoamingTicket(this.#session, credential);
+    return parsed(auth.getRoamingTicket(this.#session, credential));
   }
 
   /**
@@ -109,17 +109,17 @@ export class Learn2018Helper {
    * Use it when resuming an app instead of `login()`.
    */
   public async ensureSession(): Promise<void> {
-    return this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
+    return parsed(this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER));
   }
 
   /**  logout (to make everyone happy) */
   public async logout(): Promise<void> {
-    return auth.logout(this.#session);
+    return parsed(auth.logout(this.#session));
   }
 
   /** get user's name and department */
   public async getUserInfo(courseType = CourseType.STUDENT): Promise<UserInfo> {
-    return user.getUserInfo(this.#session, courseType);
+    return parsed(user.getUserInfo(this.#session, courseType));
   }
 
   /**
@@ -131,15 +131,15 @@ export class Learn2018Helper {
    * from the last login expired) logs in again and is tried once more.
    */
   public async getCalendar(startDate: string, endDate: string, options?: CalendarOptions): Promise<CalendarResult> {
-    return calendar.getCalendar(this.#session, startDate, endDate, options);
+    return parsed(calendar.getCalendar(this.#session, startDate, endDate, options));
   }
 
   public async getSemesterIdList(): Promise<string[]> {
-    return courses.getSemesterIdList(this.#session);
+    return parsed(courses.getSemesterIdList(this.#session));
   }
 
   public async getCurrentSemester(): Promise<SemesterInfo> {
-    return courses.getCurrentSemester(this.#session);
+    return parsed(courses.getCurrentSemester(this.#session));
   }
 
   /**
@@ -153,12 +153,12 @@ export class Learn2018Helper {
     lang: Language = this.#session.lang,
     options?: CourseListOptions,
   ): Promise<CourseInfo[]> {
-    return courses.getCourseList(this.#session, semesterID, courseType, lang, options);
+    return parsed(courses.getCourseList(this.#session, semesterID, courseType, lang, options));
   }
 
   /** Get the time and location of one course. */
   public async getCourseTimeAndLocation(courseID: string): Promise<string[]> {
-    return courses.getCourseTimeAndLocation(this.#session, courseID);
+    return parsed(courses.getCourseTimeAndLocation(this.#session, courseID));
   }
 
   /**
@@ -171,7 +171,7 @@ export class Learn2018Helper {
     type: T,
     options?: AllContentsOptions<T>,
   ): Promise<AllContentsResult<T>> {
-    return contents.getAllContents(this.#session, courseIDs, type, options);
+    return parsed(contents.getAllContents(this.#session, courseIDs, type, options));
   }
 
   /**
@@ -184,7 +184,7 @@ export class Learn2018Helper {
     courseType: CourseType = CourseType.STUDENT,
     options?: NotificationListOptions,
   ): Promise<CourseNotification[]> {
-    return notices.getNotificationList(this.#session, courseID, courseType, options);
+    return parsed(notices.getNotificationList(this.#session, courseID, courseType, options));
   }
 
   /** Get the attachment of a notice (one request), `undefined` if it has none. */
@@ -192,7 +192,7 @@ export class Learn2018Helper {
     notification: Pick<CourseNotification, 'url' | 'attachmentName'>,
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<RemoteFile | undefined> {
-    return notices.getNotificationAttachment(this.#session, notification, courseType);
+    return parsed(notices.getNotificationAttachment(this.#session, notification, courseType));
   }
 
   /**
@@ -204,7 +204,7 @@ export class Learn2018Helper {
     courseType: CourseType = CourseType.STUDENT,
     options: FileListOptions = {},
   ): Promise<CourseFile[]> {
-    return files.getFileList(this.#session, courseID, courseType, options);
+    return parsed(files.getFileList(this.#session, courseID, courseType, options));
   }
 
   /** Get file categories of the specified course. */
@@ -212,7 +212,7 @@ export class Learn2018Helper {
     courseID: string,
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<FileCategory[]> {
-    return files.getFileCategoryList(this.#session, courseID, courseType);
+    return parsed(files.getFileCategoryList(this.#session, courseID, courseType));
   }
 
   /**
@@ -224,7 +224,7 @@ export class Learn2018Helper {
     categoryId: string,
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<CourseFile[]> {
-    return files.getFileListByCategory(this.#session, courseID, categoryId, courseType);
+    return parsed(files.getFileListByCategory(this.#session, courseID, categoryId, courseType));
   }
 
   /**
@@ -244,34 +244,34 @@ export class Learn2018Helper {
     options?: HomeworkListOptions,
   ): Promise<Homework[] | HomeworkTA[]> {
     return courseType === CourseType.TEACHER
-      ? homework.getHomeworkList(this.#session, courseID, CourseType.TEACHER)
-      : homework.getHomeworkList(this.#session, courseID, CourseType.STUDENT, options);
+      ? parsed(homework.getHomeworkList(this.#session, courseID, CourseType.TEACHER))
+      : parsed(homework.getHomeworkList(this.#session, courseID, CourseType.STUDENT, options));
   }
 
   /** Get the detail (page content, attachments and description) of one homework. */
   public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
-    return homework.getHomeworkDetail(this.#session, item);
+    return parsed(homework.getHomeworkDetail(this.#session, item));
   }
 
-  /** Get the detail (page content, attachments and description) of one excellent homework. */
+  /** Get the detail (page content, attachments and description) of one excellent homework; the same requests as `getHomeworkDetail`. */
   public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
-    return homework.getHomeworkDetail(this.#session, item);
+    return parsed(homework.getHomeworkDetail(this.#session, item));
   }
 
   /** Get all discussions （课程讨论） of the specified course. */
   public async getDiscussionList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<Discussion[]> {
-    return discussions.getDiscussionList(this.#session, courseID, courseType);
+    return parsed(discussions.getDiscussionList(this.#session, courseID, courseType));
   }
 
   /**
-   * Get all notifications （课程答疑） of the specified course.
+   * Get the answered questions （课程答疑） of the specified course.
    * The student version supports only answered questions, while the teacher version supports all questions.
    */
   public async getAnsweredQuestionList(
     courseID: string,
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<Question[]> {
-    return discussions.getAnsweredQuestionList(this.#session, courseID, courseType);
+    return parsed(discussions.getAnsweredQuestionList(this.#session, courseID, courseType));
   }
 
   /**
@@ -280,12 +280,12 @@ export class Learn2018Helper {
    * all; use `getQuestionnaireDetail` for the others.
    */
   public async getQuestionnaireList(courseID: string, options?: QuestionnaireListOptions): Promise<Questionnaire[]> {
-    return questionnaires.getQuestionnaireList(this.#session, courseID, options);
+    return parsed(questionnaires.getQuestionnaireList(this.#session, courseID, options));
   }
 
   /** Get the questions of one questionnaire (one request). */
   public async getQuestionnaireDetail(courseID: string, questionnaireID: string): Promise<QuestionnaireDetail[]> {
-    return questionnaires.getQuestionnaireDetail(this.#session, courseID, questionnaireID);
+    return parsed(questionnaires.getQuestionnaireDetail(this.#session, courseID, questionnaireID));
   }
 
   /**
@@ -294,7 +294,7 @@ export class Learn2018Helper {
    * server doesn't know answers HTTP 500 (`UNEXPECTED_STATUS`).
    */
   public async addToFavorites(type: ContentType, id: string): Promise<void> {
-    return favorites.addToFavorites(this.#session, type, id);
+    return parsed(favorites.addToFavorites(this.#session, type, id));
   }
 
   /**
@@ -302,7 +302,7 @@ export class Learn2018Helper {
    * Removing an item that isn't a favorite succeeds.
    */
   public async removeFromFavorites(id: string): Promise<void> {
-    return favorites.removeFromFavorites(this.#session, id);
+    return parsed(favorites.removeFromFavorites(this.#session, id));
   }
 
   /**
@@ -310,21 +310,21 @@ export class Learn2018Helper {
    * If `courseID` or `type` is specified, only return favorites of that course or type.
    */
   public async getFavorites(courseID?: string, type?: ContentType): Promise<FavoriteItem[]> {
-    return favorites.getFavorites(this.#session, courseID, type);
+    return parsed(favorites.getFavorites(this.#session, courseID, type));
   }
 
   /**
    * Pin a favorite item. (置顶)
    */
   public async pinFavoriteItem(id: string): Promise<void> {
-    return favorites.pinFavoriteItem(this.#session, id);
+    return parsed(favorites.pinFavoriteItem(this.#session, id));
   }
 
   /**
    * Unpin a favorite item. (取消置顶)
    */
   public async unpinFavoriteItem(id: string): Promise<void> {
-    return favorites.unpinFavoriteItem(this.#session, id);
+    return parsed(favorites.unpinFavoriteItem(this.#session, id));
   }
 
   /**
@@ -332,19 +332,19 @@ export class Learn2018Helper {
    * Set an empty string to remove the comment.
    */
   public async setComment(type: ContentType, id: string, content: string): Promise<void> {
-    return favorites.setComment(this.#session, type, id, content);
+    return parsed(favorites.setComment(this.#session, type, id, content));
   }
 
   /**
    * Get comments. (我的备注)
-   * If `courseID` or `type` is specified, only return favorites of that course or type.
+   * If `courseID` or `type` is specified, only return comments of that course or type.
    */
   public async getComments(courseID?: string, type?: ContentType): Promise<CommentItem[]> {
-    return favorites.getComments(this.#session, courseID, type);
+    return parsed(favorites.getComments(this.#session, courseID, type));
   }
 
   public async sortCourses(courseIDs: string[]): Promise<void> {
-    return courses.sortCourses(this.#session, courseIDs);
+    return parsed(courses.sortCourses(this.#session, courseIDs));
   }
 
   /**
@@ -360,7 +360,7 @@ export class Learn2018Helper {
     attachment?: HomeworkSubmitAttachment,
     removeAttachment = false,
   ): Promise<void> {
-    return homework.submitHomework(this.#session, id, content, attachment, removeAttachment);
+    return parsed(homework.submitHomework(this.#session, id, content, attachment, removeAttachment));
   }
 
   /**
@@ -374,11 +374,11 @@ export class Learn2018Helper {
     attachment?: HomeworkSubmitAttachment,
     removeAttachment = false,
   ): Promise<HomeworkSubmitRequest> {
-    return homework.getHomeworkSubmitRequest(this.#session, id, content, attachment, removeAttachment);
+    return parsed(homework.getHomeworkSubmitRequest(this.#session, id, content, attachment, removeAttachment));
   }
 
   public async setLanguage(lang: Language): Promise<void> {
-    return user.setLanguage(this.#session, lang);
+    return parsed(user.setLanguage(this.#session, lang));
   }
 
   public getCurrentLanguage(): Language {
