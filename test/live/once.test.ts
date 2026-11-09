@@ -38,6 +38,25 @@ const favoriteTypes: OnceTest = {
 
 const fileFavoriteField: OnceTest = { name: 'file-favorite-field', covers: ['src/files.ts'], maxPerDay: 2 };
 
+const fileSeen: OnceTest = { name: 'file-seen', covers: ['src/files.ts', 'src/urls.ts'], maxPerDay: 2 };
+
+/**
+ * What the website calls when a student opens a course file (from its scripts, `play.js` and the file list's
+ * `download_kj`): the preview check `GET /b/kc/wj_wjb/student/beforePlay` (answers the player URL), the download
+ * check `GET /b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore` before `downloadFile`, and the preview page itself.
+ */
+const FILE_SEEN_CANDIDATES: { name: string; url: (wjid: string, previewUrl: string) => string }[] = [
+  {
+    name: 'preview check (b/kc/wj_wjb/student/beforePlay)',
+    url: (wjid) => `${URLS.LEARN_PREFIX}/b/kc/wj_wjb/student/beforePlay?wjid=${wjid}&mk=mk_kcwj&sfgk=0`,
+  },
+  {
+    name: 'download check (downloadFileBefore)',
+    url: (wjid) => `${URLS.LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore?wjid=${wjid}`,
+  },
+  { name: 'preview page (previewUrl)', url: (_, previewUrl) => previewUrl },
+];
+
 const submission: OnceTest = {
   name: 'submission',
   covers: ['src/homework.ts', 'src/urls.ts', 'src/request.ts'],
@@ -49,6 +68,25 @@ const submission: OnceTest = {
  * automatically, since a submission can't be taken back: name one whose owner agreed to it, ungraded and still open.
  */
 const SUBMIT_HOMEWORK = process.env.SUBMIT_HOMEWORK;
+
+/** the shape of an answer, without account data: status, type, and `result` / `msg` / object keys if JSON */
+const describeAnswer = async (res: Response) => {
+  const type = res.headers.get('content-type') ?? '';
+  const text = await res.text();
+  let body = `${text.length} chars`;
+  if (type.includes('json') || text.trimStart().startsWith('{')) {
+    try {
+      const json = JSON.parse(text);
+      const obj = json.object;
+      body = `result ${JSON.stringify(json.result)}, msg ${JSON.stringify(json.msg)}, object ${
+        obj && typeof obj === 'object' ? `{${Object.keys(obj).toSorted().join(', ')}}` : JSON.stringify(obj)
+      }`;
+    } catch {
+      // not JSON after all
+    }
+  }
+  return `HTTP ${res.status} ${type.split(';')[0]}, ${body}`;
+};
 
 /** the keys of `after` whose values differ from `before`, and keys only one of them has */
 const changedKeys = (before: Record<string, unknown>, after: Record<string, unknown>) =>
@@ -392,6 +430,77 @@ describe('one-time checks', () => {
       recordResult(fileFavoriteField.name, findings.join('; '));
       expect(left).toBe(false);
       recordPass(fileFavoriteField, findings.join('; '));
+    },
+  );
+
+  it.runIf(shouldRun(fileSeen))(
+    'records which request the website makes when a file is opened marks it seen',
+    { retry: 0, timeout: 180_000 },
+    async () => {
+      recordAttempt(fileSeen.name);
+      const cookieJar = new CookieJar();
+      const h = new Learn2018Helper({ ...config, cookieJar });
+      await h.login();
+      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
+      const withToken = (url: string) => {
+        const u = new URL(url);
+        u.searchParams.set('_csrf', h.getCSRFToken());
+        return u.href;
+      };
+      /** the raw rows of a course's student file list, by `kjxxid` */
+      const rawRows = async (courseID: string) => {
+        const json = await (await raw(withToken(URLS.LEARN_FILE_LIST(courseID, CourseType.STUDENT)))).json();
+        return new Map<string, Record<string, unknown>>(
+          ((json.object ?? []) as Record<string, unknown>[]).map((r) => [r.kjxxid as string, r]),
+        );
+      };
+      // every new file of the current semester, so each candidate gets a file of its own when there are enough
+      const newFiles: { courseID: string; id: string; fileId: string; previewUrl: string }[] = [];
+      for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
+        for (const f of await h.getFileList(c.id))
+          if (f.isNew) newFiles.push({ courseID: c.id, id: f.id, fileId: f.fileId, previewUrl: f.previewUrl });
+      }
+      if (newFiles.length === 0) {
+        recordResult(fileSeen.name, 'no new file to try');
+        return;
+      }
+
+      const findings: string[] = [`${newFiles.length} new files`];
+      let marked: string | undefined;
+      for (const candidate of FILE_SEEN_CANDIDATES) {
+        // a file still new: the next unused one, or the last one tried when it didn't flip
+        const target = newFiles.shift();
+        if (!target) {
+          findings.push(`${candidate.name}: no new file left to try`);
+          continue;
+        }
+        const before = await rawRows(target.courseID);
+        const res = await raw(withToken(candidate.url(target.fileId, target.previewUrl)));
+        const answer = await describeAnswer(res);
+        const after = await rawRows(target.courseID);
+        const row = { before: before.get(target.id)!, after: after.get(target.id)! };
+        const changed = changedKeys(row.before, row.after);
+        const othersChanged = [...before.keys()].filter(
+          (id) => id !== target.id && JSON.stringify(before.get(id)?.isNew) !== JSON.stringify(after.get(id)?.isNew),
+        );
+        const flipped = !!row.after && row.before.isNew !== row.after.isNew && !Number(row.after.isNew);
+        findings.push(
+          `${candidate.name}: ${answer}; ${flipped ? 'marks it seen' : 'does not mark it seen'}; row keys changed: ${
+            changed
+              .map((k) => `${k} ${JSON.stringify(row.before[k])} -> ${JSON.stringify(row.after?.[k])}`)
+              .join(', ') || 'none'
+          }${othersChanged.length ? `; ${othersChanged.length} other files changed isNew` : ''}`,
+        );
+        if (flipped) marked ??= candidate.name;
+        // reuse a file the candidate didn't mark when no other is left
+        else if (newFiles.length === 0) newFiles.push(target);
+      }
+
+      await h.logout();
+      const result = `${marked ? `marked seen by: ${marked}` : 'none marked it seen'}; ${findings.join('; ')}`;
+      recordResult(fileSeen.name, result);
+      console.log(`[once] file-seen: ${result}`);
+      recordPass(fileSeen, result);
     },
   );
 
