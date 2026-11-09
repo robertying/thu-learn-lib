@@ -21,10 +21,6 @@ The request layer and on-demand details (v5) have only been tested offline (`tes
 nobody had a real account at the time. The live tests (`test/live/`) cover these; run `pnpm test:live` and fix
 whatever it finds:
 
-- How an expired session answers a JSON request and an HTML page: a 403, a redirect to `login_timeout`, or a 200
-  page. The "records how the server answers an expired session" test in `authentication.test.ts` prints it. The library assumes all three are possible and treats a
-  short 200 page that mentions `login_timeout` or the SSO login (`looksLikeLoginPage` in `src/request.ts`) as expired.
-  Adjust that heuristic and the fake server's `expiry` modes to what the server really does.
 - `ensureSession()` resumes a saved CSRF token and cookies without SSO, and logs in again when the session expired.
 - A wrong password answers the SSO check with a page that has no ticket link (`BAD_CREDENTIAL`), not an error status.
 - On-demand details match the old eager ones (homework, excellent homework, notice attachments, course time/location).

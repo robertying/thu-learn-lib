@@ -2,6 +2,9 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { ContentType, CourseType, Language, Learn2018Helper } from '../../src/index.ts';
 import { config } from './config.ts';
 
+// the server gives image links in descriptions a new random `videoVersion` each time it sends a page
+const withoutVideoVersion = (text?: string) => text?.replace(/videoVersion=\d+/g, 'videoVersion=');
+
 describe('helper data retrieval', () => {
   const h = new Learn2018Helper(config);
 
@@ -108,8 +111,9 @@ describe('helper data retrieval', () => {
     const detailed = await h.getHomeworkList(courseTester, undefined, { details: 'all' });
     expect(detailed.map((hw) => hw.id)).toEqual(plain.map((hw) => hw.id));
     for (const [i, hw] of plain.entries()) {
-      expect(await h.getHomeworkDetail(hw)).toEqual({
-        description: detailed[i].description,
+      const detail = await h.getHomeworkDetail(hw);
+      expect({ ...detail, description: withoutVideoVersion(detail.description) }).toEqual({
+        description: withoutVideoVersion(detailed[i].description),
         attachment: detailed[i].attachment,
         answerContent: detailed[i].answerContent,
         answerAttachment: detailed[i].answerAttachment,
