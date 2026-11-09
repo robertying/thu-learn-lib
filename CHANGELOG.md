@@ -23,6 +23,7 @@
   - The website language is read from the real homepage, so `getCurrentLanguage()` is right after `login` when the website is in English
   - `setLanguage` rejects with `OPERATION_FAILED` when the server refuses, instead of changing the language anyway
   - `getFileList` fetches the file list and categories in parallel
+  - Upgrade cheerio to 1.2.0, tough-cookie to 6.1.0, fetch-cookie to 3.2.0 and entities to 9.0.0; `@types/tough-cookie` is no longer needed, as tough-cookie ships its own types
   - CI also tests on Node 22
   - A wrong password is recognised by the SSO login form coming back; other pages without the ticket link (a second factor, a locked account, maintenance) reject with `ERROR_FETCH_FROM_ID` instead of `BAD_CREDENTIAL`, and the ticket is read from the roaming link rather than from the first link on the page
   - After a `CredentialProvider` login is turned down with `BAD_CREDENTIAL`, automatic re-logins (an expired session, `ensureSession`) reject with it without asking id.tsinghua.edu.cn again, until the next explicit `login`

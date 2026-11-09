@@ -1,5 +1,4 @@
 import * as cheerio from 'cheerio';
-import type { Element } from 'cheerio';
 import fetchCookie from 'fetch-cookie';
 import { fetch } from 'node-fetch-native';
 import { CookieJar } from 'tough-cookie';
@@ -9,7 +8,10 @@ import { FailReason, Language } from './types.ts';
 
 const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
 
-export const $ = (html: string | Element | Element[]): cheerio.CheerioAPI => {
+/** a DOM element as cheerio's selections hold it (domhandler's `Element`, taken from cheerio's types so it always matches) */
+export type Element = ReturnType<ReturnType<cheerio.CheerioAPI['root']>['children']>[number];
+
+export const $ = (html: Parameters<typeof cheerio.load>[0]): cheerio.CheerioAPI => {
   return cheerio.load(html, CHEERIO_CONFIG);
 };
 

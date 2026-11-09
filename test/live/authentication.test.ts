@@ -18,10 +18,13 @@ const unreachable = (host: string, cookieJar = new CookieJar()): Fetch => {
 
 /** the cookie jar without the cookies of `domain` (and its subdomains) */
 const withoutCookiesOf = (cookieJar: CookieJar, domain: string) => {
-  const data = cookieJar.serializeSync();
+  // the default in-memory store is synchronous, so serializeSync always returns the jar
+  const data = cookieJar.serializeSync()!;
   return CookieJar.deserializeSync({
     ...data,
-    cookies: data.cookies.filter((c) => !(c.domain === domain || c.domain?.endsWith(`.${domain}`))),
+    cookies: data.cookies.filter(
+      (c) => !(c.domain === domain || (typeof c.domain === 'string' && c.domain.endsWith(`.${domain}`))),
+    ),
   });
 };
 

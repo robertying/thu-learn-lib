@@ -1,25 +1,9 @@
 # TODO
 
-## Dependency upgrades
-
-Several runtime dependencies are pinned to old versions on purpose: upgrading them broke the library before, and the
-offline tests can't show whether the real server still works. Upgrade them one at a time, each with a full
-`pnpm test:live` run against a real account.
-
-| Package        | Pinned        | Latest (2026-11) | Notes                                                                                                                                                                          |
-| -------------- | ------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cheerio`      | `1.0.0-rc.12` | 1.2.0            | Parses every HTML page (homework, notice detail, SSO). 1.x changed the default parser and `load` options; check `CHEERIO_CONFIG` (`xml: true`) still gives the same selectors. |
-| `tough-cookie` | `4.1.4`       | 6.1.0            | Cookie jar for SSO and roaming. Major versions changed the API to promises / ESM; must stay compatible with `fetch-cookie`.                                                    |
-| `fetch-cookie` | `3.0.1`       | 3.2.0            | Handles redirects itself during SSO; check the roaming redirect chain and `Response.url` (used to spot `login_timeout`).                                                       |
-| `entities`     | `^8.1.0`      | 9.0.0            | `decodeHTML` for titles and descriptions.                                                                                                                                      |
-
-Other dependencies (`js-base64`, `sm-crypto`, `node-fetch-native`) are on their latest versions.
-
 ## Check against the real server
 
-- Not run yet: the live tests added with `NETWORK_ERROR`, the registrar re-login, the timetable helpers and the
-  submit request (`pnpm test:live`, read-only), and the `submission` one-time check (`LIVE_ONCE=submission
-  LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm test:live test/live/once.test.ts`, only with the account owner's OK).
+- Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
+  test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
   check it in learnX.
 

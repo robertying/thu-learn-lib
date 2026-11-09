@@ -1,9 +1,8 @@
 // Homework (课程作业), excellent homework and homework submission.
 
-import type { Element } from 'cheerio';
 import { Base64 } from 'js-base64';
 
-import type { Session } from './request.ts';
+import type { Element, Session } from './request.ts';
 import { $, YES, addCSRFTokenToUrl, looksLikeLoginPage } from './request.ts';
 import type {
   ApiError,
