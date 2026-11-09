@@ -1,7 +1,7 @@
 import { sm2 } from 'sm-crypto';
 
 import type { Fetch, HelperConfig } from '../../src/index.ts';
-import { Learn2018Helper } from '../../src/index.ts';
+import { CourseType, Learn2018Helper } from '../../src/index.ts';
 import * as URLS from '../../src/urls.ts';
 import { urlOf } from '../../src/utils.ts';
 
@@ -90,7 +90,7 @@ export class FakeServer {
   constructor() {
     this.on(
       'GET',
-      URLS.ID_LOGIN(),
+      URLS.ID_LOGIN,
       () => {
         this.#ssoInProgress += 1;
         this.maxConcurrentSso = Math.max(this.maxConcurrentSso, this.#ssoInProgress);
@@ -100,7 +100,7 @@ export class FakeServer {
     );
     this.on(
       'POST',
-      URLS.ID_LOGIN_CHECK(),
+      URLS.ID_LOGIN_CHECK,
       (req) => {
         const user = field(req, 'i_user');
         const pass = field(req, 'i_pass');
@@ -129,7 +129,7 @@ export class FakeServer {
     );
     this.on(
       'GET',
-      URLS.LEARN_STUDENT_COURSE_LIST_PAGE(),
+      URLS.LEARN_HOMEPAGE(CourseType.STUDENT),
       () =>
         html(
           [
@@ -147,7 +147,7 @@ export class FakeServer {
     );
     this.on(
       'POST',
-      URLS.LEARN_LOGOUT(),
+      URLS.LEARN_LOGOUT,
       () => {
         this.#loggedIn = false;
         return html('');

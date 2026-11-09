@@ -34,6 +34,13 @@ import {
   trimAndDefine,
 } from './utils.ts';
 
+/** the student homework lists, by submission status */
+export const HOMEWORK_LIST_SOURCES: readonly { url: string; status: IHomeworkStatus }[] = [
+  { url: URLS.LEARN_HOMEWORK_LIST_NEW, status: { submitted: false, graded: false } },
+  { url: URLS.LEARN_HOMEWORK_LIST_SUBMITTED, status: { submitted: true, graded: false } },
+  { url: URLS.LEARN_HOMEWORK_LIST_GRADED, status: { submitted: true, graded: true } },
+];
+
 /**
  * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.
  * Details (page + description) only for the homework `options.details` selects.
@@ -84,9 +91,7 @@ export async function getHomeworkList(
     );
   } else {
     const [lists, excellentHomeworkListByHomework] = await Promise.all([
-      Promise.all(
-        URLS.LEARN_HOMEWORK_LIST_SOURCE.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status)),
-      ),
+      Promise.all(HOMEWORK_LIST_SOURCES.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status))),
       // a failed excellent homework list doesn't fail the homework list: its items get `excellentHomeworkList: undefined`
       getExcellentHomeworkListByHomework(s, courseID).catch(() => undefined),
     ]);
@@ -256,9 +261,9 @@ export async function submitHomework(
   attachment?: IHomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<void> {
-  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT(), {
+  const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT, {
     method: 'POST',
-    body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
+    body: homeworkSubmitForm(id, content, attachment, removeAttachment),
     // the response only starts after the whole upload, which can take longer than `requestTimeout`
     timeout: attachment ? 0 : undefined,
   });
@@ -277,10 +282,10 @@ export async function getHomeworkSubmitRequest(
   attachment?: IHomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<HomeworkSubmitRequest> {
-  await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER());
+  await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
   return {
-    url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT(), s.csrfToken),
-    body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
+    url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT, s.csrfToken),
+    body: homeworkSubmitForm(id, content, attachment, removeAttachment),
   };
 }
 
@@ -304,6 +309,33 @@ export function checkHomeworkSubmitResponse(body: unknown): void {
   }
   expectSuccess(json, FailReason.OPERATION_FAILED);
 }
+
+/**
+ * The form the website's submit page sends (`fileUploadProgress` in `/res/js/common/myApp.js`): `fileupload` is the
+ * picked file, or the text "undefined" when none is picked (it appends `files[0]` as is); `zynr` is the whole current
+ * answer as HTML from its editor, sent every time (also when only the attachment changes); `isDeleted` is "1" when the
+ * existing attachment is deleted, and then the server ignores `zynr` (the submitted answer stays).
+ */
+export const homeworkSubmitForm = (
+  id: string,
+  content = '',
+  attachment?: IHomeworkSubmitAttachment,
+  removeAttachment = false,
+) => {
+  const form = new FormData();
+  form.append('xszyid', id);
+  form.append('zynr', content ?? '');
+  if (!attachment) form.append('fileupload', 'undefined');
+  else if (attachment.content instanceof Blob) form.append('fileupload', attachment.content, attachment.filename);
+  else {
+    // React Native's FormData reads a file from an object with its uri, name and type
+    const { uri, type } = attachment.content;
+    form.append('fileupload', { uri, name: attachment.filename, type: type || 'application/octet-stream' } as any);
+  }
+  if (removeAttachment) form.append('isDeleted', '1');
+  else form.append('isDeleted', '0');
+  return form;
+};
 
 const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 

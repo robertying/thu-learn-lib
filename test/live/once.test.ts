@@ -13,6 +13,7 @@ import {
   checkHomeworkSubmitResponse,
   homeworkContentHtml,
 } from '../../src/index.ts';
+import { HOMEWORK_LIST_SOURCES } from '../../src/homework.ts';
 import * as URLS from '../../src/urls.ts';
 import { FINGERPRINT, config } from './config.ts';
 import { ALLOW_WRITES } from './guard.ts';
@@ -137,7 +138,7 @@ describe('one-time checks', () => {
       /** the raw homework rows of a course in every student list, by `xszyid` */
       const rawRows = async (courseID: string) => {
         const rows = new Map<string, { list: string; row: Record<string, unknown> }>();
-        for (const { url } of URLS.LEARN_HOMEWORK_LIST_SOURCE) {
+        for (const { url } of HOMEWORK_LIST_SOURCES) {
           const u = new URL(url);
           u.searchParams.set('_csrf', h.getCSRFToken());
           const json = await (

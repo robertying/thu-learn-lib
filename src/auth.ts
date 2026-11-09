@@ -4,7 +4,7 @@ import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
 import { discard, isConnectionError } from './request.ts';
-import { FailReason, Language } from './types.ts';
+import { CourseType, FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
 import { $, apiError } from './utils.ts';
 
@@ -33,7 +33,7 @@ export async function getRoamingTicket(
 
   let page: string;
   try {
-    const loginForm = await s.rawFetch(URLS.ID_LOGIN());
+    const loginForm = await s.rawFetch(URLS.ID_LOGIN);
     const body = $(await loginForm.text());
     const sm2publicKey = body('#sm2publicKey').text().trim();
 
@@ -45,7 +45,7 @@ export async function getRoamingTicket(
     formData.append('fingerGenPrint', fingerGenPrint ?? '');
     formData.append('fingerGenPrint3', fingerGenPrint3 ?? '');
     formData.append('i_captcha', '');
-    const checkResponse = await s.rawFetch(URLS.ID_LOGIN_CHECK(), {
+    const checkResponse = await s.rawFetch(URLS.ID_LOGIN_CHECK, {
       method: 'POST',
       body: formData,
     });
@@ -118,7 +118,7 @@ export async function login(
   if (!loginResponse.ok) {
     throw apiError(FailReason.ERROR_ROAMING);
   }
-  const courseListPageSource: string = await (await s.rawFetch(URLS.LEARN_STUDENT_COURSE_LIST_PAGE())).text();
+  const courseListPageSource: string = await (await s.rawFetch(URLS.LEARN_HOMEPAGE(CourseType.STUDENT))).text();
   const tokenRegex = /^.*&_csrf=(\S*)".*$/gm;
   const tokenMatches = [...courseListPageSource.matchAll(tokenRegex)];
   if (tokenMatches.length === 0) {
@@ -133,6 +133,6 @@ export async function login(
 
 /**  logout (to make everyone happy); the CSRF token is cleared, so the next request logs in again */
 export async function logout(s: Session): Promise<void> {
-  discard(await s.rawFetch(URLS.LEARN_LOGOUT(), { method: 'POST' }));
+  discard(await s.rawFetch(URLS.LEARN_LOGOUT, { method: 'POST' }));
   s.csrfToken = '';
 }

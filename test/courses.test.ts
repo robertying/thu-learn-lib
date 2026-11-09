@@ -18,19 +18,19 @@ const course = (id: string, overrides: Record<string, unknown> = {}) => ({
 
 describe('semesters', () => {
   it('drops null semester ids', async () => {
-    const server = new FakeServer().on('GET', URLS.LEARN_SEMESTER_LIST(), () => json(['2024-2025-1', null]));
+    const server = new FakeServer().on('GET', URLS.LEARN_SEMESTER_LIST, () => json(['2024-2025-1', null]));
     const helper = await server.loggedInHelper();
     expect(await helper.getSemesterIdList()).toEqual(['2024-2025-1']);
   });
 
   it('rejects a non-array semester list with INVALID_RESPONSE', async () => {
-    const server = new FakeServer().on('GET', URLS.LEARN_SEMESTER_LIST(), () => json({ message: 'error' }));
+    const server = new FakeServer().on('GET', URLS.LEARN_SEMESTER_LIST, () => json({ message: 'error' }));
     const helper = await server.loggedInHelper();
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
   });
 
   it('parses the current semester', async () => {
-    const server = new FakeServer().on('GET', URLS.LEARN_CURRENT_SEMESTER(), () =>
+    const server = new FakeServer().on('GET', URLS.LEARN_CURRENT_SEMESTER, () =>
       json({
         message: 'success',
         result: { id: '2024-2025-2', kssj: '2025-02-17', jssj: '2025-06-15', xnxq: '2024-2025-2' },

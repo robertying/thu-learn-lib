@@ -7,7 +7,7 @@ import * as URLS from './urls.ts';
 import { apiError, decodeHTML, expectSuccess, parseSemesterType } from './utils.ts';
 
 export async function getSemesterIdList(s: Session): Promise<string[]> {
-  const json = await s.fetchJsonWithToken(URLS.LEARN_SEMESTER_LIST());
+  const json = await s.fetchJsonWithToken(URLS.LEARN_SEMESTER_LIST);
   if (!Array.isArray(json)) {
     throw apiError(FailReason.INVALID_RESPONSE, json);
   }
@@ -17,7 +17,7 @@ export async function getSemesterIdList(s: Session): Promise<string[]> {
 }
 
 export async function getCurrentSemester(s: Session): Promise<SemesterInfo> {
-  const json = await s.fetchJsonWithToken(URLS.LEARN_CURRENT_SEMESTER());
+  const json = await s.fetchJsonWithToken(URLS.LEARN_CURRENT_SEMESTER);
   if (json.message !== 'success') {
     throw apiError(FailReason.INVALID_RESPONSE, json);
   }

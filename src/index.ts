@@ -116,7 +116,7 @@ export class Learn2018Helper {
    * Use it when resuming an app instead of `login()`.
    */
   public async ensureSession(): Promise<void> {
-    return this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER());
+    return this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
   }
 
   /**  logout (to make everyone happy) */

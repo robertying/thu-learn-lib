@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { FailReason, Language } from '../src/index.ts';
+import { CourseType, FailReason, Language } from '../src/index.ts';
 import { isConnectionError, withNetworkError, withTimeout } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
 import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, html, json } from './helpers/fake-server.ts';
 
 const semesters = (server: FakeServer) =>
-  server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => json(['2024-2025-1', null, '2024-2025-2']));
+  server.on('GET', URLS.LEARN_SEMESTER_LIST, () => json(['2024-2025-1', null, '2024-2025-2']));
 
 describe('login', () => {
   it('logs in through SSO and reads the CSRF token and language', async () => {
@@ -21,10 +21,10 @@ describe('login', () => {
     expect(server.loginCount).toBe(1);
     // login form, credential check, roaming, course page for the token
     expect(server.requests.map((r) => `${r.method} ${r.path}`)).toEqual([
-      `GET ${URLS.ID_LOGIN()}`,
-      `POST ${URLS.ID_LOGIN_CHECK()}`,
+      `GET ${URLS.ID_LOGIN}`,
+      `POST ${URLS.ID_LOGIN_CHECK}`,
       `GET ${URLS.LEARN_AUTH_ROAM('').split('?')[0]}`,
-      `GET ${URLS.LEARN_STUDENT_COURSE_LIST_PAGE()}`,
+      `GET ${URLS.LEARN_HOMEPAGE(CourseType.STUDENT)}`,
     ]);
     // the password is SM2-encrypted, never sent in clear
     const form = server.requests[1].form!;
@@ -67,7 +67,7 @@ describe('login', () => {
   it('takes the ticket from the roaming link, not from the first link on the page', async () => {
     const server = new FakeServer().on(
       'POST',
-      URLS.ID_LOGIN_CHECK(),
+      URLS.ID_LOGIN_CHECK,
       () =>
         html(
           `<html><body><a href="/f/recovery/password/reset">reset</a><a href="${URLS.LEARN_AUTH_ROAM('ticket-1')}&x=y">go</a></body></html>`,
@@ -80,7 +80,7 @@ describe('login', () => {
 
   it('rejects with ERROR_FETCH_FROM_ID, not BAD_CREDENTIAL, for a page that is neither the ticket nor the login form', async () => {
     const page = '<html><body><p>请完成二次认证</p><a href="/f/help">help</a><script>var x = 1;</script></body></html>';
-    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => html(page), { public: true });
+    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => html(page), { public: true });
     await expect(server.helper().login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toEqual({
       reason: FailReason.ERROR_FETCH_FROM_ID,
       extra: '请完成二次认证help',
@@ -88,7 +88,7 @@ describe('login', () => {
   });
 
   it('rejects with ERROR_FETCH_FROM_ID when the SSO server answers with an error', async () => {
-    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => new Response('', { status: 502 }), {
+    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => new Response('', { status: 502 }), {
       public: true,
     });
     await expect(server.helper().login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
@@ -107,7 +107,7 @@ describe('login', () => {
   });
 
   it('rejects with REQUEST_TIMEOUT, not ERROR_FETCH_FROM_ID, when the SSO server does not answer in time', async () => {
-    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => new Promise<Response>(() => {}), {
+    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => new Promise<Response>(() => {}), {
       public: true,
     });
     await expect(server.helper({ requestTimeout: 20 }).login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
@@ -134,13 +134,13 @@ describe('login', () => {
     const server = semesters(new FakeServer());
     const helper = await server.loggedInHelper();
     await helper.logout();
-    expect(server.count(URLS.LEARN_LOGOUT(), 'POST')).toBe(1);
+    expect(server.count(URLS.LEARN_LOGOUT, 'POST')).toBe(1);
     expect(helper.getCSRFToken()).toBe('');
 
     // the next request logs in first instead of sending the old token
     await helper.getSemesterIdList();
     expect(server.loginCount).toBe(2);
-    expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(1);
+    expect(server.count(URLS.LEARN_SEMESTER_LIST)).toBe(1);
   });
 });
 
@@ -151,7 +151,7 @@ describe('CSRF token', () => {
 
     expect(await helper.getSemesterIdList()).toEqual(['2024-2025-1', '2024-2025-2']);
     expect(server.loginCount).toBe(1);
-    const request = server.requests.find((r) => r.path === URLS.LEARN_SEMESTER_LIST())!;
+    const request = server.requests.find((r) => r.path === URLS.LEARN_SEMESTER_LIST)!;
     expect(request.url.searchParams.get('_csrf')).toBe('csrf-1');
   });
 
@@ -175,7 +175,7 @@ describe('expired session', () => {
 
     expect(await helper.getSemesterIdList()).toHaveLength(2);
     expect(server.loginCount).toBe(2);
-    expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(2);
+    expect(server.count(URLS.LEARN_SEMESTER_LIST)).toBe(2);
   });
 
   it('rejects with NOT_LOGGED_IN without a CredentialProvider', async () => {
@@ -196,7 +196,7 @@ describe('expired session', () => {
     await Promise.all([helper.getSemesterIdList(), helper.getSemesterIdList(), helper.getSemesterIdList()]);
     expect(server.loginCount).toBe(2);
     // 3 rejected + 3 retried
-    expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(6);
+    expect(server.count(URLS.LEARN_SEMESTER_LIST)).toBe(6);
   });
 
   it('does not log in again for a request that failed after another request renewed the session', async () => {
@@ -207,7 +207,7 @@ describe('expired session', () => {
     // answers its first call with 403 (sent with the old session), but only after the gate opens
     server.on(
       'GET',
-      URLS.LEARN_CURRENT_SEMESTER(),
+      URLS.LEARN_CURRENT_SEMESTER,
       async () => {
         slowCalls += 1;
         if (slowCalls === 1) {
@@ -237,7 +237,7 @@ describe('expired session', () => {
 
     await helper.getSemesterIdList();
     const tokens = server.requests
-      .filter((r) => r.path === URLS.LEARN_SEMESTER_LIST())
+      .filter((r) => r.path === URLS.LEARN_SEMESTER_LIST)
       .map((r) => r.url.searchParams.get('_csrf'));
     expect(tokens).toEqual(['csrf-1', 'csrf-2']);
     expect(helper.getCSRFToken()).toBe('csrf-2');
@@ -270,7 +270,7 @@ describe('expired session', () => {
 });
 
 const current = (server: FakeServer) =>
-  server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () =>
+  server.on('GET', URLS.LEARN_CURRENT_SEMESTER, () =>
     json({ message: 'success', result: { id: '2024-2025-1', kssj: '', jssj: '', xnxq: '2024-2025-1' } }),
   );
 
@@ -281,7 +281,7 @@ describe('ensureSession', () => {
 
     await helper.ensureSession();
     expect(server.loginCount).toBe(1);
-    expect(server.requests.map((r) => r.path)).toEqual([URLS.LEARN_CURRENT_SEMESTER()]);
+    expect(server.requests.map((r) => r.path)).toEqual([URLS.LEARN_CURRENT_SEMESTER]);
   });
 
   it('reuses a saved CSRF token and cookies without SSO', async () => {
@@ -310,7 +310,7 @@ describe('ensureSession', () => {
 
     await helper.ensureSession();
     expect(server.loginCount).toBe(1);
-    expect(server.count(URLS.LEARN_CURRENT_SEMESTER())).toBe(0);
+    expect(server.count(URLS.LEARN_CURRENT_SEMESTER)).toBe(0);
   });
 });
 
@@ -321,7 +321,7 @@ describe('request limits', () => {
     server.latency = 5;
 
     await Promise.all(Array.from({ length: 10 }, () => helper.getSemesterIdList()));
-    expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(10);
+    expect(server.count(URLS.LEARN_SEMESTER_LIST)).toBe(10);
     expect(server.maxInFlight).toBe(3);
   });
 
@@ -360,7 +360,7 @@ describe('request limits', () => {
 
   it('rejects with REQUEST_TIMEOUT when the server does not answer in time', async () => {
     const server = new FakeServer();
-    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => new Promise<Response>(() => {}));
+    server.on('GET', URLS.LEARN_SEMESTER_LIST, () => new Promise<Response>(() => {}));
     const helper = await server.loggedInHelper({ requestTimeout: 20 });
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
@@ -378,12 +378,12 @@ describe('expired sessions that are not a 403', () => {
 
       expect(await helper.getSemesterIdList()).toEqual(['2024-2025-1', '2024-2025-2']);
       expect(server.loginCount).toBe(2);
-      expect(server.count(URLS.LEARN_SEMESTER_LIST())).toBe(2);
+      expect(server.count(URLS.LEARN_SEMESTER_LIST)).toBe(2);
     });
 
     it(`ensureSession logs in again for a ${expiry} answer`, async () => {
       const server = new FakeServer();
-      server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () => json({ message: 'success', result: {} }));
+      server.on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'success', result: {} }));
       const helper = await server.loggedInHelper();
       server.expiry = expiry;
       server.expireSession();
@@ -406,7 +406,7 @@ describe('expired sessions that are not a 403', () => {
 
   it('rejects with NOT_LOGGED_IN when the page is still the login page after logging in again', async () => {
     const server = new FakeServer();
-    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => html('<html><title>登录超时</title></html>'));
+    server.on('GET', URLS.LEARN_SEMESTER_LIST, () => html('<html><title>登录超时</title></html>'));
     const helper = await server.loggedInHelper();
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
@@ -415,7 +415,7 @@ describe('expired sessions that are not a 403', () => {
 
   it('rejects with INVALID_RESPONSE and does not log in again for another 200 HTML page', async () => {
     const server = new FakeServer();
-    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => html('<html><body>系统维护中</body></html>'));
+    server.on('GET', URLS.LEARN_SEMESTER_LIST, () => html('<html><body>系统维护中</body></html>'));
     const helper = await server.loggedInHelper();
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
@@ -445,13 +445,13 @@ describe('expired sessions that are not a 403', () => {
       server.expireSession();
       await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
       // the provider still has the old password: one more SSO check for it, then it is remembered again
-      expect(server.count(URLS.ID_LOGIN_CHECK(), 'POST')).toBe(4);
+      expect(server.count(URLS.ID_LOGIN_CHECK, 'POST')).toBe(4);
     });
   });
 
   it('does not log in again for an error page with another status', async () => {
     const server = new FakeServer();
-    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => new Response('<html>oops</html>', { status: 500 }));
+    server.on('GET', URLS.LEARN_SEMESTER_LIST, () => new Response('<html>oops</html>', { status: 500 }));
     const helper = await server.loggedInHelper();
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.UNEXPECTED_STATUS);
@@ -460,7 +460,7 @@ describe('expired sessions that are not a 403', () => {
 
   it('ensureSession rejects with INVALID_RESPONSE when the probe is not a success', async () => {
     const server = new FakeServer();
-    server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () => json({ message: 'error' }));
+    server.on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'error' }));
     const helper = await server.loggedInHelper();
 
     await expect(helper.ensureSession()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
@@ -470,14 +470,14 @@ describe('expired sessions that are not a 403', () => {
 /** a helper whose provider login was turned down with BAD_CREDENTIAL after the password changed */
 const turnedDown = async () => {
   const server = semesters(new FakeServer());
-  server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () => json({ message: 'success', result: {} }));
+  server.on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'success', result: {} }));
   let password = PASSWORD;
   const helper = server.helper({ provider: () => ({ ...credential, password }) });
   await helper.login();
   password = 'changed on the website';
   server.expireSession();
   await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
-  const checks = () => server.count(URLS.ID_LOGIN_CHECK(), 'POST');
+  const checks = () => server.count(URLS.ID_LOGIN_CHECK, 'POST');
   expect(checks()).toBe(2);
   return { server, helper, checks, setPassword: (p: string) => (password = p) };
 };

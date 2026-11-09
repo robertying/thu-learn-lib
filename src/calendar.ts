@@ -120,7 +120,7 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
  */
 async function signInToRegistrar(s: Session): Promise<void> {
   const signIn = async () => {
-    const ticket = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET(), {
+    const ticket = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET, {
       method: 'POST',
       body: URLS.REGISTRAR_TICKET_FORM_DATA(),
     });
