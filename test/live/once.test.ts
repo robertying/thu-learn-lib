@@ -4,7 +4,15 @@ import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
 import type { Fetch } from '../../src/index.ts';
-import { ContentType, CourseType, FailReason, Learn2018Helper } from '../../src/index.ts';
+import type { Homework, IHomeworkDetail } from '../../src/index.ts';
+import {
+  ContentType,
+  CourseType,
+  FailReason,
+  Learn2018Helper,
+  checkHomeworkSubmitResponse,
+  homeworkContentHtml,
+} from '../../src/index.ts';
 import * as URLS from '../../src/urls.ts';
 import { FINGERPRINT, config } from './config.ts';
 import { ALLOW_WRITES } from './guard.ts';
@@ -20,6 +28,18 @@ const readMark: OnceTest = {
 };
 
 const favorite: OnceTest = { name: 'favorite', covers: ['src/favorites.ts', 'src/homework.ts'], maxPerDay: 1 };
+
+const submission: OnceTest = {
+  name: 'submission',
+  covers: ['src/homework.ts', 'src/urls.ts', 'src/request.ts'],
+  maxPerDay: 1,
+};
+
+/**
+ * The homework the submission check may submit to: its `studentHomeworkId` (or homework id). Never picked
+ * automatically, since a submission can't be taken back: name one whose owner agreed to it, ungraded and still open.
+ */
+const SUBMIT_HOMEWORK = process.env.SUBMIT_HOMEWORK;
 
 /** the keys of `after` whose values differ from `before`, and keys only one of them has */
 const changedKeys = (before: Record<string, unknown>, after: Record<string, unknown>) =>
@@ -183,6 +203,95 @@ describe('one-time checks', () => {
       recordResult(favorite.name, findings.join('; '));
       expect(left).toBe(false);
       recordPass(favorite, findings.join('; '));
+    },
+  );
+
+  it.runIf(ALLOW_WRITES && !!SUBMIT_HOMEWORK && shouldRun(submission))(
+    'submits homework through both APIs, removes and replaces, then puts the earlier submission back',
+    { retry: 0, timeout: 300_000 },
+    async () => {
+      recordAttempt(submission.name);
+      const cookieJar = new CookieJar();
+      const h = new Learn2018Helper({ ...config, cookieJar });
+      await h.login();
+      // what an app with its own HTTP client does with getHomeworkSubmitRequest: same cookies, its own fetch
+      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
+      const withToken = (url: string) => {
+        const u = new URL(url);
+        u.searchParams.set('_csrf', h.getCSRFToken());
+        return u.href;
+      };
+
+      let target: Homework | undefined;
+      for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
+        target = (await h.getHomeworkList(c.id)).find(
+          (x) => x.studentHomeworkId === SUBMIT_HOMEWORK || x.id === SUBMIT_HOMEWORK,
+        );
+        if (target) break;
+      }
+      if (!target) {
+        recordResult(submission.name, 'SUBMIT_HOMEWORK not found in the current semester');
+        throw new Error('SUBMIT_HOMEWORK not found in the current semester');
+      }
+      const open = Date.parse(target.lateSubmissionDeadline ?? target.deadline) > Date.now();
+      if (target.graded || !open) {
+        recordResult(submission.name, `refused: homework is ${target.graded ? 'graded' : 'closed'}`);
+        throw new Error(`refusing to submit to a ${target.graded ? 'graded' : 'closed'} homework`);
+      }
+      const id = target.studentHomeworkId;
+      const detail = () => h.getHomeworkDetail(target);
+
+      // what to put back afterwards: the submitted answer and attachment (downloaded), if any
+      const before: IHomeworkDetail = await detail();
+      let previousFile: { filename: string; content: Blob } | undefined;
+      if (before.submittedAttachment) {
+        const res = await raw(withToken(before.submittedAttachment.downloadUrl));
+        expect(res.ok).toBe(true);
+        previousFile = { filename: before.submittedAttachment.name, content: await res.blob() };
+      }
+
+      const stamp = new Date().toISOString();
+      const filename = 'thu-learn-lib-live-test.txt';
+      const findings: string[] = [`was ${target.submitted ? 'submitted' : 'not submitted'}`];
+      try {
+        // 1. getHomeworkSubmitRequest, sent with another client, with an attachment
+        const request = await h.getHomeworkSubmitRequest(id, homeworkContentHtml(`live test ${stamp}\nline 2`), {
+          filename,
+          content: new Blob([`thu-learn-lib live test ${stamp}`], { type: 'text/plain' }),
+        });
+        const res = await raw(request.url, { method: 'POST', body: request.body });
+        checkHomeworkSubmitResponse(await res.text());
+        const sent = await detail();
+        expect(sent.submittedContent).toContain(`live test ${stamp}`);
+        expect(sent.submittedAttachment?.name).toBe(filename);
+        findings.push('request API: answer and attachment submitted');
+
+        // 2. removing the attachment keeps the answer (the server ignores zynr then)
+        await h.submitHomework(id, '', undefined, true);
+        const removed = await detail();
+        expect(removed.submittedAttachment).toBeUndefined();
+        expect(removed.submittedContent).toContain(`live test ${stamp}`);
+        findings.push('removal: attachment gone, answer kept');
+
+        // 3. a new answer replaces the submitted one
+        await h.submitHomework(id, homeworkContentHtml(`replaced ${stamp}`));
+        const replaced = await detail();
+        expect(replaced.submittedContent).toContain(`replaced ${stamp}`);
+        expect(replaced.submittedContent).not.toContain(`live test ${stamp}`);
+        findings.push('answer replaced');
+      } finally {
+        // put the earlier submission back; an unsubmitted homework stays submitted (with an empty answer)
+        await h.submitHomework(id, before.submittedContent ?? '', previousFile, false);
+        const restored = await detail();
+        findings.push(
+          `restored: answer ${restored.submittedContent === before.submittedContent ? 'same' : 'differs'}, attachment ${
+            restored.submittedAttachment?.name === before.submittedAttachment?.name ? 'same' : 'differs'
+          }`,
+        );
+        recordResult(submission.name, findings.join('; '));
+        await h.logout();
+      }
+      recordPass(submission, findings.join('; '));
     },
   );
 });

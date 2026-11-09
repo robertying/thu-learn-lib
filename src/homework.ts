@@ -4,7 +4,7 @@ import type { Element } from 'cheerio';
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import { $, YES } from './request.ts';
+import { $, YES, addCSRFTokenToUrl, looksLikeLoginPage } from './request.ts';
 import type {
   ApiError,
   ExcellentHomework,
@@ -15,6 +15,7 @@ import type {
   IHomework,
   IHomeworkDetail,
   IHomeworkStatus,
+  HomeworkSubmitRequest,
   IHomeworkSubmitAttachment,
   RemoteFile,
 } from './types.ts';
@@ -270,10 +271,62 @@ export async function submitHomework(
     // the response only starts after the whole upload, which can take longer than `requestTimeout`
     timeout: attachment ? 0 : undefined,
   });
-  if (json.result !== 'success') {
-    return Promise.reject({
-      reason: FailReason.OPERATION_FAILED,
-      extra: json,
-    });
+  checkHomeworkSubmitResponse(json);
+}
+
+/**
+ * The request `submitHomework` would send, for sending it with another HTTP client (e.g. one that reports upload
+ * progress). Checks the session first (`ensureSession`: one request, and a login only if it has expired), as the
+ * request is sent without the helper's re-login and retry. Read the answer with `checkHomeworkSubmitResponse`.
+ */
+export async function getHomeworkSubmitRequest(
+  s: Session,
+  id: string,
+  content = '',
+  attachment?: IHomeworkSubmitAttachment,
+  removeAttachment = false,
+): Promise<HomeworkSubmitRequest> {
+  await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER());
+  return {
+    url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT(), s.csrfToken),
+    body: URLS.LEARN_HOMEWORK_SUBMIT_FORM_DATA(id, content, attachment, removeAttachment),
+  };
+}
+
+/**
+ * Check the server's answer to a homework submission: its parsed JSON, or the body as text. Rejects with
+ * `NOT_LOGGED_IN` for the login page of an expired session (which the server sends with status 200),
+ * `INVALID_RESPONSE` for any other text that isn't JSON, and `OPERATION_FAILED` (with the answer in `extra`) unless
+ * `result` is `'success'`.
+ */
+export function checkHomeworkSubmitResponse(body: unknown): void {
+  let json = body;
+  if (typeof body === 'string') {
+    try {
+      json = JSON.parse(body);
+    } catch {
+      throw {
+        reason: looksLikeLoginPage(body) ? FailReason.NOT_LOGGED_IN : FailReason.INVALID_RESPONSE,
+        extra: body.slice(0, 200),
+      } as ApiError;
+    }
   }
+  if ((json as { result?: unknown } | null | undefined)?.result !== 'success') {
+    throw { reason: FailReason.OPERATION_FAILED, extra: json } as ApiError;
+  }
+}
+
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/**
+ * Plain text as the website's answer editor sends it: one `<p>` per line, with `&nbsp;` for an empty line, and `''`
+ * for text that is only whitespace. The server replaces the submitted answer with what is sent, so send its HTML
+ * as it is when the answer wasn't edited, to keep its formatting.
+ */
+export function homeworkContentHtml(text: string): string {
+  if (!text.trim()) return '';
+  return text
+    .split(/\r?\n/)
+    .map((line) => `<p>${line.trim() ? line.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]) : '&nbsp;'}</p>`)
+    .join('');
 }

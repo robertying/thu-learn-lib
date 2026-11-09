@@ -29,6 +29,7 @@ import type {
   HelperConfig,
   Homework,
   HomeworkTA,
+  HomeworkSubmitRequest,
   IHomeworkSubmitAttachment,
   Language,
   Notification,
@@ -44,7 +45,9 @@ import { CourseType } from './types.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
-export { addCSRFTokenToUrl } from './request.ts';
+export { addCSRFTokenToUrl, isConnectionError } from './request.ts';
+export { checkHomeworkSubmitResponse, homeworkContentHtml } from './homework.ts';
+export { CLASS_PERIOD_TIMES, parseCourseMeeting, parseWeeks, semesterWeek } from './timetable.ts';
 export * from './types.ts';
 
 /** the main helper class */
@@ -131,7 +134,8 @@ export class Learn2018Helper {
    * Ranges longer than 28 days are fetched in windows and merged; windows that still fail are listed in `failedRanges`
    * (a timed-out window is not retried). Rejects when every window fails (usually with `FailReason.INVALID_RESPONSE`),
    * with `FailReason.ERROR_REGISTRAR_AUTH` when signing in to the registrar fails, or with a `RangeError` for a date
-   * that is not a valid yyyymmdd.
+   * that is not a valid yyyymmdd. With a `CredentialProvider`, a sign-in that id.tsinghua.edu.cn turns down (its session
+   * from the last login expired) logs in again and is tried once more.
    */
   public async getCalendar(startDate: string, endDate: string, options?: CalendarOptions): Promise<CalendarResult> {
     return calendar.getCalendar(this.#session, startDate, endDate, options);
@@ -343,8 +347,9 @@ export class Learn2018Helper {
   /**
    * Submit homework `id` (the `studentHomeworkId`), the way the website's submit page does. `content` is the whole
    * answer as HTML (the website sends its editor's HTML) and replaces the submitted one, so pass the current answer
-   * when only changing the attachment. With no `attachment` the existing one is kept, unless `removeAttachment`: that
-   * only deletes the attachment, and `content` is ignored.
+   * when only changing the attachment (`homeworkContentHtml` turns plain text into the editor's HTML). With no
+   * `attachment` the existing one is kept, unless `removeAttachment`: that only deletes the attachment, and `content` is
+   * ignored. In React Native, pass the attachment's `content` as `{ uri, type }`.
    */
   public async submitHomework(
     id: string,
@@ -353,6 +358,20 @@ export class Learn2018Helper {
     removeAttachment = false,
   ): Promise<void> {
     return homework.submitHomework(this.#session, id, content, attachment, removeAttachment);
+  }
+
+  /**
+   * The request `submitHomework` would send, for sending with another HTTP client (e.g. to show upload progress, which
+   * `fetch` can't): POST `body` to `url`, then pass the answer (parsed JSON or text) to `checkHomeworkSubmitResponse`.
+   * It checks the session first (`ensureSession`), since that request doesn't log in again and retry.
+   */
+  public async getHomeworkSubmitRequest(
+    id: string,
+    content = '',
+    attachment?: IHomeworkSubmitAttachment,
+    removeAttachment = false,
+  ): Promise<HomeworkSubmitRequest> {
+    return homework.getHomeworkSubmitRequest(this.#session, id, content, attachment, removeAttachment);
   }
 
   public async setLanguage(lang: Language): Promise<void> {

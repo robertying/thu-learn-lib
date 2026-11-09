@@ -3,7 +3,7 @@
 import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
-import { $, discard } from './request.ts';
+import { $, discard, isConnectionError } from './request.ts';
 import type { ApiError } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
@@ -58,6 +58,8 @@ export async function getRoamingTicket(
     }
     page = await checkResponse.text();
   } catch (err) {
+    // no answer at all: the device is offline or id.tsinghua.edu.cn is unreachable, not a refused login
+    if (isConnectionError(err)) throw err;
     throw {
       reason: FailReason.ERROR_FETCH_FROM_ID,
       extra: err,

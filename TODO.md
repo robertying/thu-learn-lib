@@ -17,6 +17,12 @@ Other dependencies (`js-base64`, `sm-crypto`, `node-fetch-native`) are on their 
 
 ## Check against the real server
 
+- Not run yet: the live tests added with `NETWORK_ERROR`, the registrar re-login, the timetable helpers and the
+  submit request (`pnpm test:live`, read-only), and the `submission` one-time check (`LIVE_ONCE=submission
+  LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm test:live test/live/once.test.ts`, only with the account owner's OK).
+- `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
+  check it in learnX.
+
 The live tests (`test/live/`) cover the request layer and on-demand details; run `pnpm test:live` and fix whatever it
 finds. Still open:
 
@@ -38,6 +44,6 @@ Checked in 2026-11:
 
 - Checked off campus in 2026-11: ranges over 28 days come back complete (a 70-day range: 3 windows, none failed,
   events in date order), and the registrar's JSONP argument is plain JSON.
-- Off campus, `getCalendar` needs the id.tsinghua.edu.cn session from the last `login`. A session resumed from saved
-  cookies after that one expired gets `FailReason.ERROR_REGISTRAR_AUTH` (id.tsinghua.edu.cn asks for the password
-  again) instead of logging in by itself; consider logging in again with the `CredentialProvider` and retrying once.
+- Off campus, `getCalendar` needs the id.tsinghua.edu.cn session from the last `login`. When id.tsinghua.edu.cn turns
+  the registrar sign-in down, a helper with a `CredentialProvider` logs in again and tries once more; the live test
+  `registrar sign-in` (authentication.test.ts) drops the id.tsinghua.edu.cn cookies of a resumed session to check it.

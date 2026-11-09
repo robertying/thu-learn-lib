@@ -39,6 +39,8 @@ export enum FailReason {
   OPERATION_FAILED = 'operation failed',
   ERROR_SETTING_COOKIES = 'could not set cookies',
   REQUEST_TIMEOUT = 'request timed out',
+  /** a request got no answer at all (no connection, DNS or TLS failure, connection reset); the error is in `extra` */
+  NETWORK_ERROR = 'network error',
   ERROR_REGISTRAR_AUTH = 'could not sign in to the registrar (zhjw.cic.tsinghua.edu.cn)',
 }
 
@@ -97,7 +99,7 @@ interface ICourseInfo {
   englishName: string;
   /**
    * only with `getCourseList(..., { timeAndLocation: true })`, and left out for a course whose request failed;
-   * see `getCourseTimeAndLocation`
+   * see `getCourseTimeAndLocation`. Read an entry with `parseCourseMeeting`.
    */
   timeAndLocation?: string[];
   url: string;
@@ -309,9 +311,26 @@ export interface IHomeworkTA {
 
 export type HomeworkTA = IHomeworkTA;
 
+/**
+ * A file to upload in React Native, whose `FormData` takes the file's `uri` (and MIME `type`) instead of a `Blob`.
+ */
+export interface ReactNativeFile {
+  uri: string;
+  /** MIME type; `application/octet-stream` if left out */
+  type?: string;
+}
+
+/** The request `submitHomework` sends, from `getHomeworkSubmitRequest`, for sending with another HTTP client */
+export interface HomeworkSubmitRequest {
+  /** the submit URL, with the CSRF token */
+  url: string;
+  /** POST it as multipart form data */
+  body: FormData;
+}
+
 export interface IHomeworkSubmitAttachment {
   filename: string;
-  content: Blob;
+  content: Blob | ReactNativeFile;
 }
 
 export interface IDiscussionBase {
@@ -486,6 +505,17 @@ interface ICommentItem {
 }
 
 export type CommentItem = ICommentItem;
+
+/** one entry of a course's time and location, read by `parseCourseMeeting` */
+export interface CourseMeeting {
+  /** 1 (Monday) to 7 (Sunday) */
+  weekday: number;
+  /** the class period (大节), a key of `CLASS_PERIOD_TIMES` */
+  period: number;
+  /** the teaching weeks it happens in, from 1; `null` for every week */
+  weeks: number[] | null;
+  location: string;
+}
 
 export interface CalendarEvent {
   location: string;

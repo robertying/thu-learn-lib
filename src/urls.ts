@@ -137,7 +137,7 @@ export const LEARN_HOMEWORK_SUBMIT = () => `${LEARN_PREFIX}/b/wlxt/kczy/zy/stude
  * The form the website's submit page sends (`fileUploadProgress` in `/res/js/common/myApp.js`): `fileupload` is the
  * picked file, or the text "undefined" when none is picked (it appends `files[0]` as is); `zynr` is the whole current
  * answer as HTML from its editor, sent every time (also when only the attachment changes); `isDeleted` is "1" when the
- * existing attachment is deleted, and then the server ignores `zynr` (learnX has sent it empty for that since 2021).
+ * existing attachment is deleted, and then the server ignores `zynr` (the submitted answer stays).
  */
 export const LEARN_HOMEWORK_SUBMIT_FORM_DATA = (
   id: string,
@@ -148,8 +148,13 @@ export const LEARN_HOMEWORK_SUBMIT_FORM_DATA = (
   const form = new FormData();
   form.append('xszyid', id);
   form.append('zynr', content ?? '');
-  if (attachment) form.append('fileupload', attachment.content, attachment.filename);
-  else form.append('fileupload', 'undefined');
+  if (!attachment) form.append('fileupload', 'undefined');
+  else if (attachment.content instanceof Blob) form.append('fileupload', attachment.content, attachment.filename);
+  else {
+    // React Native's FormData reads a file from an object with its uri, name and type
+    const { uri, type } = attachment.content;
+    form.append('fileupload', { uri, name: attachment.filename, type: type || 'application/octet-stream' } as any);
+  }
   if (removeAttachment) form.append('isDeleted', '1');
   else form.append('isDeleted', '0');
   return form;

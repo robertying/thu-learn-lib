@@ -5,7 +5,7 @@ import { FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
 import { JSONP_EXTRACTOR_NAME } from '../src/utils.ts';
 import type { Request } from './helpers/fake-server.ts';
-import { FINGERPRINT, FakeServer, field, html } from './helpers/fake-server.ts';
+import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, field, html } from './helpers/fake-server.ts';
 
 const setup = (calendar: (req: Request) => Response | Promise<Response>) =>
   new FakeServer()
@@ -253,6 +253,10 @@ describe('getCalendar', () => {
         ID_FORM,
       );
 
+    /** what id.tsinghua.edu.cn shows when its session has expired: the login form */
+    const passwordForm = () =>
+      at(html('<html><body><form id="theform" action="/do/off/ui/auth/login/check"></form></body></html>'), ID_FORM);
+
     const offCampus = (auth: () => Response = loginedForm) => {
       let vpnSignedIn = false;
       const server = setup(() => (vpnSignedIn ? jsonp([]) : loginedForm()));
@@ -332,6 +336,53 @@ describe('getCalendar', () => {
       expect(calendarRequests(server)).toHaveLength(0);
     });
 
+    describe('when the id.tsinghua.edu.cn session has expired', () => {
+      it('logs in again with the provider and signs in to the registrar once more', async () => {
+        let server: FakeServer;
+        // id.tsinghua.edu.cn wants the password until a new SSO login renews its session
+        server = offCampus(() => (server.loginCount > 1 ? loginedForm() : passwordForm()));
+        const helper = await server.loggedInHelper();
+        expect(await helper.getCalendar('20250301', '20250328')).toEqual({ events: [], failedRanges: [] });
+        expect(server.loginCount).toBe(2);
+        expect(server.count(URLS.REGISTRAR_TICKET(), 'POST')).toBe(2);
+        expect(calendarRequests(server)).toHaveLength(1);
+      });
+
+      it('rejects with ERROR_REGISTRAR_AUTH after one login when the sign-in is still turned down', async () => {
+        const server = offCampus(passwordForm);
+        const helper = await server.loggedInHelper();
+        await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+          'reason',
+          FailReason.ERROR_REGISTRAR_AUTH,
+        );
+        expect(server.loginCount).toBe(2);
+        expect(calendarRequests(server)).toHaveLength(0);
+      });
+
+      it('rejects with the login error when logging in again fails', async () => {
+        const server = offCampus(passwordForm);
+        let password = PASSWORD;
+        const helper = server.helper({ provider: () => ({ ...credential, password }) });
+        await helper.login();
+        password = 'wrong';
+        await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+          'reason',
+          FailReason.BAD_CREDENTIAL,
+        );
+      });
+
+      it('does not log in without a provider', async () => {
+        const server = offCampus(passwordForm);
+        const helper = server.helper();
+        await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+        await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+          'reason',
+          FailReason.ERROR_REGISTRAR_AUTH,
+        );
+        expect(server.loginCount).toBe(1);
+      });
+    });
+
     it('rejects with ERROR_REGISTRAR_AUTH when the id.tsinghua.edu.cn form is refused', async () => {
       const server = offCampus();
       // a session restored without `login` and without a provider has no fingerprint to send
@@ -357,5 +408,7 @@ describe('getCalendar', () => {
       FailReason.ERROR_REGISTRAR_AUTH,
     );
     expect(calendarRequests(server)).toHaveLength(0);
+    // the registrar failing is not an expired id.tsinghua.edu.cn session, so it doesn't log in again
+    expect(server.loginCount).toBe(1);
   });
 });

@@ -1,6 +1,20 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ContentType, CourseType, Language, Learn2018Helper } from '../../src/index.ts';
+import {
+  CLASS_PERIOD_TIMES,
+  ContentType,
+  CourseType,
+  Language,
+  Learn2018Helper,
+  parseCourseMeeting,
+  semesterWeek,
+} from '../../src/index.ts';
 import { config } from './config.ts';
+
+/** whether two dates are the same day, written as YYYY-MM-DD or yyyymmdd */
+const sameDate = (a: string, b: string) => a.replaceAll('-', '') === b.replaceAll('-', '');
+
+/** a course name as the registrar's calendar and Web Learning may each write it */
+const normalize = (name: string) => name.replace(/\s/g, '').replace(/（/g, '(').replace(/）/g, ')');
 
 // the server gives image links in descriptions a new random `videoVersion` each time it sends a page
 const withoutVideoVersion = (text?: string) => text?.replace(/videoVersion=\d+/g, 'videoVersion=');
@@ -188,5 +202,75 @@ describe('helper data retrieval', () => {
     const { events, failedRanges } = await h.getCalendar(start, end);
     expect(failedRanges).toEqual([]);
     expect(events.length).toBeGreaterThan(0);
+  });
+
+  it("reads every entry of the courses' time and location", async () => {
+    const courses = await h.getCourseList(semesterTester, CourseType.STUDENT, undefined, { timeAndLocation: true });
+    const entries = courses.flatMap((c) => c.timeAndLocation ?? []);
+    // entries without a day or period, which the server lists for courses with no fixed time
+    const empty = /星期第0节|section\s*0\b/i;
+    const unread = entries.filter((e) => !parseCourseMeeting(e) && !empty.test(e));
+    expect(unread).toEqual([]);
+    console.info(`[timetable] ${entries.length} entries in ${courses.length} courses, ${h.getCurrentLanguage()}`);
+  });
+
+  it("counts the first teaching week from the current term's first day", async () => {
+    const { startDate } = await h.getCurrentSemester();
+    // the first day is in week 1, or week 0 when it is a weekend before classes
+    expect([0, 1]).toContain(semesterWeek(startDate, startDate));
+    const day = (offset: number) =>
+      new Date(Date.parse(`${startDate.slice(0, 10)}T00:00:00Z`) + offset * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+    expect(semesterWeek(startDate, day(14)) - semesterWeek(startDate, day(7))).toBe(1);
+  });
+
+  it("works out class times that the registrar's calendar agrees with", { timeout: 120_000 }, async () => {
+    const semester = await h.getCurrentSemester();
+    const courses = await h.getCourseList(semester.id, CourseType.STUDENT, Language.ZH, { timeAndLocation: true });
+    // week 3: past any first-week changes
+    const first = Date.parse(`${semester.startDate.slice(0, 10)}T00:00:00Z`);
+    const days = Array.from({ length: 28 }, (_, i) =>
+      new Date(first + i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    );
+    const week = days.filter((d) => semesterWeek(semester.startDate, d) === 3);
+    const { events } = await h.getCalendar(week[0].replaceAll('-', ''), week.at(-1)!.replaceAll('-', ''));
+
+    const expected = courses.flatMap((c) =>
+      (c.timeAndLocation ?? []).flatMap((text) => {
+        const meeting = parseCourseMeeting(text);
+        if (!meeting || (meeting.weeks && !meeting.weeks.includes(3))) return [];
+        const date = week[meeting.weekday - 1];
+        const [start, end] = CLASS_PERIOD_TIMES[meeting.period];
+        return [{ course: normalize(c.chineseName), date, start, end }];
+      }),
+    );
+    // holidays (National Day falls in week 3 of the fall term) have no classes, so only days the calendar has
+    // classes on count; a moved class or two courses in one slot can still miss
+    const onTeachingDays = expected.filter((x) => events.some((e) => sameDate(e.date, x.date)));
+    // a class on the calendar at that date, within the period (it may use only part of it)
+    const found = onTeachingDays.filter((x) =>
+      events.some(
+        (e) =>
+          normalize(e.courseName) === x.course &&
+          sameDate(e.date, x.date) &&
+          e.startTime >= x.start &&
+          e.endTime <= x.end,
+      ),
+    );
+    console.info(
+      `[timetable] week 3: ${found.length} of ${onTeachingDays.length} worked-out classes on days with classes are on the calendar (${expected.length} worked out, ${events.length} events)`,
+    );
+    if (onTeachingDays.length > 0) expect(found.length / onTeachingDays.length).toBeGreaterThanOrEqual(0.75);
+  });
+
+  it('builds the homework submit request without sending it', async () => {
+    const request = await h.getHomeworkSubmitRequest('live-test-not-sent', '<p>not sent</p>');
+    const url = new URL(request.url);
+    expect(url.pathname).toBe('/b/wlxt/kczy/zy/student/tjzy');
+    // the token of a session that the check just found alive
+    expect(url.searchParams.get('_csrf')).toBe(h.getCSRFToken());
+    expect(request.body.get('xszyid')).toBe('live-test-not-sent');
+    expect(request.body.get('fileupload')).toBe('undefined');
   });
 });

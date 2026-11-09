@@ -6,6 +6,12 @@
   - (_BREAKING CHANGE_) `Homework.favoriteTime` (always `undefined`) is removed; use `FavoriteItem.addedTime` from `getFavorites`
   - (_BREAKING CHANGE_) `getCourseList(..., { timeAndLocation: true })` leaves `timeAndLocation` out for a course whose request failed, instead of `[]`
   - (_BREAKING CHANGE_) Grade code -63 is `HomeworkGradeLevel.P` (was `PASS`, the same as -60)
+  - (_BREAKING CHANGE_) A request that gets no answer at all (no connection, DNS or TLS failure) rejects with the new `FailReason.NETWORK_ERROR`, with the fetch error in `extra`, instead of the bare fetch error. `login` rejects with it, and with `REQUEST_TIMEOUT`, as they are instead of wrapping them in `ERROR_FETCH_FROM_ID`, so an offline device is told apart from a failing SSO server. `isConnectionError(e)` checks for either
+  - `getHomeworkSubmitRequest` gives the request `submitHomework` sends (URL with the CSRF token, after checking the session, and the form), and `checkHomeworkSubmitResponse` reads the answer, for sending a submission with another HTTP client (e.g. for upload progress)
+  - `submitHomework` takes a React Native file (`{ uri, type }`) as the attachment's `content`
+  - `homeworkContentHtml` turns plain text into the HTML the website's answer editor sends
+  - `parseCourseMeeting` reads an entry of `Course.timeAndLocation` (Chinese or English) into weekday, period, weeks and location; `CLASS_PERIOD_TIMES` gives the periods' times, `parseWeeks` reads a week spec, and `semesterWeek` counts teaching weeks from the term's first day
+  - `getCalendar` logs in again (with the `CredentialProvider`) and tries once more when id.tsinghua.edu.cn turns the registrar sign-in down, as it does once the id.tsinghua.edu.cn session of the last login has expired
   - `addToFavorites`, `removeFromFavorites` and `setComment` succeed on `result: 'success'` alone, so they no longer reject with `OPERATION_FAILED` when the website is in English
   - `getHomeworkDetail`: a homework page with fewer attachment blocks no longer throws, and an empty description JSON falls back to the page's description instead of erasing it
   - Answered questions and teacher homework with an empty body no longer throw

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ContentType, Language, Learn2018Helper } from '../../src/index.ts';
+import { ContentType, CourseType, Language, Learn2018Helper, parseCourseMeeting } from '../../src/index.ts';
 import { config } from './config.ts';
 import { ALLOW_WRITES } from './guard.ts';
 
@@ -14,6 +14,7 @@ describe('helper interaction', () => {
   });
 
   const courseTester = inject('studentCourse');
+  const semesterTester = inject('studentSemester');
 
   it('should set lang', async () => {
     const pre_lang = h.getCurrentLanguage();
@@ -21,6 +22,28 @@ describe('helper interaction', () => {
     await h.setLanguage(toset_lang);
     expect(h.getCurrentLanguage()).toBe(toset_lang);
     await h.setLanguage(pre_lang);
+  });
+
+  it("reads the courses' time and location in both website languages", async () => {
+    const pre_lang = h.getCurrentLanguage();
+    // entries without a day or period, which the server lists for courses with no fixed time
+    const empty = /星期第0节|section\s*0\b/i;
+    try {
+      for (const lang of [Language.ZH, Language.EN]) {
+        await h.setLanguage(lang);
+        const courses = await h.getCourseList(semesterTester, CourseType.STUDENT, lang, { timeAndLocation: true });
+        const entries = courses.flatMap((c) => c.timeAndLocation ?? []);
+        expect({ lang, unread: entries.filter((e) => !parseCourseMeeting(e) && !empty.test(e)) }).toEqual({
+          lang,
+          unread: [],
+        });
+        // the English website writes `Section 1 of Mon (Week all ), …`
+        if (lang === Language.EN && entries.some((e) => !empty.test(e)))
+          expect(entries.some((e) => /section/i.test(e))).toBe(true);
+      }
+    } finally {
+      await h.setLanguage(pre_lang);
+    }
   });
 
   // adds, pins and removes favorites, so only with LIVE_ALLOW_WRITES=1

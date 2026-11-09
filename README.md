@@ -137,11 +137,49 @@ try {
 }
 ```
 
-Off campus the registrar is reached through WebVPN, which reuses the id.tsinghua.edu.cn session of the last `login`.
+Off campus the registrar is reached through WebVPN, which reuses the id.tsinghua.edu.cn session of the last `login`. When that session has expired (e.g. in a session resumed from saved cookies), a helper with a `CredentialProvider` logs in again and tries once more.
+
+### Timetable
+
+The registrar's calendar knows about holidays and moved classes, but it fails now and then. A timetable can also be worked out from each course's time and location (`getCourseList(..., { timeAndLocation: true })`) and the term's first day:
+
+```typescript
+import { CLASS_PERIOD_TIMES, parseCourseMeeting, semesterWeek } from '@robertying/thu-learn-lib';
+
+// '星期六第1节(9,11周)，六教6A414' (or 'Section 1 of Sat (Week 9,11 ), 六教6A414' in English)
+const meeting = parseCourseMeeting(course.timeAndLocation[0]);
+// { weekday: 6, period: 1, weeks: [9, 11], location: '六教6A414' }; weeks is null for every week
+const [start, end] = CLASS_PERIOD_TIMES[meeting.period]; // Beijing time, ['08:00', '09:35']
+
+// the teaching week of a Beijing date; week 1 starts on the Monday after a weekend first day
+const week = semesterWeek(semester.startDate, '2026-11-04');
+```
+
+### Submitting homework
+
+```typescript
+import { homeworkContentHtml } from '@robertying/thu-learn-lib';
+
+// the answer is HTML and replaces the submitted one; pass the submitted HTML to only change the attachment
+await helper.submitHomework(homework.studentHomeworkId, homeworkContentHtml('my answer'), {
+  filename: 'answer.pdf',
+  content: blob, // in React Native: { uri, type }
+});
+```
+
+`fetch` can't report upload progress. To send the submission with another HTTP client, get the request with `getHomeworkSubmitRequest` (it checks the session first) and read the answer with `checkHomeworkSubmitResponse`:
+
+```typescript
+import { checkHomeworkSubmitResponse } from '@robertying/thu-learn-lib';
+
+const { url, body } = await helper.getHomeworkSubmitRequest(id, content, attachment);
+const res = await axios.post(url, body, { onUploadProgress });
+checkHomeworkSubmitResponse(res.data);
+```
 
 ### Errors
 
-Rejected promises carry an `ApiError`: `reason` is a `FailReason` and `extra` holds what the server answered, when there is something useful. For example, a wrong password rejects with `BAD_CREDENTIAL`, an expired session without a `CredentialProvider` with `NOT_LOGGED_IN`, and a slow request with `REQUEST_TIMEOUT`. See `src/types.ts` for every reason and the other type definitions.
+Rejected promises carry an `ApiError`: `reason` is a `FailReason` and `extra` holds what the server answered, when there is something useful. For example, a wrong password rejects with `BAD_CREDENTIAL`, an expired session without a `CredentialProvider` with `NOT_LOGGED_IN`, a request that gets no answer (offline, DNS or TLS failure) with `NETWORK_ERROR`, and a slow request with `REQUEST_TIMEOUT`; `isConnectionError(e)` is true for the last two, also for a login. See `src/types.ts` for every reason and the other type definitions.
 
 ## Projects using this library
 

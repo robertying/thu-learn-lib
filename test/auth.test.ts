@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FailReason, Language } from '../src/index.ts';
-import { withTimeout } from '../src/request.ts';
+import { isConnectionError, withNetworkError, withTimeout } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
 import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, html, json } from './helpers/fake-server.ts';
 
@@ -87,7 +87,7 @@ describe('login', () => {
     });
   });
 
-  it('rejects with ERROR_FETCH_FROM_ID when the SSO server fails or is unreachable', async () => {
+  it('rejects with ERROR_FETCH_FROM_ID when the SSO server answers with an error', async () => {
     const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => new Response('', { status: 502 }), {
       public: true,
     });
@@ -95,13 +95,38 @@ describe('login', () => {
       'reason',
       FailReason.ERROR_FETCH_FROM_ID,
     );
+  });
 
-    const offline = new FakeServer().helper({
-      fetch: () => Promise.reject(new TypeError('Network request failed')),
+  it('rejects with NETWORK_ERROR, not ERROR_FETCH_FROM_ID, when the SSO server is not reached', async () => {
+    const error = new TypeError('Network request failed');
+    const offline = new FakeServer().helper({ fetch: () => Promise.reject(error) });
+    await expect(offline.login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toEqual({
+      reason: FailReason.NETWORK_ERROR,
+      extra: error,
     });
-    await expect(offline.login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
+  });
+
+  it('rejects with REQUEST_TIMEOUT, not ERROR_FETCH_FROM_ID, when the SSO server does not answer in time', async () => {
+    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => new Promise<Response>(() => {}), {
+      public: true,
+    });
+    await expect(server.helper({ requestTimeout: 20 }).login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
       'reason',
-      FailReason.ERROR_FETCH_FROM_ID,
+      FailReason.REQUEST_TIMEOUT,
+    );
+  });
+
+  it('rejects with NETWORK_ERROR when the connection drops while roaming', async () => {
+    const server = new FakeServer();
+    const helper = server.helper({
+      fetch: (input, init) =>
+        typeof input === 'string' && input.startsWith(URLS.LEARN_AUTH_ROAM('').split('?')[0])
+          ? Promise.reject(new TypeError('fetch failed'))
+          : server.fetch(input, init),
+    });
+    await expect(helper.login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
+      'reason',
+      FailReason.NETWORK_ERROR,
     );
   });
 
@@ -320,6 +345,19 @@ describe('request limits', () => {
     expect(server.maxInFlight).toBe(2);
   });
 
+  it('rejects a request that gets no answer with NETWORK_ERROR, without logging in again', async () => {
+    const server = semesters(new FakeServer());
+    let offline = false;
+    const helper = server.helper({
+      provider: () => credential,
+      fetch: (input, init) => (offline ? Promise.reject(new TypeError('fetch failed')) : server.fetch(input, init)),
+    });
+    await helper.login();
+    offline = true;
+    await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NETWORK_ERROR);
+    expect(server.loginCount).toBe(1);
+  });
+
   it('rejects with REQUEST_TIMEOUT when the server does not answer in time', async () => {
     const server = new FakeServer();
     server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => new Promise<Response>(() => {}));
@@ -508,5 +546,42 @@ describe('withTimeout', () => {
     );
     await expect(slow('https://example.com')).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
     await expect(slow('https://example.com', { timeout: 0 })).resolves.toBeInstanceOf(Response);
+  });
+});
+
+describe('withNetworkError', () => {
+  it('passes responses through, also error statuses', async () => {
+    const res = new Response('', { status: 500 });
+    await expect(withNetworkError(async () => res)('https://example.com')).resolves.toBe(res);
+  });
+
+  it('turns a failed fetch into NETWORK_ERROR with the error in extra', async () => {
+    const error = new TypeError('fetch failed');
+    await expect(withNetworkError(() => Promise.reject(error))('https://example.com')).rejects.toEqual({
+      reason: FailReason.NETWORK_ERROR,
+      extra: error,
+    });
+  });
+
+  it("leaves ApiErrors and the caller's abort unchanged", async () => {
+    const timeout = { reason: FailReason.REQUEST_TIMEOUT };
+    await expect(withNetworkError(() => Promise.reject(timeout))('https://example.com')).rejects.toBe(timeout);
+
+    const controller = new AbortController();
+    controller.abort();
+    const abort = new DOMException('aborted', 'AbortError');
+    await expect(
+      withNetworkError(() => Promise.reject(abort))('https://example.com', { signal: controller.signal }),
+    ).rejects.toBe(abort);
+  });
+});
+
+describe('isConnectionError', () => {
+  it('is true for NETWORK_ERROR and REQUEST_TIMEOUT only', () => {
+    expect(isConnectionError({ reason: FailReason.NETWORK_ERROR })).toBe(true);
+    expect(isConnectionError({ reason: FailReason.REQUEST_TIMEOUT })).toBe(true);
+    expect(isConnectionError({ reason: FailReason.ERROR_FETCH_FROM_ID })).toBe(false);
+    expect(isConnectionError(new TypeError('fetch failed'))).toBe(false);
+    expect(isConnectionError(undefined)).toBe(false);
   });
 });

@@ -112,6 +112,28 @@ export function withTimeout(inner: Fetch, ms: number): TimedFetch {
   };
 }
 
+/**
+ * Reject a call of `inner` that fails without any response (the fetch implementation's own error: `TypeError: fetch
+ * failed` in Node, `Network request failed` in React Native) with `FailReason.NETWORK_ERROR`, keeping the error in
+ * `extra`. An `ApiError` (such as `REQUEST_TIMEOUT`) and the caller's own abort pass through unchanged.
+ */
+export function withNetworkError(inner: TimedFetch): TimedFetch {
+  return async (input, init) => {
+    try {
+      return await inner(input, init);
+    } catch (err) {
+      if ((err as ApiError | undefined)?.reason !== undefined || init?.signal?.aborted) throw err;
+      throw { reason: FailReason.NETWORK_ERROR, extra: err } as ApiError;
+    }
+  };
+}
+
+/** whether an error means the server was not reached: `NETWORK_ERROR`, or `REQUEST_TIMEOUT` (no answer in time) */
+export const isConnectionError = (err: unknown): boolean => {
+  const reason = (err as ApiError | undefined)?.reason;
+  return reason === FailReason.NETWORK_ERROR || reason === FailReason.REQUEST_TIMEOUT;
+};
+
 /** free the connection of a response we won't read */
 export const discard = (res: Response) => {
   res.body?.cancel().catch(() => {});
@@ -171,7 +193,9 @@ export class Session {
     this.provider = config?.provider;
     this.cookieJar = config?.cookieJar ?? new CookieJar();
     this.rawFetch = limitConcurrency(
-      withTimeout(config?.fetch ?? makeFetch(this.cookieJar), config?.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT),
+      withNetworkError(
+        withTimeout(config?.fetch ?? makeFetch(this.cookieJar), config?.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT),
+      ),
       config?.maxConcurrentRequests ?? DEFAULT_MAX_CONCURRENT_REQUESTS,
     );
   }
@@ -206,11 +230,15 @@ export class Session {
    */
   relogin(): Promise<void> {
     this.#badCredential = undefined;
-    return this.#autoRelogin();
+    return this.autoRelogin();
   }
 
-  /** `relogin`, unless the last provider login was turned down with `BAD_CREDENTIAL`: then reject with that again */
-  #autoRelogin(): Promise<void> {
+  /**
+   * `relogin` for a login nobody asked for (an expired session, no CSRF token yet, the registrar wanting a new
+   * id.tsinghua.edu.cn session), unless the last provider login was turned down with `BAD_CREDENTIAL`: then reject with
+   * that again
+   */
+  autoRelogin(): Promise<void> {
     return this.#badCredential
       ? Promise.reject(this.#badCredential)
       : (this.#pendingLogin ?? this.runLogin(this.#providerLogin));
@@ -253,7 +281,7 @@ export class Session {
       throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
     }
     if (this.#generation === generation) {
-      await this.#autoRelogin();
+      await this.autoRelogin();
     }
     const second = await attempt(true);
     if (second === EXPIRED) {
@@ -297,7 +325,7 @@ export class Session {
 
   #withToken = async (input: Parameters<Fetch>[0]): Promise<() => string> => {
     if (this.#csrfToken === '') {
-      await this.#autoRelogin();
+      await this.autoRelogin();
     }
     const url = urlOf(input);
     return () => addCSRFTokenToUrl(url, this.#csrfToken);
@@ -327,7 +355,7 @@ export class Session {
    */
   async ensureSession(probeUrl: string): Promise<void> {
     if (this.#csrfToken === '') {
-      await this.#autoRelogin();
+      await this.autoRelogin();
       return;
     }
     const json = await this.fetchJsonWithToken(probeUrl);

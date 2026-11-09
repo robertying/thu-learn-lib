@@ -49,6 +49,13 @@ const isFingerprintField = (name: string): name is (typeof FINGERPRINT_FIELDS)[n
 
 const registrarAuthError = (extra: unknown): ApiError => ({ reason: FailReason.ERROR_REGISTRAR_AUTH, extra });
 
+/** `extra.step` of an `ERROR_REGISTRAR_AUTH` that id.tsinghua.edu.cn turned down (rather than the registrar failing) */
+const ID_STEP = 'id.tsinghua.edu.cn';
+
+const isIdRefusal = (err: unknown) =>
+  (err as ApiError | undefined)?.reason === FailReason.ERROR_REGISTRAR_AUTH &&
+  ((err as ApiError).extra as { step?: string } | undefined)?.step === ID_STEP;
+
 /** an id.tsinghua.edu.cn login form (`/do/off/ui/auth/login/check`, `.../checkSingle`) */
 const isIdLoginPage = (res: Response, page: string) =>
   res.url.startsWith(URLS.ID_PREFIX) || /action="[^"]*\/do\/off\/ui\/auth\/login\//.test(page);
@@ -94,14 +101,39 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
     const link = check.ok ? $(await readText(check))('a').attr('href') : undefined;
     if (!link) {
       discard(check);
-      throw registrarAuthError({ step: 'id.tsinghua.edu.cn', code: check.status });
+      throw registrarAuthError({ step: ID_STEP, code: check.status });
     }
     res = await s.rawFetch(new URL(link, check.url || action).href);
     page = await readText(res);
   }
 
-  if (!res.ok || isIdLoginPage(res, page)) {
+  if (isIdLoginPage(res, page)) {
+    throw registrarAuthError({ step: ID_STEP, code: res.status, url: res.url.split('?')[0] });
+  }
+  if (!res.ok) {
     throw registrarAuthError({ code: res.status, url: res.url.split('?')[0] });
+  }
+}
+
+/**
+ * Get a registrar ticket and sign in to the registrar with it. When id.tsinghua.edu.cn turns the sign-in down (its
+ * session from the last login has expired, e.g. in a session resumed from saved cookies) and there is a
+ * `CredentialProvider`, log in to Web Learning again (a new id.tsinghua.edu.cn session) and try once more.
+ */
+async function signInToRegistrar(s: Session): Promise<void> {
+  const signIn = async () => {
+    const ticket = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET(), {
+      method: 'POST',
+      body: URLS.REGISTRAR_TICKET_FORM_DATA(),
+    });
+    await authenticateRegistrar(s, ticket.substring(1, ticket.length - 1));
+  };
+  try {
+    await signIn();
+  } catch (err) {
+    if (!s.provider || !isIdRefusal(err)) throw err;
+    await s.autoRelogin();
+    await signIn();
   }
 }
 
@@ -141,8 +173,9 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
  * show partial data and retry only those; after two windows in a row time out, the rest are listed there without a
  * request. If every window fails, this rejects with the last error instead (usually `FailReason.INVALID_RESPONSE`).
  * The result might be empty if the period is too far away from now. Throws a `RangeError` for a date that is not a
- * valid yyyymmdd, and rejects with `FailReason.ERROR_REGISTRAR_AUTH` if signing in to the registrar fails (off campus
- * this goes through WebVPN and needs the id.tsinghua.edu.cn session of the last `login`).
+ * valid yyyymmdd, and rejects with `FailReason.ERROR_REGISTRAR_AUTH` if signing in to the registrar fails. Off campus
+ * this goes through WebVPN and needs the id.tsinghua.edu.cn session of the last `login`; when that has expired, a
+ * helper with a `CredentialProvider` logs in again and tries once more.
  */
 export async function getCalendar(
   s: Session,
@@ -154,13 +187,7 @@ export async function getCalendar(
   const ranges = splitCalendarRange(startDate, endDate);
   if (ranges.length === 0) return { events: [], failedRanges: [] };
 
-  let ticket = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET(), {
-    method: 'POST',
-    body: URLS.REGISTRAR_TICKET_FORM_DATA(),
-  });
-  ticket = ticket.substring(1, ticket.length - 1);
-
-  await authenticateRegistrar(s, ticket);
+  await signInToRegistrar(s);
 
   const events: CalendarEvent[] = [];
   const failedRanges: CalendarRange[] = [];

@@ -1,8 +1,36 @@
+import fetchCookie from 'fetch-cookie';
+import { fetch } from 'node-fetch-native';
 import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
-import { FailReason, Learn2018Helper } from '../../src/index.ts';
+import type { Fetch } from '../../src/index.ts';
+import { FailReason, Learn2018Helper, isConnectionError } from '../../src/index.ts';
 import { FINGERPRINT, PASSWORD, USERNAME, config, credential } from './config.ts';
+
+/** a fetch with cookies that sends requests for `host` to a name that can't resolve, so they really fail */
+const unreachable = (host: string, cookieJar = new CookieJar()): Fetch => {
+  const inner = fetchCookie(fetch, cookieJar) as unknown as Fetch;
+  return (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    return inner(url.replace(`//${host}`, '//unreachable.invalid'), init);
+  };
+};
+
+/** the cookie jar without the cookies of `domain` (and its subdomains) */
+const withoutCookiesOf = (cookieJar: CookieJar, domain: string) => {
+  const data = cookieJar.serializeSync();
+  return CookieJar.deserializeSync({
+    ...data,
+    cookies: data.cookies.filter((c) => !(c.domain === domain || c.domain?.endsWith(`.${domain}`))),
+  });
+};
+
+/** yyyymmdd of a YYYY-MM-DD date plus `days` */
+const yyyymmdd = (date: string, days = 0) =>
+  new Date(Date.parse(`${date.slice(0, 10)}T00:00:00Z`) + days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+    .replaceAll('-', '');
 
 /** a helper whose provider counts its logins */
 const counting = (cookieJar = new CookieJar()) => {
@@ -113,5 +141,58 @@ describe('session resume', () => {
     await resumed.helper.ensureSession();
     expect(resumed.counter.logins).toBe(1);
     expect(Array.isArray(await resumed.helper.getSemesterIdList())).toBe(true);
+  });
+});
+
+describe('connection errors', () => {
+  it('rejects a login whose SSO server is not reached with NETWORK_ERROR, not ERROR_FETCH_FROM_ID', async () => {
+    const helper = new Learn2018Helper({ fetch: unreachable('id.tsinghua.edu.cn') });
+    const err = await helper.login(USERNAME, PASSWORD, FINGERPRINT).catch((e: unknown) => e);
+    expect(err).toHaveProperty('reason', FailReason.NETWORK_ERROR);
+    // Node's fetch error is kept in extra
+    expect((err as { extra?: unknown }).extra).toBeInstanceOf(Error);
+    expect(isConnectionError(err)).toBe(true);
+  });
+
+  it('rejects a data request that is not answered with NETWORK_ERROR, without logging in again', async () => {
+    const first = counting();
+    await first.helper.login();
+
+    // the same session, but Web Learning can't be reached
+    const counter = { logins: 0 };
+    const offline = new Learn2018Helper({
+      fetch: unreachable('learn.tsinghua.edu.cn', first.cookieJar),
+      provider: () => {
+        counter.logins += 1;
+        return credential;
+      },
+    });
+    offline.setCSRFToken(first.helper.getCSRFToken());
+    await expect(offline.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NETWORK_ERROR);
+    expect(counter.logins).toBe(0);
+    await first.helper.logout();
+  });
+});
+
+describe('registrar sign-in', () => {
+  it('signs in to the registrar after the id.tsinghua.edu.cn session is gone, logging in again at most once', async () => {
+    const first = counting();
+    await first.helper.login();
+    const semester = await first.helper.getCurrentSemester();
+
+    // a session resumed from saved cookies, whose id.tsinghua.edu.cn session has expired since
+    const resumed = counting(withoutCookiesOf(first.cookieJar, 'id.tsinghua.edu.cn'));
+    resumed.helper.setCSRFToken(first.helper.getCSRFToken());
+    const { events, failedRanges } = await resumed.helper.getCalendar(
+      yyyymmdd(semester.startDate, 7),
+      yyyymmdd(semester.startDate, 13),
+    );
+    expect(failedRanges).toEqual([]);
+    // off campus (WebVPN) it logs in once for a new id.tsinghua.edu.cn session; on campus it needs none
+    expect(resumed.counter.logins).toBeLessThanOrEqual(1);
+    console.info(
+      `[registrar] ${resumed.counter.logins === 1 ? 'logged in again (WebVPN)' : 'no login needed (on campus?)'}, ${events.length} events`,
+    );
+    await resumed.helper.logout();
   });
 });
