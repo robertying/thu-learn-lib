@@ -4,24 +4,34 @@ import type { Element } from 'cheerio';
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import { $, YES, addCSRFTokenToUrl, looksLikeLoginPage } from './request.ts';
+import { addCSRFTokenToUrl } from './request.ts';
 import type {
   ApiError,
   ExcellentHomework,
   Homework,
   HomeworkListOptions,
+  HomeworkSubmitRequest,
   HomeworkTA,
   IExcellentHomework,
   IHomework,
   IHomeworkDetail,
   IHomeworkStatus,
-  HomeworkSubmitRequest,
   IHomeworkSubmitAttachment,
   RemoteFile,
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { GRADE_LEVEL_MAP, decodeHTML, isSelected, toRequiredServerTime, toServerTime, trimAndDefine } from './utils.ts';
+import {
+  $,
+  GRADE_LEVEL_MAP,
+  YES,
+  decodeHTML,
+  isSelected,
+  looksLikeLoginPage,
+  toRequiredServerTime,
+  toServerTime,
+  trimAndDefine,
+} from './utils.ts';
 
 /**
  * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.

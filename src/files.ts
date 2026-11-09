@@ -1,11 +1,10 @@
 // Course files (课程文件) and file categories.
 
 import type { Session } from './request.ts';
-import { YES } from './request.ts';
 import type { File, FileCategory } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, formatFileSize, toRequiredServerTime } from './utils.ts';
+import { YES, decodeHTML, formatFileSize, toRequiredServerTime } from './utils.ts';
 
 /** Get all files （课程文件） of the specified course; `category` is left out if the categories can't be fetched. */
 export async function getFileList(

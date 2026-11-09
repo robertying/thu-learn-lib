@@ -3,10 +3,11 @@
 import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
-import { $, discard, isConnectionError } from './request.ts';
+import { discard, isConnectionError } from './request.ts';
 import type { ApiError } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
+import { $ } from './utils.ts';
 
 /**
  * If using alternative cookie management systems,

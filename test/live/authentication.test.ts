@@ -5,14 +5,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { Fetch } from '../../src/index.ts';
 import { FailReason, Learn2018Helper, isConnectionError } from '../../src/index.ts';
+import { urlOf } from '../../src/utils.ts';
 import { FINGERPRINT, PASSWORD, USERNAME, config, credential } from './config.ts';
 
 /** a fetch with cookies that sends requests for `host` to a name that can't resolve, so they really fail */
 const unreachable = (host: string, cookieJar = new CookieJar()): Fetch => {
   const inner = fetchCookie(fetch, cookieJar) as unknown as Fetch;
   return (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    return inner(url.replace(`//${host}`, '//unreachable.invalid'), init);
+    return inner(urlOf(input).replace(`//${host}`, '//unreachable.invalid'), init);
   };
 };
 

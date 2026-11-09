@@ -1,10 +1,11 @@
 // User info and website language.
 
 import type { Session } from './request.ts';
-import { $, discard } from './request.ts';
+import { discard } from './request.ts';
 import type { ApiError, Language, UserInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
+import { $ } from './utils.ts';
 
 /** what the English homepage shows for a department without an English name (as for the 书院) */
 const NO_DEPARTMENT = 'none';

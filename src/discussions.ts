@@ -3,11 +3,10 @@
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import { YES } from './request.ts';
 import type { Discussion, IDiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, toRequiredServerTime } from './utils.ts';
+import { YES, decodeHTML, toRequiredServerTime } from './utils.ts';
 
 /** Get all discussions （课程讨论） of the specified course. */
 export async function getDiscussionList(

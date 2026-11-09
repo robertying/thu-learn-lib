@@ -1,11 +1,11 @@
 // Course calendar from the registrar (zhjw.cic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
-import { $, discard } from './request.ts';
+import { discard } from './request.ts';
 import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { JSONP_EXTRACTOR_NAME, extractJSONPResult } from './utils.ts';
+import { $, JSONP_EXTRACTOR_NAME, extractJSONPResult } from './utils.ts';
 
 /**
  * The registrar often fails for ranges longer than about a month, so longer ranges are fetched in windows of this many

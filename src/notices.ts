@@ -3,11 +3,10 @@
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import { $, YES } from './request.ts';
 import type { INotification, Notification, NotificationListOptions, RemoteFile } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, isSelected, toRequiredServerTime, toServerTime, trimAndDefine } from './utils.ts';
+import { $, YES, decodeHTML, isSelected, toRequiredServerTime, toServerTime, trimAndDefine } from './utils.ts';
 
 /**
  * Get all notifications （课程公告） of the specified course: current and expired lists.

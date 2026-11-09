@@ -1,11 +1,10 @@
 // Favorites (收藏) and comments (备注).
 
 import type { Session } from './request.ts';
-import { YES } from './request.ts';
 import type { CommentItem, FavoriteItem } from './types.ts';
 import { ContentType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { CONTENT_TYPE_MAP_REVERSE, decodeHTML, toRequiredServerTime, toServerTime } from './utils.ts';
+import { CONTENT_TYPE_MAP_REVERSE, YES, decodeHTML, toRequiredServerTime, toServerTime } from './utils.ts';
 
 /**
  * Add an item to favorites. (收藏)

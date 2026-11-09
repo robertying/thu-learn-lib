@@ -3,6 +3,7 @@ import { sm2 } from 'sm-crypto';
 import type { Fetch, HelperConfig } from '../../src/index.ts';
 import { Learn2018Helper } from '../../src/index.ts';
 import * as URLS from '../../src/urls.ts';
+import { urlOf } from '../../src/utils.ts';
 
 /**
  * What id.tsinghua.edu.cn answers for a wrong password (shortened): the login form again with the message, and links
@@ -216,7 +217,7 @@ export class FakeServer {
   }
 
   readonly fetch: Fetch = async (input, init) => {
-    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    const url = new URL(urlOf(input));
     const method = (init?.method ?? 'GET').toUpperCase();
     const req: Request = {
       method,

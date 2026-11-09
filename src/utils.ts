@@ -1,7 +1,36 @@
+import * as cheerio from 'cheerio';
+import type { Element } from 'cheerio';
 import { decodeHTML as _decodeHTML } from 'entities';
 
-import type { ApiError, DetailSelector } from './types.ts';
+import type { ApiError, DetailSelector, Fetch } from './types.ts';
 import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.ts';
+
+const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
+
+/** load an HTML page or fragment for querying */
+export const $ = (html: string | Element | Element[]): cheerio.CheerioAPI => cheerio.load(html, CHEERIO_CONFIG);
+
+/** what the server writes for "yes" in its flags (and 否 for "no") */
+export const YES = '是';
+
+/** the URL of a `fetch` input */
+export const urlOf = (input: Parameters<Fetch>[0]): string =>
+  typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+/** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
+const MAX_LOGIN_PAGE_LENGTH = 4096;
+
+/**
+ * Whether a 200 page is the short login or redirect page of an expired session rather than the page asked for: short,
+ * and either Web Learning's "login timeout" page (what the server sends for an HTML page of an expired session, in
+ * either website language: title 登录超时, image `log_fail.png`, text 您未登录或登录失效) or a page pointing at the
+ * login timeout page or the SSO login.
+ */
+export const looksLikeLoginPage = (text: string) =>
+  text.length < MAX_LOGIN_PAGE_LENGTH &&
+  /登录超时|您未登录或登录失效|log_fail\.png|login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(
+    text,
+  );
 
 export function parseSemesterType(n: number): SemesterType {
   if (n === 1) {
