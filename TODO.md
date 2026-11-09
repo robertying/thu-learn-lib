@@ -2,9 +2,6 @@
 
 ## Check against the real server
 
-- Not run yet: the `favorite-types` one-time check (`LIVE_ONCE=favorite-types LIVE_ALLOW_WRITES=1 pnpm test:live
-  test/live/once.test.ts`). learnX's favorites sync needs it: which file id the server takes, whether the favorites list
-  pages, and what adding an unknown id or removing a non-favorite answers.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
@@ -22,6 +19,11 @@ Checked in 2026-11:
   until submitted) next to `sfsc` (`'是'` / `'否'`). The one-time `favorite` check (adds one homework to favorites
   and removes it) confirmed it: favoriting changes only `sfsc` (`'否'` → `'是'`) in the homework row, and
   `getFavorites` lists the item with `addedTime` as a date string.
+- The one-time `favorite-types` check (2026-11-09): notices are favorited by their id and `isFavorite` flips in the
+  notice list. Files take `CourseFile.id` (kjxxid); `fileId` (wjid) answers HTTP 500. Adding twice keeps one favorite
+  and removing a non-favorite succeeds, so both are safe to retry. An unknown id answers HTTP 500
+  (`UNEXPECTED_STATUS`). The favorites list returns every row when `aoData` has no paging (`iDisplayLength` null);
+  it pages only when asked (`iDisplayStart` / `iDisplayLength`).
 - Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
   language ("Added successfully." in English), so only `result` is checked.
 - `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other

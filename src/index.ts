@@ -282,6 +282,8 @@ export class Learn2018Helper {
 
   /**
    * Add an item to favorites. (收藏)
+   * `id` is the item's `id` (for a file, `CourseFile.id`, not `fileId`). Adding a favorite again keeps one; an id the
+   * server doesn't know answers HTTP 500 (`UNEXPECTED_STATUS`).
    */
   public async addToFavorites(type: ContentType, id: string): Promise<void> {
     return favorites.addToFavorites(this.#session, type, id);
@@ -289,6 +291,7 @@ export class Learn2018Helper {
 
   /**
    * Remove an item from favorites. (取消收藏)
+   * Removing an item that isn't a favorite succeeds.
    */
   public async removeFromFavorites(id: string): Promise<void> {
     return favorites.removeFromFavorites(this.#session, id);
