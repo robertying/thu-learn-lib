@@ -17,22 +17,25 @@ Other dependencies (`js-base64`, `sm-crypto`, `node-fetch-native`) are on their 
 
 ## Check against the real server
 
-The request layer and on-demand details (v5) have only been tested offline (`test/helpers/fake-server.ts`), since
-nobody had a real account at the time. The live tests (`test/live/`) cover these; run `pnpm test:live` and fix
-whatever it finds:
+The live tests (`test/live/`) cover the request layer and on-demand details; run `pnpm test:live` and fix whatever it
+finds. Still open:
 
-- `ensureSession()` resumes a saved CSRF token and cookies without SSO, and logs in again when the session expired.
-- A wrong password answers the SSO check with a page that has no ticket link (`BAD_CREDENTIAL`), not an error status.
-- On-demand details match the old eager ones (homework, excellent homework, notice attachments, course time/location).
-- `getCalendar` on campus. Off campus (checked 2026-11) the registrar redirects every request to WebVPN, and
-  `getCalendar` signs in to WebVPN with the id.tsinghua.edu.cn session of the last `login` (see
-  `authenticateRegistrar` in `src/calendar.ts`). On campus the auth URL should reach the registrar directly; check it
-  still does and that no WebVPN step is attempted.
-- Homework `favoriteTime` is read from `scsj`, the same field as `submitTime` (in the favorites list `scsj` is the
-  time an item was favorited). Check what the homework lists send and use the right field, or drop `favoriteTime`.
-- Grade code -63 maps to `HomeworkGradeLevel.P` (it used to map to `PASS`, like -60); confirm with a P grade.
-- `getFileListByCategory` (student) reads `isFavorite` from `f[11]` without converting it; check whether the server
-  sends a boolean or `'是'` / `'否'` like the other lists.
+- A wrong password answers the SSO check with a page that has no ticket link (`BAD_CREDENTIAL`), not an error status
+  (one-time check `wrong-password` in `test/live/once.test.ts`).
+- Grade code -63 maps to `HomeworkGradeLevel.P` (it used to map to `PASS`, like -60); confirm with a P grade. The
+  account checked in 2026-11 (graded homework in 4 semesters) only had -100, -99 and -98 besides numeric grades.
+- The homework lists send `jzsj`, `kssj`, `scsj` and `bjjzsj` as millisecond timestamps (numbers), but `pysj` as a
+  `'YYYY-MM-DD HH:mm'` string, and each comes with a `…Str` string twin. `deadline`, `submitTime` and
+  `lateSubmissionDeadline` are typed `string` but are numbers; fix the types (or convert) in a major version.
+
+Checked in 2026-11 (reads only):
+
+- The homework lists (unsubmitted, submitted, graded) have no favorite time: their `scsj` is the submit time (`null`
+  until submitted) next to `sfsc` (`'是'` / `'否'`). `favoriteTime` is now deprecated and always `undefined`; the
+  favorites list's `scsj` (`FavoriteItem.addedTime`) has the time an item was favorited. Not compared with a
+  favorited homework: the account had none.
+- `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other
+  lists, not a boolean, and `isFavorite` now compares it with `'是'`.
 
 ## Registrar (`getCalendar`)
 

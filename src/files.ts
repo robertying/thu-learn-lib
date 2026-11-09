@@ -1,6 +1,7 @@
 // Course files (课程文件) and file categories.
 
 import type { Session } from './request.ts';
+import { YES } from './request.ts';
 import type { File, FileCategory } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
@@ -153,7 +154,7 @@ export async function getFileListByCategory(
           previewUrl,
           size,
         },
-        isFavorite: f[11],
+        isFavorite: f[11] === YES, // '是' / '否' like the other lists
         comment: f[14] ?? undefined,
       } satisfies File;
     });
