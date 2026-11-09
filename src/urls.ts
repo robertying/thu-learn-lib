@@ -133,6 +133,12 @@ export const LEARN_HOMEWORK_SUBMIT_PAGE = (courseID: string, id: string) =>
 
 export const LEARN_HOMEWORK_SUBMIT = () => `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/tjzy`;
 
+/**
+ * The form the website's submit page sends (`fileUploadProgress` in `/res/js/common/myApp.js`): `fileupload` is the
+ * picked file, or the text "undefined" when none is picked (it appends `files[0]` as is); `zynr` is the whole current
+ * answer as HTML from its editor, sent every time (also when only the attachment changes); `isDeleted` is "1" when the
+ * existing attachment is deleted.
+ */
 export const LEARN_HOMEWORK_SUBMIT_FORM_DATA = (
   id: string,
   content = '',
