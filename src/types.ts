@@ -58,6 +58,10 @@ export enum ContentType {
 
 interface IUserInfo {
   name: string;
+  /**
+   * The department (for undergraduates, their 书院) as the homepage shows it, in the website language.
+   * `''` when there is none, including in English for departments without an English name (the page says `none`).
+   */
   department: string;
 }
 

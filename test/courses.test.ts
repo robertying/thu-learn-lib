@@ -151,10 +151,31 @@ describe('sortCourses', () => {
 describe('user', () => {
   it('reads name and department from the homepage', async () => {
     const server = new FakeServer();
-    server.homepageBody =
-      '<a class="user-log"> 张三 </a><div class="fl up-img-info"><p>x</p><p><label> 计算机系 </label></p></div>';
+    server.profile = { name: '张三', department: '新雅书院' };
     const helper = await server.loggedInHelper();
-    expect(await helper.getUserInfo()).toEqual({ name: '张三', department: '计算机系' });
+    expect(await helper.getUserInfo()).toEqual({ name: '张三', department: '新雅书院' });
+  });
+
+  it('returns no department for the none the English homepage shows for a 书院', async () => {
+    const server = new FakeServer();
+    server.lang = 'en';
+    server.profile = { name: '张三', department: 'none' };
+    const helper = await server.loggedInHelper();
+    expect(await helper.getUserInfo()).toEqual({ name: '张三', department: '' });
+  });
+
+  it('keeps an English department name', async () => {
+    const server = new FakeServer();
+    server.lang = 'en';
+    server.profile = { name: '张三', department: 'Department of Computer Science and Technology' };
+    const helper = await server.loggedInHelper();
+    expect((await helper.getUserInfo()).department).toBe('Department of Computer Science and Technology');
+  });
+
+  it('returns empty strings without a profile card', async () => {
+    const server = new FakeServer();
+    const helper = await server.loggedInHelper();
+    expect(await helper.getUserInfo()).toEqual({ name: '', department: '' });
   });
 
   it('switches the website language', async () => {

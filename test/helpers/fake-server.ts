@@ -55,6 +55,11 @@ export class FakeServer {
   lang: 'zh' | 'en' = 'zh';
   /** extra HTML in the student homepage (which is also where login reads the CSRF token) */
   homepageBody = '';
+  /**
+   * The user shown in the student homepage's header and profile card, which has the real page's structure.
+   * `department` is the label as the server writes it (`none` in English for a 书院).
+   */
+  profile?: { name: string; department: string };
   /** milliseconds every request takes before its response arrives */
   latency = 0;
   /** requests waiting for their response right now */
@@ -122,6 +127,7 @@ export class FakeServer {
             `<script src="/f/wlxt/common/languagejs?lang=${this.lang === 'en' ? 'en_US' : 'zh_CN'}&v=845"></script>`,
             '</head><body>',
             `<a href="/f/wlxt/index/course/student/course?wlkcid=x&_csrf=${this.csrfToken}">course</a>`,
+            this.#profileHtml(),
             this.homepageBody,
             '</body></html>',
           ].join('\n'),
@@ -243,5 +249,34 @@ export class FakeServer {
     await helper.login();
     this.reset();
     return helper;
+  }
+
+  /** the header and profile card of the real homepage, trimmed */
+  #profileHtml(): string {
+    if (!this.profile) return '';
+    const { name, department } = this.profile;
+    const role = this.lang === 'en' ? 'Student' : '同学';
+    return `<div class="right">
+  <div id="filtericon">
+    <a class="user-log" id="filtericon2">
+      <span class="teacher-logo" style="display: inline-block;"></span>
+      ${name}<i class="webicon-godown"></i><i class="webicon-goup"></i>
+    </a>
+    <div class="divbox filter clearfix"><div class="logo-cot"><div class="logo-info">
+      <div class="up-img-cover fl" id="up-img-touch"><span class="teacher-logo"></span><div class="logo-bg" id="uploadol">更换头像</div></div>
+      <div class="fl up-img-info">
+        <p>
+          <label>${name}</label>
+          <label>${role}</label>
+        </p>
+        <p>
+          <label>
+              ${department}
+          </label>
+        </p>
+      </div>
+    </div></div></div>
+  </div>
+</div>`;
   }
 }
