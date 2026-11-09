@@ -244,7 +244,8 @@ function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile
     const params = new URLSearchParams(href.split('?').slice(-1)[0]);
     const attachmentId = params.get('fileId')!;
     // a link to the file viewer carries the download path in its `downloadUrl` parameter
-    const downloadUrl = URLS.LEARN_PREFIX + (params.get('downloadUrl') ?? href);
+    const downloadUrl = URLS.learnUrl(params.get('downloadUrl') ?? href);
+    if (!downloadUrl) return undefined;
     return {
       id: attachmentId,
       name: (fileNode.children[0] as { data?: string } | undefined)?.data ?? '',

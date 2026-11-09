@@ -156,6 +156,16 @@ describe('getNotificationAttachment', () => {
     expect(await helper.getNotificationAttachment({ url, attachmentName: 'gone.pdf' })).toBeUndefined();
   });
 
+  it('ignores an attachment link to another site', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT), () =>
+      html('<html><body><a class="ml-10" href="//example.com/b/download?wjid=1">a.pdf</a></body></html>'),
+    );
+    const helper = await server.loggedInHelper();
+    const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
+
+    expect(await helper.getNotificationAttachment({ url, attachmentName: 'a.pdf' })).toBeUndefined();
+  });
+
   it('logs in again when the detail page is the short login page of an expired session', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();

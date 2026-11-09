@@ -7,6 +7,19 @@ import { CONTENT_TYPE_MAP, getMkFromType } from './utils.ts';
 
 export const ID_PREFIX = 'https://id.tsinghua.edu.cn';
 export const LEARN_PREFIX = 'https://learn.tsinghua.edu.cn';
+
+/**
+ * `href` from a Web Learning page, resolved against the site; `undefined` when it points anywhere else, so a link
+ * the session's requests follow never leaves the site
+ */
+export const learnUrl = (href: string): string | undefined => {
+  try {
+    const url = new URL(href, LEARN_PREFIX);
+    return url.origin === LEARN_PREFIX ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+};
 export const REGISTRAR_PREFIX = 'https://zhjw.cic.tsinghua.edu.cn';
 
 const MAX_SIZE = 200;
