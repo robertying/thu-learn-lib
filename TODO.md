@@ -2,10 +2,8 @@
 
 ## Check against the real server
 
-- Not run yet: the `file-favorite-field` and `read-mark` one-time checks (`LIVE_ONCE=file-favorite-field,read-mark
-  LIVE_ALLOW_WRITES=1 pnpm test:live test/live/once.test.ts`). learnX's favorites sync wants to know whether
-  `getFileList` rows say a file is favorited (the library sets no `isFavorite` there), and whether opening a notice
-  marks it read, so reads made offline can be replayed.
+- Not run yet: the notice half of `read-mark` (the 2026-11-09 run had no unread notice to try). learnX wants to know
+  whether opening a notice's detail page marks it read, so reads made offline can be replayed.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
@@ -28,6 +26,10 @@ Checked in 2026-11:
   and removing a non-favorite succeeds, so both are safe to retry. An unknown id answers HTTP 500
   (`UNEXPECTED_STATUS`). The favorites list returns every row when `aoData` has no paging (`iDisplayLength` null);
   it pages only when asked (`iDisplayStart` / `iDisplayLength`).
+- The one-time `file-favorite-field` check (2026-11-09): favoriting a file changes no key of its student file-list row
+  (`bt, fileSize, isNew, kjflid, kjxxid, llcs, ms, rownum_, scsj, sfqd, sxsj, sxsjStr, wjdx, wjid, wjlx, wlkcid, xzcs`),
+  so `getFileList` can't say a file is favorited; use `getFavorites(courseID, ContentType.FILE)`.
+- `read-mark` (2026-11-09): starting a file download does not mark it seen (`isNew` stays).
 - Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
   language ("Added successfully." in English), so only `result` is checked.
 - `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other
