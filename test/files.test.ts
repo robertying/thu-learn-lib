@@ -137,8 +137,8 @@ describe('getFileListByCategory', () => {
       1,
       3 * 1024 * 1024,
       '2025-01-02',
-      true,
-      null,
+      '是', // favorited
+      '否',
       'zip',
       'my note',
     ];
@@ -163,6 +163,16 @@ describe('getFileListByCategory', () => {
       isFavorite: true,
       comment: 'my note',
     });
+  });
+
+  it("reads an unfavorited file's '否' as false", async () => {
+    const row = ['k3', 't', 0, null, null, null, '2025-01-01', 'w3', 0, 1, '2025-01-02', '否', '否', 'pdf', null];
+    const server = new FakeServer().on('GET', URLS.LEARN_FILE_LIST_BY_CATEGORY_STUDENT('c1', 'cat2'), () =>
+      success([row]),
+    );
+    const helper = await server.loggedInHelper();
+    const [file] = await helper.getFileListByCategory('c1', 'cat2');
+    expect(file.isFavorite).toBe(false);
   });
 
   it('posts the course and category for teachers', async () => {

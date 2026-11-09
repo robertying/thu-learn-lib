@@ -111,9 +111,11 @@ describe('getHomeworkList (student)', () => {
       graderName: 'TA',
       gradeContent: 'good',
       gradeTime: 1739500000000,
+      submitTime: 1738000000000,
       isFavorite: true,
-      favoriteTime: 1738000000000,
     });
+    // the lists' `scsj` is the submit time, not when the homework was favorited
+    expect(h3.favoriteTime).toBeUndefined();
     expect(h3.excellentHomeworkList).toEqual([
       expect.objectContaining({
         id: 'x1',

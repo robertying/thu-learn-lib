@@ -132,7 +132,6 @@ async function getHomeworkListAtUrl(
         gradeContent: trimAndDefine(h.pynr),
         gradeTime: h.pysj === null ? undefined : h.pysj,
         isFavorite: h.sfsc === YES,
-        favoriteTime: h.scsj === null || h.sfsc !== YES ? undefined : h.scsj,
         comment: h.bznr ?? undefined,
         ...status,
       }) satisfies IHomework,

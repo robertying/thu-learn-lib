@@ -151,6 +151,15 @@ describe('helper data retrieval', () => {
     expect(Object.keys(contents).toSorted()).toEqual(ids.toSorted());
   });
 
+  it('maps every grade code the server sends to a grade level', async () => {
+    if (!courseTester) return;
+    const homework = await h.getHomeworkList(courseTester);
+    for (const hw of homework) {
+      if (hw.grade !== undefined && hw.grade < 0) expect(hw.gradeLevel, `grade code ${hw.grade}`).toBeDefined();
+      expect(hw.favoriteTime).toBeUndefined();
+    }
+  });
+
   it('parses favorite state of files by category as a boolean', async () => {
     if (!courseTester) return;
     const categories = await h.getFileCategoryList(courseTester);
