@@ -9,10 +9,11 @@ import { CONTENT_TYPE_MAP_REVERSE, decodeHTML } from './utils.ts';
 
 /**
  * Add an item to favorites. (收藏)
+ * Success is `result: 'success'`; the message is in the website's language ("收藏成功", "Added successfully.").
  */
 export async function addToFavorites(s: Session, type: ContentType, id: string): Promise<void> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_ADD(type, id));
-  if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
+  if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
       extra: json,
@@ -25,7 +26,7 @@ export async function addToFavorites(s: Session, type: ContentType, id: string):
  */
 export async function removeFromFavorites(s: Session, id: string): Promise<void> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_REMOVE(id));
-  if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
+  if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
       extra: json,
@@ -113,7 +114,7 @@ export async function setComment(s: Session, type: ContentType, id: string, cont
     method: 'POST',
     body: URLS.LEARN_COMMENT_SET_FORM_DATA(type, id, content),
   });
-  if (json.result !== 'success' || !json.msg?.endsWith?.('成功')) {
+  if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.OPERATION_FAILED,
       extra: json,

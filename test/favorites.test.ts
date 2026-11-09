@@ -66,16 +66,16 @@ describe('favorites', () => {
 
   it('adds and removes favorites', async () => {
     const server = new FakeServer()
+      // what the real server answers with the website in English
       .on('GET', URLS.LEARN_FAVORITE_ADD(ContentType.NOTIFICATION, ''), () =>
-        json({ result: 'success', msg: '收藏成功' }),
+        json({ result: 'success', msg: 'Added successfully.' }),
       )
-      .on('GET', URLS.LEARN_FAVORITE_REMOVE(''), () => json({ result: 'success', msg: '失败' }));
+      .on('GET', URLS.LEARN_FAVORITE_REMOVE(''), () => json({ result: 'error', msg: 'Failed' }));
     const helper = await server.loggedInHelper();
 
     await helper.addToFavorites(ContentType.NOTIFICATION, 'n1');
     expect(server.requests[0].url.searchParams.get('ywid')).toBe('n1');
     expect(server.requests[0].url.searchParams.get('ywlx')).toBe('KCGG');
-    // success also needs a message ending in 成功
     await expect(helper.removeFromFavorites('n1')).rejects.toHaveProperty('reason', FailReason.OPERATION_FAILED);
   });
 

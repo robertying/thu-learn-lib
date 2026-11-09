@@ -31,9 +31,11 @@ finds. Still open:
 Checked in 2026-11 (reads only):
 
 - The homework lists (unsubmitted, submitted, graded) have no favorite time: their `scsj` is the submit time (`null`
-  until submitted) next to `sfsc` (`'是'` / `'否'`). `favoriteTime` is now deprecated and always `undefined`; the
-  favorites list's `scsj` (`FavoriteItem.addedTime`) has the time an item was favorited. Not compared with a
-  favorited homework: the account had none.
+  until submitted) next to `sfsc` (`'是'` / `'否'`), so `Homework.favoriteTime` is gone. The one-time `favorite`
+  check (adds one homework to favorites and removes it) confirmed it: favoriting changes only `sfsc` (`'否'` →
+  `'是'`) in the homework row, and `getFavorites` lists the item with `addedTime` as a date string.
+- Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
+  language ("Added successfully." in English); success no longer depends on a message ending in 成功.
 - `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other
   lists, not a boolean, and `isFavorite` now compares it with `'是'`.
 

@@ -156,7 +156,6 @@ describe('helper data retrieval', () => {
     const homework = await h.getHomeworkList(courseTester);
     for (const hw of homework) {
       if (hw.grade !== undefined && hw.grade < 0) expect(hw.gradeLevel, `grade code ${hw.grade}`).toBeDefined();
-      expect(hw.favoriteTime).toBeUndefined();
     }
   });
 
