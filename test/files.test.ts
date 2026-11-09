@@ -38,6 +38,36 @@ describe('getFileList', () => {
     expect(files.map((f) => [f.id, f.category])).toEqual([['k1', undefined]]);
   });
 
+  it('turns the 1 / 0 isNew flag and string numbers into booleans and numbers', async () => {
+    const server = new FakeServer()
+      .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () =>
+        success([
+          { ...studentFile, kjxxid: 'new', isNew: 1 },
+          { ...studentFile, kjxxid: 'old', isNew: 0, sfqd: 0 },
+          { ...studentFile, kjxxid: 'strings', isNew: '1', sfqd: '1', wjdx: '2048', xsllcs: '5', xzcs: '3' },
+          {
+            ...studentFile,
+            kjxxid: 'missing',
+            isNew: undefined,
+            sfqd: undefined,
+            wjdx: undefined,
+            xsllcs: undefined,
+            xzcs: undefined,
+          },
+        ]),
+      )
+      .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.STUDENT), categories);
+    const helper = await server.loggedInHelper();
+    const files = await helper.getFileList('c1');
+
+    expect(files.map((f) => [f.id, f.isNew, f.markedImportant, f.rawSize, f.visitCount, f.downloadCount])).toEqual([
+      ['new', true, true, 2048, 5, 3],
+      ['old', false, false, 2048, 5, 3],
+      ['strings', true, true, 2048, 5, 3],
+      ['missing', false, false, 0, 0, 0],
+    ]);
+  });
+
   it('parses files and attaches their category', async () => {
     const server = new FakeServer()
       .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () => success([studentFile]))

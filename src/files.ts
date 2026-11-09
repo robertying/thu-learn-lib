@@ -37,6 +37,12 @@ export async function getFileList(
   return result.map((f) => ({ ...parseFile(s, f, courseType), category: categories.get(f.kjflid) }));
 }
 
+/** a 0 / 1 flag, which the server sends as a number, a string or (in older answers) a boolean */
+const isSet = (flag: unknown): boolean => flag === true || Number(flag) === 1;
+
+/** a count or size, which the server sends as a number or a string */
+const toNumber = (value: unknown): number => Number(value ?? 0) || 0;
+
 /** a file of the object-shaped lists (`getFileList`, and `getFileListByCategory` for a teacher) */
 function parseFile(s: Session, f: any, courseType: CourseType): File {
   const title = decodeHTML(f.bt);
@@ -49,16 +55,16 @@ function parseFile(s: Session, f: any, courseType: CourseType): File {
     fileId,
     title,
     description: decodeHTML(f.ms),
-    rawSize: f.wjdx,
+    rawSize: toNumber(f.wjdx),
     size: f.fileSize,
     uploadTime,
     publishTime: uploadTime,
     downloadUrl,
     previewUrl,
-    isNew: f.isNew ?? false,
-    markedImportant: Number(f.sfqd) === 1, // f.sfqd could be string '1' (teacher mode) or number 1 (student mode)
-    visitCount: f.xsllcs ?? f.llcs ?? 0,
-    downloadCount: f.xzcs ?? 0,
+    isNew: isSet(f.isNew), // 1 / 0 for a student
+    markedImportant: isSet(f.sfqd), // string '1' for a teacher, number 1 for a student
+    visitCount: toNumber(f.xsllcs ?? f.llcs),
+    downloadCount: toNumber(f.xzcs),
     fileType: f.wjlx,
     remoteFile: {
       id: fileId,
@@ -120,7 +126,7 @@ export async function getFileListByCategory(
     return result.map((f) => {
       const fileId = f[7];
       const title = decodeHTML(f[1]);
-      const rawSize = f[9];
+      const rawSize = toNumber(f[9]);
       const size = formatFileSize(rawSize);
       const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
       const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, s.previewFirstPage);
@@ -135,8 +141,8 @@ export async function getFileListByCategory(
         publishTime: f[10],
         downloadUrl,
         previewUrl,
-        isNew: f[8] === 1,
-        markedImportant: f[2] === 1,
+        isNew: isSet(f[8]),
+        markedImportant: isSet(f[2]),
         visitCount: 0,
         downloadCount: 0,
         fileType: f[13],
