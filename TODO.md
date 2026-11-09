@@ -4,10 +4,10 @@
 
 - Not run yet: the notice half of `read-mark` (the 2026-11-09 run had no unread notice to try). learnX wants to know
   whether opening a notice's detail page marks it read, so reads made offline can be replayed.
-- Not run yet: `file-seen` (`LIVE_ONCE=file-seen pnpm test:live test/live/once.test.ts`, needs a new file). It tries
-  what the website calls when a student opens a file (the preview check `b/kc/wj_wjb/student/beforePlay`, the
-  download check `downloadFileBefore`, the preview page), one new file each, and records which one clears `isNew`.
-  learnX wants it to replay "file seen" to the server.
+- `file-seen` run 2 not run yet (`LIVE_ONCE=file-seen pnpm test:live test/live/once.test.ts`, needs a new file):
+  tries the player page `beforePlay` answers, a whole download, and the course's file list page, then reads the
+  lists again after a minute. It also records (read only) how `isNew` lines up with upload age and visit count, in
+  case "new" is time-based. learnX wants a request that marks a file seen, to replay "file seen" to the server.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
@@ -34,6 +34,10 @@ Checked in 2026-11:
   (`bt, fileSize, isNew, kjflid, kjxxid, llcs, ms, rownum_, scsj, sfqd, sxsj, sxsjStr, wjdx, wjid, wjlx, wlkcid, xzcs`),
   so `getFileList` can't say a file is favorited by itself; `getFileList(..., { favorites: true })` fills it from `getFavorites(courseID, ContentType.FILE)`.
 - `read-mark` (2026-11-09): starting a file download does not mark it seen (`isNew` stays).
+- `file-seen` run 1 (2026-11-09, 6 new files): the preview check `GET b/kc/wj_wjb/student/beforePlay` (answers
+  `{mk, playUrl, sfgk, type}`), the download check `GET b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore` (answers
+  `result: 'success'`, `msg: '文件存在'`) and the preview page (`previewUrl`) each leave every key of the file's row
+  as it was, `isNew` and `llcs` included.
 - Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
   language ("Added successfully." in English), so only `result` is checked.
 - `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other

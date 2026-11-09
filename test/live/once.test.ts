@@ -16,6 +16,7 @@ import {
 import { HOMEWORK_LIST_SOURCES } from '../../src/homework.ts';
 import * as URLS from '../../src/urls.ts';
 import { FINGERPRINT, config } from './config.ts';
+import { DAY_MS } from './dates.ts';
 import { ALLOW_WRITES } from './guard.ts';
 import { type OnceTest, recordAttempt, recordPass, recordResult, shouldRun } from './once.ts';
 
@@ -42,20 +43,48 @@ const fileSeen: OnceTest = { name: 'file-seen', covers: ['src/files.ts', 'src/ur
 
 /**
  * What the website calls when a student opens a course file (from its scripts, `play.js` and the file list's
- * `download_kj`): the preview check `GET /b/kc/wj_wjb/student/beforePlay` (answers the player URL), the download
- * check `GET /b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore` before `downloadFile`, and the preview page itself.
+ * `download_kj`). Run 1 (2026-11-09) found that the preview check `b/kc/wj_wjb/student/beforePlay`, the download check
+ * `downloadFileBefore` and the preview page (`previewUrl`) each leave `isNew` (and every other row key) as it was.
+ * These are the next guesses: the player page the preview check answers, a whole download, and the course's file
+ * list page. Each answers a short description of what the server sent, without account data.
  */
-const FILE_SEEN_CANDIDATES: { name: string; url: (wjid: string, previewUrl: string) => string }[] = [
+type FileSeenTarget = { courseID: string; id: string; fileId: string; downloadUrl: string };
+const FILE_SEEN_CANDIDATES: {
+  name: string;
+  run: (target: FileSeenTarget, get: (url: string) => Promise<Response>) => Promise<string>;
+}[] = [
   {
-    name: 'preview check (b/kc/wj_wjb/student/beforePlay)',
-    url: (wjid) => `${URLS.LEARN_PREFIX}/b/kc/wj_wjb/student/beforePlay?wjid=${wjid}&mk=mk_kcwj&sfgk=0`,
+    name: 'player page (beforePlay, then its playUrl as the website opens it)',
+    run: async ({ fileId }, get) => {
+      const check = await get(`${URLS.LEARN_PREFIX}/b/kc/wj_wjb/student/beforePlay?wjid=${fileId}&mk=mk_kcwj&sfgk=0`);
+      const json = await check.json();
+      const o = json.object ?? {};
+      if (typeof o.playUrl !== 'string') return `beforePlay answered result ${JSON.stringify(json.result)}, no playUrl`;
+      const page = new URL(`${o.playUrl}&mk=${o.mk}&sfgk=${o.sfgk}&browser=-1`, URLS.LEARN_PREFIX);
+      return `playUrl path ${page.pathname}: ${await describeAnswer(await get(page.href))}`;
+    },
   },
   {
-    name: 'download check (downloadFileBefore)',
-    url: (wjid) => `${URLS.LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore?wjid=${wjid}`,
+    name: 'whole download (downloadFileBefore, then all of downloadFile)',
+    run: async ({ fileId, downloadUrl }, get) => {
+      await (await get(`${URLS.LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore?wjid=${fileId}`)).text();
+      const res = await get(downloadUrl);
+      const size = (await res.arrayBuffer()).byteLength;
+      return `HTTP ${res.status} ${(res.headers.get('content-type') ?? '').split(';')[0]}, ${size} bytes`;
+    },
   },
-  { name: 'preview page (previewUrl)', url: (_, previewUrl) => previewUrl },
+  {
+    name: 'file list page (f/wlxt/kj/wlkc_kjxxb/student/beforePageList)',
+    run: async ({ courseID }, get) =>
+      describeAnswer(await get(`${URLS.LEARN_PREFIX}/f/wlxt/kj/wlkc_kjxxb/student/beforePageList?wlkcid=${courseID}`)),
+  },
 ];
+
+/** the spread of file ages, e.g. "0-30 days old" */
+const ageRange = (xs: number[]) => (xs.length ? `${Math.min(...xs)}-${Math.max(...xs)} days old` : 'none');
+
+/** how long to wait before reading the file lists again, in case the server updates `isNew` late */
+const FILE_SEEN_RECHECK_MS = 60_000;
 
 const submission: OnceTest = {
   name: 'submission',
@@ -435,7 +464,7 @@ describe('one-time checks', () => {
 
   it.runIf(shouldRun(fileSeen))(
     'records which request the website makes when a file is opened marks it seen',
-    { retry: 0, timeout: 180_000 },
+    { retry: 0, timeout: 300_000 },
     async () => {
       recordAttempt(fileSeen.name);
       const cookieJar = new CookieJar();
@@ -454,19 +483,30 @@ describe('one-time checks', () => {
           ((json.object ?? []) as Record<string, unknown>[]).map((r) => [r.kjxxid as string, r]),
         );
       };
-      // every new file of the current semester, so each candidate gets a file of its own when there are enough
-      const newFiles: { courseID: string; id: string; fileId: string; previewUrl: string }[] = [];
+      // read only: how isNew lines up with upload age and visit count, over every file of the semester
+      const newFiles: FileSeenTarget[] = [];
+      const ages = { new: [] as number[], seen: [] as number[] };
+      const visited = { new: 0, seen: 0 };
       for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
-        for (const f of await h.getFileList(c.id))
-          if (f.isNew) newFiles.push({ courseID: c.id, id: f.id, fileId: f.fileId, previewUrl: f.previewUrl });
+        for (const f of await h.getFileList(c.id)) {
+          const key = f.isNew ? 'new' : 'seen';
+          ages[key].push(Math.floor((Date.now() - new Date(f.uploadTime).getTime()) / DAY_MS));
+          if (f.visitCount > 0) visited[key]++;
+          if (f.isNew) newFiles.push({ courseID: c.id, id: f.id, fileId: f.fileId, downloadUrl: f.downloadUrl });
+        }
       }
+      const findings: string[] = [
+        `${newFiles.length} new files (${ageRange(ages.new)}, ${visited.new} with visits), ${ages.seen.length} seen (${ageRange(
+          ages.seen,
+        )}, ${visited.seen} with visits)`,
+      ];
       if (newFiles.length === 0) {
-        recordResult(fileSeen.name, 'no new file to try');
+        recordResult(fileSeen.name, findings.join('; '));
         return;
       }
 
-      const findings: string[] = [`${newFiles.length} new files`];
       let marked: string | undefined;
+      const tried: FileSeenTarget[] = [];
       for (const candidate of FILE_SEEN_CANDIDATES) {
         // a file still new: the next unused one, or the last one tried when it didn't flip
         const target = newFiles.shift();
@@ -474,9 +514,14 @@ describe('one-time checks', () => {
           findings.push(`${candidate.name}: no new file left to try`);
           continue;
         }
+        tried.push(target);
         const before = await rawRows(target.courseID);
-        const res = await raw(withToken(candidate.url(target.fileId, target.previewUrl)));
-        const answer = await describeAnswer(res);
+        let answer: string;
+        try {
+          answer = await candidate.run(target, (url) => raw(withToken(url)));
+        } catch (e) {
+          answer = `failed: ${(e as Error).message}`;
+        }
         const after = await rawRows(target.courseID);
         const row = { before: before.get(target.id)!, after: after.get(target.id)! };
         const changed = changedKeys(row.before, row.after);
@@ -495,6 +540,15 @@ describe('one-time checks', () => {
         // reuse a file the candidate didn't mark when no other is left
         else if (newFiles.length === 0) newFiles.push(target);
       }
+
+      // the server may update the list late: read the tried files once more after a wait
+      await new Promise((r) => setTimeout(r, FILE_SEEN_RECHECK_MS));
+      let lateSeen = 0;
+      for (const t of tried) {
+        const row = (await rawRows(t.courseID)).get(t.id);
+        if (row && !Number(row.isNew)) lateSeen++;
+      }
+      findings.push(`after ${FILE_SEEN_RECHECK_MS / 1000}s: ${lateSeen} of ${tried.length} tried files seen`);
 
       await h.logout();
       const result = `${marked ? `marked seen by: ${marked}` : 'none marked it seen'}; ${findings.join('; ')}`;
