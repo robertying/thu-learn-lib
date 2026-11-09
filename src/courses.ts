@@ -4,7 +4,8 @@ import type { Session } from './request.ts';
 import type { CourseInfo, CourseListOptions, SemesterInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { apiError, decodeHTML, expectSuccess, parseSemesterType } from './utils.ts';
+import { parseSemesterType } from './codes.ts';
+import { apiError, decodeHTML, expectSuccess } from './utils.ts';
 
 export async function getSemesterIdList(s: Session): Promise<string[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_SEMESTER_LIST);

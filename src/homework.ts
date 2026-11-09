@@ -2,6 +2,7 @@
 
 import { Base64 } from 'js-base64';
 
+import { attachmentOf } from './attachments.ts';
 import type { Session } from './request.ts';
 import { addCSRFTokenToUrl } from './request.ts';
 import type {
@@ -19,12 +20,13 @@ import type {
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
+import { GRADE_LEVEL_MAP } from './codes.ts';
 import {
   $,
-  GRADE_LEVEL_MAP,
   YES,
   apiError,
   decodeHTML,
+  favoriteFields,
   expectSuccess,
   isSelected,
   looksLikeLoginPage,
@@ -147,8 +149,7 @@ async function getHomeworkListAtUrl(
         graderName: trimAndDefine(h.jsm),
         gradeContent: trimAndDefine(h.pynr),
         gradeTime: toServerTime(h.pysj),
-        isFavorite: h.sfsc === YES,
-        comment: h.bznr ?? undefined,
+        ...favoriteFields(h),
         ...status,
       }) satisfies HomeworkBase,
   );
@@ -237,25 +238,19 @@ async function getHomeworkDescription(s: Session, baseId: string): Promise<Homew
 /** the attachment in one `div.list.fujian` block; `undefined` if the block is missing or has no link */
 function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile | undefined {
   if (!fileDiv) return undefined;
-  const fileNode = $(fileDiv)('.ftitle').children('a')[0] ?? $(fileDiv)('.fl').children('a')[0];
-  const href = fileNode?.attribs.href;
-  if (fileNode !== undefined && href) {
-    const size = trimAndDefine($(fileDiv)('.fl > span[class^="color"]').first().text()) ?? '';
-    const params = new URLSearchParams(href.split('?').slice(-1)[0]);
-    const attachmentId = params.get('fileId')!;
-    // a link to the file viewer carries the download path in its `downloadUrl` parameter
-    const downloadUrl = URLS.learnUrl(params.get('downloadUrl') ?? href);
-    if (!downloadUrl) return undefined;
-    return {
-      id: attachmentId,
-      name: (fileNode.children[0] as { data?: string } | undefined)?.data ?? '',
-      downloadUrl,
-      previewUrl: URLS.LEARN_FILE_PREVIEW(ContentType.HOMEWORK, attachmentId, CourseType.STUDENT, s.previewFirstPage),
-      size,
-    };
-  } else {
-    return undefined;
-  }
+  const block = $(fileDiv);
+  const title = block('.ftitle').children('a').first();
+  const link = title.length > 0 ? title : block('.fl').children('a').first();
+  const href = link.attr('href');
+  if (!href) return undefined;
+  return attachmentOf(s, {
+    href,
+    idParam: 'fileId',
+    name: link.text().trim(),
+    size: trimAndDefine(block('.fl > span[class^="color"]').first().text()) ?? '',
+    type: ContentType.HOMEWORK,
+    courseType: CourseType.STUDENT,
+  });
 }
 
 export async function submitHomework(
@@ -328,7 +323,7 @@ export const homeworkSubmitForm = (
 ) => {
   const form = new FormData();
   form.append('xszyid', id);
-  form.append('zynr', content ?? '');
+  form.append('zynr', content);
   if (!attachment) form.append('fileupload', 'undefined');
   else if (attachment.content instanceof Blob) form.append('fileupload', attachment.content, attachment.filename);
   else {

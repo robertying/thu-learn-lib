@@ -5,7 +5,7 @@ import type { CourseFile, FileCategory, FileListOptions } from './types.ts';
 import { getFavorites } from './favorites.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { YES, decodeHTML, expectSuccess, formatFileSize, toRequiredServerTime } from './utils.ts';
+import { YES, decodeHTML, expectSuccess, formatFileSize, isSet, toNumber, toRequiredServerTime } from './utils.ts';
 
 /** Get all files （课程文件） of the specified course; `category` is left out if the categories can't be fetched. */
 export async function getFileList(
@@ -41,12 +41,6 @@ export async function getFileList(
   });
 }
 
-/** a 0 / 1 flag, which the server sends as a number, a string or (in older answers) a boolean */
-const isSet = (flag: unknown): boolean => flag === true || Number(flag) === 1;
-
-/** a count or size, which the server sends as a number or a string */
-const toNumber = (value: unknown): number => Number(value ?? 0) || 0;
-
 /** a file of the object-shaped lists (`getFileList`, and `getFileListByCategory` for a teacher) */
 function parseFile(s: Session, f: any, courseType: CourseType): CourseFile {
   const title = decodeHTML(f.bt);
@@ -80,7 +74,6 @@ function parseFile(s: Session, f: any, courseType: CourseType): CourseFile {
   };
 }
 
-/** Get file categories of the specified course. */
 export async function getFileCategoryList(
   s: Session,
   courseID: string,
@@ -101,10 +94,6 @@ export async function getFileCategoryList(
   );
 }
 
-/**
- * Get all files of the specified category of the specified course.
- * Note: this cannot get correct `visitCount` and `downloadCount` for student
- */
 export async function getFileListByCategory(
   s: Session,
   courseID: string,

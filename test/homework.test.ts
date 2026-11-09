@@ -216,6 +216,22 @@ describe('getHomeworkList (student)', () => {
     expect(detail.gradeAttachment).toBeUndefined();
   });
 
+  it('reads the attachment name from the whole link text, and the link in .fl when there is no .ftitle', async () => {
+    const server = setup().on('GET', URLS.LEARN_HOMEWORK_PAGE('', ''), () =>
+      html(`<html><body>
+<div class="list fujian clearfix"><div class="fl"><a href="/b/dl?fileId=f1"><span>report</span>.pdf</a><span class="color_999">1M</span></div></div>
+</body></html>`),
+    );
+    const helper = await server.loggedInHelper();
+    const [h1] = await helper.getHomeworkList('c1');
+    expect((await helper.getHomeworkDetail(h1)).attachment).toMatchObject({
+      id: 'f1',
+      name: 'report.pdf',
+      size: '1M',
+      downloadUrl: `${URLS.LEARN_PREFIX}/b/dl?fileId=f1`,
+    });
+  });
+
   it('maps grade levels, with -63 as P and -60 as pass', async () => {
     const server = new FakeServer();
     for (const source of HOMEWORK_LIST_SOURCES) {

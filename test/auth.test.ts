@@ -1,3 +1,4 @@
+import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
 import { CourseType, FailReason, Language } from '../src/index.ts';
@@ -146,6 +147,31 @@ describe('login', () => {
           : server.fetch(input, init),
     });
     await expect(helper.login(credential)).rejects.toHaveProperty('reason', FailReason.NETWORK_ERROR);
+  });
+
+  it('rejects with ERROR_ROAMING when Web Learning turns the ticket down', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_AUTH_ROAM(''), () => new Response('', { status: 401 }), {
+      public: true,
+    });
+    const helper = server.helper();
+    await expect(helper.login(credential)).rejects.toEqual({ reason: FailReason.ERROR_ROAMING });
+    expect(helper.getCSRFToken()).toBe('');
+  });
+
+  it('rejects with INVALID_RESPONSE when the homepage has no CSRF token', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_HOMEPAGE(CourseType.STUDENT), () => html('<html></html>'), {
+      public: true,
+    });
+    await expect(server.helper().login(credential)).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+  });
+
+  it('rejects with ERROR_SETTING_COOKIES when the cookie jar refuses the reset cookie', async () => {
+    const server = new FakeServer();
+    const cookieJar = new CookieJar();
+    cookieJar.setCookie = () => Promise.reject(new Error('read-only jar'));
+    const helper = server.helper({ cookieJar });
+    await expect(helper.login(credential)).rejects.toHaveProperty('reason', FailReason.ERROR_SETTING_COOKIES);
+    expect(server.requests).toHaveLength(0);
   });
 
   it('logs out with one POST and forgets the CSRF token', async () => {

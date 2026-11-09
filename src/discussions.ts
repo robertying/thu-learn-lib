@@ -6,9 +6,8 @@ import type { Session } from './request.ts';
 import type { Discussion, DiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { YES, decodeHTML, expectSuccess, toRequiredServerTime } from './utils.ts';
+import { decodeHTML, favoriteFields, expectSuccess, toRequiredServerTime } from './utils.ts';
 
-/** Get all discussions （课程讨论） of the specified course. */
 export async function getDiscussionList(
   s: Session,
   courseID: string,
@@ -29,10 +28,6 @@ export async function getDiscussionList(
   );
 }
 
-/**
- * Get all notifications （课程答疑） of the specified course.
- * The student version supports only answered questions, while the teacher version supports all questions.
- */
 export async function getAnsweredQuestionList(
   s: Session,
   courseID: string,
@@ -63,7 +58,6 @@ function parseDiscussionBase(d: any): DiscussionBase {
     lastReplierName: d.zhhfrxm,
     visitCount: d.djs ?? 0, // teacher cannot fetch this
     replyCount: d.hfcs,
-    isFavorite: d.sfsc === YES,
-    comment: d.bznr ?? undefined,
+    ...favoriteFields(d),
   };
 }

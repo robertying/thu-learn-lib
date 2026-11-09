@@ -4,7 +4,7 @@ import * as cheerio from 'cheerio/slim';
 import { decodeHTML as _decodeHTML } from 'entities';
 
 import type { ApiError, DetailSelector, Fetch } from './types.ts';
-import { ContentType, FailReason, HomeworkGradeLevel, QuestionnaireType, SemesterType } from './types.ts';
+import { FailReason } from './types.ts';
 
 const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
 
@@ -14,6 +14,16 @@ const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
  */
 export const apiError = (reason: FailReason, extra?: unknown): ApiError =>
   extra === undefined ? { reason } : { reason, extra };
+
+/**
+ * `promise`, but a `TypeError` it rejects with becomes `INVALID_RESPONSE` (with the error's text in `extra.error`):
+ * a parser that reads a field of something the server left out, or sent in another shape, then rejects with an
+ * `ApiError` like every other failure. The fetch's own `TypeError` is `NETWORK_ERROR` already.
+ */
+export const parsed = <T>(promise: Promise<T>): Promise<T> =>
+  promise.catch((err: unknown) => {
+    throw err instanceof TypeError ? apiError(FailReason.INVALID_RESPONSE, { error: String(err) }) : err;
+  });
 
 /** throw `apiError(reason, json)` unless the server's JSON answer says `result: 'success'` */
 export function expectSuccess(json: any, reason: FailReason): void {
@@ -47,28 +57,6 @@ export const looksLikeLoginPage = (text: string) =>
   /登录超时|您未登录或登录失效|log_fail\.png|login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(
     text,
   );
-
-const SEMESTER_TYPES: Record<number, SemesterType> = {
-  1: SemesterType.FALL,
-  2: SemesterType.SPRING,
-  3: SemesterType.SUMMER,
-};
-
-/** the semester type from the last digit of a semester id (`2024-2025-1`) */
-export const parseSemesterType = (n: number): SemesterType => SEMESTER_TYPES[n] ?? SemesterType.UNKNOWN;
-
-const CONTENT_TYPE_MK_MAP: Record<ContentType, string> = {
-  [ContentType.NOTIFICATION]: 'kcgg',
-  [ContentType.FILE]: 'kcwj',
-  [ContentType.HOMEWORK]: 'kczy',
-  [ContentType.DISCUSSION]: '',
-  [ContentType.QUESTION]: '',
-  [ContentType.QUESTIONNAIRE]: '',
-};
-
-export function getMkFromType(type: ContentType): string {
-  return 'mk_' + CONTENT_TYPE_MK_MAP[type];
-}
 
 export function decodeHTML(html: string): string {
   const text = _decodeHTML(html ?? '');
@@ -118,34 +106,6 @@ export function trimAndDefine(text: string | undefined | null): string | undefin
   return trimmed === '' ? undefined : decodeHTML(trimmed);
 }
 
-export const GRADE_LEVEL_MAP = new Map([
-  [-100, HomeworkGradeLevel.CHECKED],
-  [-99, HomeworkGradeLevel.A_PLUS],
-  [-98, HomeworkGradeLevel.A],
-  [-92, HomeworkGradeLevel.A_MINUS],
-  [-87, HomeworkGradeLevel.B_PLUS],
-  [-85, HomeworkGradeLevel.DISTINCTION],
-  [-82, HomeworkGradeLevel.B],
-  [-78, HomeworkGradeLevel.B_MINUS],
-  [-74, HomeworkGradeLevel.C_PLUS],
-  [-71, HomeworkGradeLevel.C],
-  [-68, HomeworkGradeLevel.C_MINUS],
-  [-67, HomeworkGradeLevel.G],
-  [-66, HomeworkGradeLevel.D_PLUS],
-  [-64, HomeworkGradeLevel.D],
-  [-65, HomeworkGradeLevel.EXEMPTED_COURSE],
-  [-63, HomeworkGradeLevel.P],
-  [-62, HomeworkGradeLevel.EX],
-  [-61, HomeworkGradeLevel.EXEMPTION],
-  [-60, HomeworkGradeLevel.PASS],
-  [-59, HomeworkGradeLevel.FAILURE],
-  [-55, HomeworkGradeLevel.W],
-  [-51, HomeworkGradeLevel.I],
-  [-50, HomeworkGradeLevel.INCOMPLETE],
-  [-31, HomeworkGradeLevel.NA],
-  [-30, HomeworkGradeLevel.F],
-]);
-
 export const JSONP_EXTRACTOR_NAME = 'thu_learn_lib_jsonp_extractor';
 
 /**
@@ -173,23 +133,18 @@ export function formatFileSize(size: number): string {
   return (size / 1024 / 1024 / 1024).toFixed(2) + 'G';
 }
 
-export const CONTENT_TYPE_MAP = new Map([
-  [ContentType.NOTIFICATION, 'KCGG'],
-  [ContentType.FILE, 'KCKJ'],
-  [ContentType.HOMEWORK, 'KCZY'],
-  [ContentType.DISCUSSION, 'KCTL'],
-  [ContentType.QUESTION, 'KCDY'],
-  [ContentType.QUESTIONNAIRE, 'KCWJ'],
-  // omitted: 课表(KCKB)
-]);
-export const CONTENT_TYPE_MAP_REVERSE = new Map([...CONTENT_TYPE_MAP].map(([type, code]) => [code, type]));
-
-export const QNR_TYPE_MAP = new Map([
-  ['投票', QuestionnaireType.VOTE],
-  ['填表', QuestionnaireType.FORM],
-  ['问卷', QuestionnaireType.SURVEY],
-]);
-
 /** whether `item` is selected by a `DetailSelector` (`undefined` means `'none'`) */
 export const isSelected = <T>(selector: DetailSelector<T> | undefined, item: T): boolean =>
   selector === 'all' || (typeof selector === 'function' && selector(item));
+
+/** a 0 / 1 flag, which the server sends as a number, a string or (in older answers) a boolean */
+export const isSet = (flag: unknown): boolean => flag === true || Number(flag) === 1;
+
+/** a count or size, which the server sends as a number or a string */
+export const toNumber = (value: unknown): number => Number(value ?? 0) || 0;
+
+/** `isFavorite` (`sfsc`) and `comment` (`bznr`), which every list item carries */
+export const favoriteFields = (raw: { sfsc?: unknown; bznr?: unknown }): { isFavorite: boolean; comment?: string } => ({
+  isFavorite: raw.sfsc === YES,
+  comment: typeof raw.bznr === 'string' ? raw.bznr : undefined,
+});

@@ -2,7 +2,7 @@
 
 import type { Session } from './request.ts';
 import type { AllContentsOptions, AllContentsResult, ContentTypeMap, CourseContent } from './types.ts';
-import { apiError } from './utils.ts';
+import { apiError, parsed } from './utils.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import { getAnsweredQuestionList, getDiscussionList } from './discussions.ts';
 import { getFileList } from './files.ts';
@@ -59,7 +59,7 @@ export async function getAllContents<T extends ContentType>(
   await Promise.all(
     courseIDs.map(async (id) => {
       try {
-        contents[id] = await fetchContentForCourse(id);
+        contents[id] = await parsed(fetchContentForCourse(id));
       } catch (err) {
         errors[id] = err;
       }
