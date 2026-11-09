@@ -118,7 +118,7 @@ export class Learn2018Helper {
   }
 
   /** get user's name and department */
-  public async getUserInfo(courseType = CourseType.STUDENT): Promise<UserInfo> {
+  public async getUserInfo(courseType: CourseType = CourseType.STUDENT): Promise<UserInfo> {
     return parsed(user.getUserInfo(this.#session, courseType));
   }
 

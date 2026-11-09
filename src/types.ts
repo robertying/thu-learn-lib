@@ -27,21 +27,38 @@ export type HelperConfig = {
   requestTimeout?: number;
 };
 
-export enum FailReason {
-  NO_CREDENTIAL = 'no credential provided',
-  ERROR_FETCH_FROM_ID = 'could not fetch ticket from id.tsinghua.edu.cn',
-  BAD_CREDENTIAL = 'bad credential',
-  ERROR_ROAMING = 'could not roam to learn.tsinghua.edu.cn',
-  NOT_LOGGED_IN = 'not logged in or login timeout',
-  NOT_IMPLEMENTED = 'not implemented',
-  INVALID_RESPONSE = 'invalid response',
-  UNEXPECTED_STATUS = 'unexpected status',
-  OPERATION_FAILED = 'operation failed',
-  ERROR_SETTING_COOKIES = 'could not set cookies',
-  REQUEST_TIMEOUT = 'request timed out',
+export const FailReason = {
+  NO_CREDENTIAL: 'no credential provided',
+  ERROR_FETCH_FROM_ID: 'could not fetch ticket from id.tsinghua.edu.cn',
+  BAD_CREDENTIAL: 'bad credential',
+  ERROR_ROAMING: 'could not roam to learn.tsinghua.edu.cn',
+  NOT_LOGGED_IN: 'not logged in or login timeout',
+  NOT_IMPLEMENTED: 'not implemented',
+  INVALID_RESPONSE: 'invalid response',
+  UNEXPECTED_STATUS: 'unexpected status',
+  OPERATION_FAILED: 'operation failed',
+  ERROR_SETTING_COOKIES: 'could not set cookies',
+  REQUEST_TIMEOUT: 'request timed out',
   /** a request got no answer at all (no connection, DNS or TLS failure, connection reset); the error is in `extra` */
-  NETWORK_ERROR = 'network error',
-  ERROR_REGISTRAR_AUTH = 'could not sign in to the registrar (zhjw.cic.tsinghua.edu.cn)',
+  NETWORK_ERROR: 'network error',
+  ERROR_REGISTRAR_AUTH: 'could not sign in to the registrar (zhjw.cic.tsinghua.edu.cn)',
+} as const;
+export type FailReason = (typeof FailReason)[keyof typeof FailReason];
+// lets `FailReason.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace FailReason {
+  type NO_CREDENTIAL = typeof FailReason.NO_CREDENTIAL;
+  type ERROR_FETCH_FROM_ID = typeof FailReason.ERROR_FETCH_FROM_ID;
+  type BAD_CREDENTIAL = typeof FailReason.BAD_CREDENTIAL;
+  type ERROR_ROAMING = typeof FailReason.ERROR_ROAMING;
+  type NOT_LOGGED_IN = typeof FailReason.NOT_LOGGED_IN;
+  type NOT_IMPLEMENTED = typeof FailReason.NOT_IMPLEMENTED;
+  type INVALID_RESPONSE = typeof FailReason.INVALID_RESPONSE;
+  type UNEXPECTED_STATUS = typeof FailReason.UNEXPECTED_STATUS;
+  type OPERATION_FAILED = typeof FailReason.OPERATION_FAILED;
+  type ERROR_SETTING_COOKIES = typeof FailReason.ERROR_SETTING_COOKIES;
+  type REQUEST_TIMEOUT = typeof FailReason.REQUEST_TIMEOUT;
+  type NETWORK_ERROR = typeof FailReason.NETWORK_ERROR;
+  type ERROR_REGISTRAR_AUTH = typeof FailReason.ERROR_REGISTRAR_AUTH;
 }
 
 export interface ApiError {
@@ -49,20 +66,38 @@ export interface ApiError {
   extra?: unknown;
 }
 
-export enum SemesterType {
-  FALL = 'fall',
-  SPRING = 'spring',
-  SUMMER = 'summer',
-  UNKNOWN = '',
+export const SemesterType = {
+  FALL: 'fall',
+  SPRING: 'spring',
+  SUMMER: 'summer',
+  UNKNOWN: '',
+} as const;
+export type SemesterType = (typeof SemesterType)[keyof typeof SemesterType];
+// lets `SemesterType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace SemesterType {
+  type FALL = typeof SemesterType.FALL;
+  type SPRING = typeof SemesterType.SPRING;
+  type SUMMER = typeof SemesterType.SUMMER;
+  type UNKNOWN = typeof SemesterType.UNKNOWN;
 }
 
-export enum ContentType {
-  NOTIFICATION = 'notification',
-  FILE = 'file',
-  HOMEWORK = 'homework',
-  DISCUSSION = 'discussion',
-  QUESTION = 'question',
-  QUESTIONNAIRE = 'questionnaire',
+export const ContentType = {
+  NOTIFICATION: 'notification',
+  FILE: 'file',
+  HOMEWORK: 'homework',
+  DISCUSSION: 'discussion',
+  QUESTION: 'question',
+  QUESTIONNAIRE: 'questionnaire',
+} as const;
+export type ContentType = (typeof ContentType)[keyof typeof ContentType];
+// lets `ContentType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace ContentType {
+  type NOTIFICATION = typeof ContentType.NOTIFICATION;
+  type FILE = typeof ContentType.FILE;
+  type HOMEWORK = typeof ContentType.HOMEWORK;
+  type DISCUSSION = typeof ContentType.DISCUSSION;
+  type QUESTION = typeof ContentType.QUESTION;
+  type QUESTIONNAIRE = typeof ContentType.QUESTIONNAIRE;
 }
 
 export interface UserInfo {
@@ -85,9 +120,15 @@ export interface SemesterInfo {
   type: SemesterType;
 }
 
-export enum CourseType {
-  STUDENT = 'student',
-  TEACHER = 'teacher',
+export const CourseType = {
+  STUDENT: 'student',
+  TEACHER: 'teacher',
+} as const;
+export type CourseType = (typeof CourseType)[keyof typeof CourseType];
+// lets `CourseType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace CourseType {
+  type STUDENT = typeof CourseType.STUDENT;
+  type TEACHER = typeof CourseType.TEACHER;
 }
 
 export interface CourseInfo {
@@ -180,39 +221,68 @@ export interface HomeworkStatus {
   graded: boolean;
 }
 
-export enum HomeworkGradeLevel {
+export const HomeworkGradeLevel = {
   /** 已阅 */
-  CHECKED = 'checked',
-  A_PLUS = 'A+',
-  A = 'A',
-  A_MINUS = 'A-',
-  B_PLUS = 'B+',
+  CHECKED: 'checked',
+  A_PLUS: 'A+',
+  A: 'A',
+  A_MINUS: 'A-',
+  B_PLUS: 'B+',
   /** 优秀 */
-  DISTINCTION = 'distinction',
-  B = 'B',
-  B_MINUS = 'B-',
-  C_PLUS = 'C+',
-  C = 'C',
-  C_MINUS = 'C-',
-  G = 'G',
-  D_PLUS = 'D+',
-  D = 'D',
+  DISTINCTION: 'distinction',
+  B: 'B',
+  B_MINUS: 'B-',
+  C_PLUS: 'C+',
+  C: 'C',
+  C_MINUS: 'C-',
+  G: 'G',
+  D_PLUS: 'D+',
+  D: 'D',
   /** 免课 */
-  EXEMPTED_COURSE = 'exempted course',
-  P = 'P',
-  EX = 'EX',
+  EXEMPTED_COURSE: 'exempted course',
+  P: 'P',
+  EX: 'EX',
   /** 免修 */
-  EXEMPTION = 'exemption',
+  EXEMPTION: 'exemption',
   /** 通过 */
-  PASS = 'pass',
+  PASS: 'pass',
   /** 不通过 */
-  FAILURE = 'failure',
-  W = 'W',
-  I = 'I',
+  FAILURE: 'failure',
+  W: 'W',
+  I: 'I',
   /** 缓考 */
-  INCOMPLETE = 'incomplete',
-  NA = 'NA',
-  F = 'F',
+  INCOMPLETE: 'incomplete',
+  NA: 'NA',
+  F: 'F',
+} as const;
+export type HomeworkGradeLevel = (typeof HomeworkGradeLevel)[keyof typeof HomeworkGradeLevel];
+// lets `HomeworkGradeLevel.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace HomeworkGradeLevel {
+  type CHECKED = typeof HomeworkGradeLevel.CHECKED;
+  type A_PLUS = typeof HomeworkGradeLevel.A_PLUS;
+  type A = typeof HomeworkGradeLevel.A;
+  type A_MINUS = typeof HomeworkGradeLevel.A_MINUS;
+  type B_PLUS = typeof HomeworkGradeLevel.B_PLUS;
+  type DISTINCTION = typeof HomeworkGradeLevel.DISTINCTION;
+  type B = typeof HomeworkGradeLevel.B;
+  type B_MINUS = typeof HomeworkGradeLevel.B_MINUS;
+  type C_PLUS = typeof HomeworkGradeLevel.C_PLUS;
+  type C = typeof HomeworkGradeLevel.C;
+  type C_MINUS = typeof HomeworkGradeLevel.C_MINUS;
+  type G = typeof HomeworkGradeLevel.G;
+  type D_PLUS = typeof HomeworkGradeLevel.D_PLUS;
+  type D = typeof HomeworkGradeLevel.D;
+  type EXEMPTED_COURSE = typeof HomeworkGradeLevel.EXEMPTED_COURSE;
+  type P = typeof HomeworkGradeLevel.P;
+  type EX = typeof HomeworkGradeLevel.EX;
+  type EXEMPTION = typeof HomeworkGradeLevel.EXEMPTION;
+  type PASS = typeof HomeworkGradeLevel.PASS;
+  type FAILURE = typeof HomeworkGradeLevel.FAILURE;
+  type W = typeof HomeworkGradeLevel.W;
+  type I = typeof HomeworkGradeLevel.I;
+  type INCOMPLETE = typeof HomeworkGradeLevel.INCOMPLETE;
+  type NA = typeof HomeworkGradeLevel.NA;
+  type F = typeof HomeworkGradeLevel.F;
 }
 
 /** a homework as the lists give it, without its detail */
@@ -258,14 +328,26 @@ export interface HomeworkDetail {
 
 export type Homework = HomeworkBase & HomeworkDetail;
 
-export enum HomeworkCompletionType {
-  INDIVIDUAL = 1,
-  GROUP = 2,
+export const HomeworkCompletionType = {
+  INDIVIDUAL: 1,
+  GROUP: 2,
+} as const;
+export type HomeworkCompletionType = (typeof HomeworkCompletionType)[keyof typeof HomeworkCompletionType];
+// lets `HomeworkCompletionType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace HomeworkCompletionType {
+  type INDIVIDUAL = typeof HomeworkCompletionType.INDIVIDUAL;
+  type GROUP = typeof HomeworkCompletionType.GROUP;
 }
 
-export enum HomeworkSubmissionType {
-  WEB_LEARNING = 2,
-  OFFLINE = 0,
+export const HomeworkSubmissionType = {
+  WEB_LEARNING: 2,
+  OFFLINE: 0,
+} as const;
+export type HomeworkSubmissionType = (typeof HomeworkSubmissionType)[keyof typeof HomeworkSubmissionType];
+// lets `HomeworkSubmissionType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace HomeworkSubmissionType {
+  type WEB_LEARNING = typeof HomeworkSubmissionType.WEB_LEARNING;
+  type OFFLINE = typeof HomeworkSubmissionType.OFFLINE;
 }
 
 /** an excellent homework as the list gives it, without its detail */
@@ -347,10 +429,17 @@ export interface Question extends DiscussionBase {
   question: string;
 }
 
-export enum QuestionnaireDetailType {
-  SINGLE = 'dnx',
-  MULTI = 'dox',
-  TEXT = 'wd',
+export const QuestionnaireDetailType = {
+  SINGLE: 'dnx',
+  MULTI: 'dox',
+  TEXT: 'wd',
+} as const;
+export type QuestionnaireDetailType = (typeof QuestionnaireDetailType)[keyof typeof QuestionnaireDetailType];
+// lets `QuestionnaireDetailType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace QuestionnaireDetailType {
+  type SINGLE = typeof QuestionnaireDetailType.SINGLE;
+  type MULTI = typeof QuestionnaireDetailType.MULTI;
+  type TEXT = typeof QuestionnaireDetailType.TEXT;
 }
 
 export interface QuestionnaireDetail {
@@ -367,10 +456,17 @@ export interface QuestionnaireDetail {
   }[];
 }
 
-export enum QuestionnaireType {
-  VOTE = 'tp',
-  FORM = 'tb',
-  SURVEY = 'wj',
+export const QuestionnaireType = {
+  VOTE: 'tp',
+  FORM: 'tb',
+  SURVEY: 'wj',
+} as const;
+export type QuestionnaireType = (typeof QuestionnaireType)[keyof typeof QuestionnaireType];
+// lets `QuestionnaireType.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace QuestionnaireType {
+  type VOTE = typeof QuestionnaireType.VOTE;
+  type FORM = typeof QuestionnaireType.FORM;
+  type SURVEY = typeof QuestionnaireType.SURVEY;
 }
 
 export interface Questionnaire {
@@ -543,7 +639,13 @@ export interface CalendarResult {
   failedRanges: CalendarRange[];
 }
 
-export enum Language {
-  ZH = 'zh',
-  EN = 'en',
+export const Language = {
+  ZH: 'zh',
+  EN: 'en',
+} as const;
+export type Language = (typeof Language)[keyof typeof Language];
+// lets `Language.MEMBER` name a member's type, as it did when this was an enum
+export declare namespace Language {
+  type ZH = typeof Language.ZH;
+  type EN = typeof Language.EN;
 }
