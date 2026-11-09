@@ -7,6 +7,7 @@ import type { Fetch } from '../../src/index.ts';
 import { FailReason, Learn2018Helper, isConnectionError } from '../../src/index.ts';
 import { urlOf } from '../../src/utils.ts';
 import { FINGERPRINT, PASSWORD, USERNAME, config, credential } from './config.ts';
+import { addDays, toYyyymmdd } from './dates.ts';
 
 /** a fetch with cookies that sends requests for `host` to a name that can't resolve, so they really fail */
 const unreachable = (host: string, cookieJar = new CookieJar()): Fetch => {
@@ -25,13 +26,6 @@ const withoutCookiesOf = (cookieJar: CookieJar, domain: string) => {
   });
 };
 
-/** yyyymmdd of a YYYY-MM-DD date plus `days` */
-const yyyymmdd = (date: string, days = 0) =>
-  new Date(Date.parse(`${date.slice(0, 10)}T00:00:00Z`) + days * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10)
-    .replaceAll('-', '');
-
 /** a helper whose provider counts its logins */
 const counting = (cookieJar = new CookieJar()) => {
   const counter = { logins: 0 };
@@ -46,7 +40,7 @@ const counting = (cookieJar = new CookieJar()) => {
 };
 
 describe('helper authentication', () => {
-  it('should login & logout correctly if account is right', async () => {
+  it('logs in and out with the right credentials', async () => {
     const helper = new Learn2018Helper();
     await helper.login(USERNAME, PASSWORD, FINGERPRINT);
     await helper.logout();
@@ -54,33 +48,30 @@ describe('helper authentication', () => {
 
   // the wrong password test is in once.test.ts
 
-  it("should throw error if hasn't login and not provide up config", async () => {
+  it('rejects with NO_CREDENTIAL without credentials or a provider', async () => {
     const helper = new Learn2018Helper();
     await expect(helper.login()).rejects.toHaveProperty('reason', FailReason.NO_CREDENTIAL);
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NO_CREDENTIAL);
   });
 
-  it('should not throw error if manually invoke login()', async () => {
+  it('gets data after an explicit login', async () => {
     const helper = new Learn2018Helper();
     await helper.login(USERNAME, PASSWORD, FINGERPRINT);
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
   });
 
-  it('should not throw error if provide CredentialProvider', async () => {
+  it('gets data with a CredentialProvider and no explicit login', async () => {
     const helper = new Learn2018Helper(config);
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
   });
 
-  it('should not throw error if invoke logout() but provide CredentialProvider', async () => {
+  it('logs in again after logout with a CredentialProvider', async () => {
     const helper = new Learn2018Helper(config);
-    // First get
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
-    // Logout
     await helper.logout();
-    // Second get
     const semesters2 = await helper.getSemesterIdList();
     expect(Array.isArray(semesters2)).toEqual(true);
   });
@@ -184,8 +175,8 @@ describe('registrar sign-in', () => {
     const resumed = counting(withoutCookiesOf(first.cookieJar, 'id.tsinghua.edu.cn'));
     resumed.helper.setCSRFToken(first.helper.getCSRFToken());
     const { events, failedRanges } = await resumed.helper.getCalendar(
-      yyyymmdd(semester.startDate, 7),
-      yyyymmdd(semester.startDate, 13),
+      toYyyymmdd(addDays(semester.startDate, 7)),
+      toYyyymmdd(addDays(semester.startDate, 13)),
     );
     expect(failedRanges).toEqual([]);
     // off campus (WebVPN) it logs in once for a new id.tsinghua.edu.cn session; on campus it needs none
