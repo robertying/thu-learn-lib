@@ -44,7 +44,14 @@ const setup = () => {
     [URLS.LEARN_HOMEWORK_LIST_NEW]: [homework('h1')],
     [URLS.LEARN_HOMEWORK_LIST_SUBMITTED]: [homework('h2', { scsj: 1739000000000, sfbj: '是', bjjzsj: 1741000000000 })],
     [URLS.LEARN_HOMEWORK_LIST_GRADED]: [
-      homework('h3', { scsj: 1738000000000, cj: -99, jsm: ' TA ', pynr: ' good ', pysj: 1739500000000, sfsc: '是' }),
+      homework('h3', {
+        scsj: 1738000000000,
+        cj: -99,
+        jsm: ' TA ',
+        pynr: ' good ',
+        pysj: '2025-02-14 12:00',
+        sfsc: '是',
+      }),
     ],
   };
   const server = new FakeServer();
@@ -81,7 +88,7 @@ describe('getHomeworkList (student)', () => {
       title: 'HW & h1',
       url: URLS.LEARN_HOMEWORK_PAGE('c1', 's-h1'),
       submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE('c1', 's-h1'),
-      deadline: 1740000000000,
+      deadline: '2025-02-20T05:20:00+08:00',
       lateSubmissionDeadline: undefined,
       isLateSubmission: false,
       submitTime: undefined,
@@ -98,20 +105,20 @@ describe('getHomeworkList (student)', () => {
         size: '10K',
       },
       answerAttachment: undefined,
-      excellentHomeworkList: undefined,
+      excellentHomeworkList: [],
     });
     expect(h2).toMatchObject({
       isLateSubmission: true,
-      lateSubmissionDeadline: 1741000000000,
-      submitTime: 1739000000000,
+      lateSubmissionDeadline: '2025-03-03T19:06:40+08:00',
+      submitTime: '2025-02-08T15:33:20+08:00',
     });
     expect(h3).toMatchObject({
       grade: -99,
       gradeLevel: HomeworkGradeLevel.A_PLUS,
       graderName: 'TA',
       gradeContent: 'good',
-      gradeTime: 1739500000000,
-      submitTime: 1738000000000,
+      gradeTime: '2025-02-14T12:00:00+08:00',
+      submitTime: '2025-01-28T01:46:40+08:00',
       isFavorite: true,
     });
     // the lists' `scsj` is the submit time, not when the homework was favorited
@@ -221,6 +228,16 @@ describe('getHomeworkList (student)', () => {
     expect(list.map((h) => h.gradeLevel)).toEqual([HomeworkGradeLevel.P, HomeworkGradeLevel.PASS]);
   });
 
+  it('gives [] to homework without excellent homework, so a failed list (undefined) stands out', async () => {
+    const helper = await setup().loggedInHelper();
+    const list = await helper.getHomeworkList('c1');
+    expect(Object.fromEntries(list.map((h) => [h.baseId, h.excellentHomeworkList?.length]))).toEqual({
+      h1: 0,
+      h2: 0,
+      h3: 1,
+    });
+  });
+
   it('still returns homework when the excellent list fails', async () => {
     const server = setup().on('POST', URLS.LEARN_HOMEWORK_LIST_EXCELLENT, () => json({ result: 'error' }));
     const helper = await server.loggedInHelper();
@@ -256,9 +273,9 @@ describe('getHomeworkList (teacher)', () => {
             bt: 'HW 1',
             nr: Base64.encode('<p>做这个</p>'),
             fbr: 't1',
-            fbsj: 1,
-            kssj: 2,
-            jzsj: 3,
+            fbsj: 1740000000000,
+            kssj: 1740003600000,
+            jzsj: 1740607200000,
             bjjzsj: null,
             zywcfs: 1,
             zytjfs: 2,
@@ -278,9 +295,9 @@ describe('getHomeworkList (teacher)', () => {
         title: 'HW 1',
         description: '<p>做这个</p>',
         publisherId: 't1',
-        publishTime: 1,
-        startTime: 2,
-        deadline: 3,
+        publishTime: '2025-02-20T05:20:00+08:00',
+        startTime: '2025-02-20T06:20:00+08:00',
+        deadline: '2025-02-27T06:00:00+08:00',
         lateSubmissionDeadline: undefined,
         url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER('c1', 'h1'),
         completionType: 1,

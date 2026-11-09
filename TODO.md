@@ -24,9 +24,6 @@ finds. Still open:
   (one-time check `wrong-password` in `test/live/once.test.ts`).
 - Grade code -63 maps to `HomeworkGradeLevel.P` (it used to map to `PASS`, like -60); confirm with a P grade. The
   account checked in 2026-11 (graded homework in 4 semesters) only had -100, -99 and -98 besides numeric grades.
-- The homework lists send `jzsj`, `kssj`, `scsj` and `bjjzsj` as millisecond timestamps (numbers), but `pysj` as a
-  `'YYYY-MM-DD HH:mm'` string, and each comes with a `…Str` string twin. `deadline`, `submitTime` and
-  `lateSubmissionDeadline` are typed `string` but are numbers; fix the types (or convert) in a major version.
 
 Checked in 2026-11 (reads only):
 

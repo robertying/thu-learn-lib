@@ -17,7 +17,7 @@ const item = (ywlx: string, overrides: Record<string, unknown> = {}) => ({
   sfzd: '否',
   zdsj: null,
   bznr: null,
-  scsj: 'added',
+  scsj: '2025-03-05 08:00',
   id: `fav-${ywlx}`,
   ...overrides,
 });
@@ -44,14 +44,14 @@ describe('favorites', () => {
         pinned: false,
         pinnedTime: undefined,
         comment: undefined,
-        addedTime: 'added',
+        addedTime: '2025-03-05T08:00:00+08:00',
         itemId: 'fav-KCZY',
       },
       expect.objectContaining({
         type: ContentType.DISCUSSION,
         time: 'discussion time',
         pinned: true,
-        pinnedTime: 1700000000,
+        pinnedTime: '2023-11-15T06:13:20+08:00',
       }),
     ]);
     expect(server.requests[0].url.searchParams.get('ywlx')).toBe('ALL');
