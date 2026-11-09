@@ -4,10 +4,8 @@
 
 - Not run yet: the notice half of `read-mark` (the 2026-11-09 run had no unread notice to try). learnX wants to know
   whether opening a notice's detail page marks it read, so reads made offline can be replayed.
-- `file-seen` run 2 not run yet (`LIVE_ONCE=file-seen pnpm test:live test/live/once.test.ts`, needs a new file):
-  tries the player page `beforePlay` answers, a whole download, and the course's file list page, then reads the
-  lists again after a minute. It also records (read only) how `isNew` lines up with upload age and visit count, in
-  case "new" is time-based. learnX wants a request that marks a file seen, to replay "file seen" to the server.
+- Not known yet: whether a whole `downloadFile` marks a file seen without `downloadFileBefore` first (`file-seen` run 2
+  sent both). learnX sends both, like the website.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;
@@ -38,6 +36,11 @@ Checked in 2026-11:
   `{mk, playUrl, sfgk, type}`), the download check `GET b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore` (answers
   `result: 'success'`, `msg: '文件存在'`) and the preview page (`previewUrl`) each leave every key of the file's row
   as it was, `isNew` and `llcs` included.
+- `file-seen` run 2 (2026-11-09): a whole download (`downloadFileBefore`, then all of `downloadFile`) marks the file
+  seen (`isNew` 1 → 0, `xzcs` + 1; `read-mark` stopped after the headers, which doesn't). The player page that
+  `beforePlay` answers (`f/wlxt/kc/wj_wjb/student/beforePlay`) doesn't, and the file list page
+  `f/wlxt/kj/wlkc_kjxxb/student/beforePageList` answers HTTP 500. `isNew` is per student, not by upload age: new
+  files were 0-4 days old, seen ones 1-70 days.
 - Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
   language ("Added successfully." in English), so only `result` is checked.
 - `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other
