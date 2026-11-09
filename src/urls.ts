@@ -86,9 +86,6 @@ export const LEARN_NOTIFICATION_DETAIL = (courseID: string, notificationID: stri
     ? `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/student/beforeViewXs?wlkcid=${courseID}&id=${notificationID}`
     : `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/teacher/beforeViewJs?wlkcid=${courseID}&id=${notificationID}`;
 
-export const LEARN_NOTIFICATION_EDIT = (courseType: CourseType): string =>
-  `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/${courseType}/editKcgg`;
-
 export const LEARN_HOMEWORK_LIST_NEW = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListWj`;
 export const LEARN_HOMEWORK_LIST_SUBMITTED = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListYjwg`;
 export const LEARN_HOMEWORK_LIST_GRADED = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListYpg`;
@@ -130,9 +127,6 @@ export const LEARN_HOMEWORK_DETAIL_FORM_DATA = (baseId: string) => {
   form.append('id', baseId);
   return form;
 };
-
-export const LEARN_HOMEWORK_DOWNLOAD = (courseID: string, attachmentID: string) =>
-  `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/downloadFile/${courseID}/${attachmentID}`;
 
 export const LEARN_HOMEWORK_SUBMIT_PAGE = (courseID: string, id: string) =>
   `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${courseID}&xszyid=${id}`;

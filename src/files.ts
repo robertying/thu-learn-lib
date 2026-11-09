@@ -12,7 +12,11 @@ export async function getFileList(
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<File[]> {
-  const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType));
+  // categories only fill `category`; don't fail the whole list when they can't be fetched
+  const [json, categoryList] = await Promise.all([
+    s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
+    getFileCategoryList(s, courseID, courseType).catch((): FileCategory[] => []),
+  ]);
   if (json.result !== 'success') {
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
@@ -29,42 +33,41 @@ export async function getFileList(
     result = json.object;
   }
 
-  // categories only fill `category`; don't fail the whole list when they can't be fetched
-  const categoryList = await getFileCategoryList(s, courseID, courseType).catch(() => []);
   const categories = new Map(categoryList.map((c) => [c.id, c]));
+  return result.map((f) => ({ ...parseFile(s, f, courseType), category: categories.get(f.kjflid) }));
+}
 
-  return result.map((f) => {
-    const title = decodeHTML(f.bt);
-    const fileId = f.wjid;
-    const uploadTime = f.scsj;
-    const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
-    const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, s.previewFirstPage);
-    return {
-      id: f.kjxxid,
-      fileId,
-      category: categories.get(f.kjflid),
-      title,
-      description: decodeHTML(f.ms),
-      rawSize: f.wjdx,
-      size: f.fileSize,
-      uploadTime,
-      publishTime: uploadTime,
+/** a file of the object-shaped lists (`getFileList`, and `getFileListByCategory` for a teacher) */
+function parseFile(s: Session, f: any, courseType: CourseType): File {
+  const title = decodeHTML(f.bt);
+  const fileId = f.wjid;
+  const uploadTime = f.scsj;
+  const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
+  const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, s.previewFirstPage);
+  return {
+    id: f.kjxxid,
+    fileId,
+    title,
+    description: decodeHTML(f.ms),
+    rawSize: f.wjdx,
+    size: f.fileSize,
+    uploadTime,
+    publishTime: uploadTime,
+    downloadUrl,
+    previewUrl,
+    isNew: f.isNew ?? false,
+    markedImportant: Number(f.sfqd) === 1, // f.sfqd could be string '1' (teacher mode) or number 1 (student mode)
+    visitCount: f.xsllcs ?? f.llcs ?? 0,
+    downloadCount: f.xzcs ?? 0,
+    fileType: f.wjlx,
+    remoteFile: {
+      id: fileId,
+      name: title,
       downloadUrl,
       previewUrl,
-      isNew: f.isNew ?? false,
-      markedImportant: f.sfqd === 1,
-      visitCount: f.xsllcs ?? f.llcs ?? 0,
-      downloadCount: f.xzcs ?? 0,
-      fileType: f.wjlx,
-      remoteFile: {
-        id: fileId,
-        name: title,
-        downloadUrl,
-        previewUrl,
-        size: f.fileSize,
-      },
-    } satisfies File;
-  });
+      size: f.fileSize,
+    },
+  };
 }
 
 /** Get file categories of the specified course. */
@@ -162,36 +165,6 @@ export async function getFileListByCategory(
 
     const result = (json.object?.aaData ?? []) as any[];
 
-    return result.map((f) => {
-      const title = decodeHTML(f.bt);
-      const fileId = f.wjid;
-      const uploadTime = f.scsj;
-      const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
-      const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, s.previewFirstPage);
-      return {
-        id: f.kjxxid,
-        fileId,
-        title,
-        description: decodeHTML(f.ms),
-        rawSize: f.wjdx,
-        size: f.fileSize,
-        uploadTime,
-        publishTime: uploadTime,
-        downloadUrl,
-        previewUrl,
-        isNew: f.isNew ?? false,
-        markedImportant: f.sfqd === 1,
-        visitCount: f.xsllcs ?? f.llcs ?? 0,
-        downloadCount: f.xzcs ?? 0,
-        fileType: f.wjlx,
-        remoteFile: {
-          id: fileId,
-          name: title,
-          downloadUrl,
-          previewUrl,
-          size: f.fileSize,
-        },
-      } satisfies File;
-    });
+    return result.map((f) => parseFile(s, f, courseType));
   }
 }

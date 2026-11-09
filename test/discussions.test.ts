@@ -55,6 +55,15 @@ describe('getDiscussionList', () => {
 });
 
 describe('getAnsweredQuestionList', () => {
+  it('reads a question without a body as empty', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_QUESTION_LIST_ANSWERED('c1', CourseType.STUDENT), () =>
+      success({ resultsList: [post('q1', { wtnr: null })] }),
+    );
+    const helper = await server.loggedInHelper();
+    const [q] = await helper.getAnsweredQuestionList('c1');
+    expect(q.question).toBe('');
+  });
+
   it('decodes the question body', async () => {
     const server = new FakeServer().on('GET', URLS.LEARN_QUESTION_LIST_ANSWERED('c1', CourseType.STUDENT), () =>
       success({ resultsList: [post('q1', { wtnr: Base64.encode('为什么？'), djs: undefined })] }),

@@ -83,7 +83,10 @@ interface ICourseInfo {
   name: string;
   chineseName: string;
   englishName: string;
-  /** only with `getCourseList(..., { timeAndLocation: true })`; see `getCourseTimeAndLocation` */
+  /**
+   * only with `getCourseList(..., { timeAndLocation: true })`, and left out for a course whose request failed;
+   * see `getCourseTimeAndLocation`
+   */
   timeAndLocation?: string[];
   url: string;
   teacherName: string;

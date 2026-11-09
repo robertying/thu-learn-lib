@@ -61,7 +61,7 @@ export async function getHomeworkList(
           id: d.zyid,
           index: d.wz,
           title: decodeHTML(d.bt),
-          description: decodeHTML(Base64.decode(d.nr)),
+          description: decodeHTML(Base64.decode(d.nr ?? '')),
           publisherId: d.fbr,
           publishTime: d.fbsj,
           startTime: d.kssj,
@@ -209,7 +209,8 @@ export async function getHomeworkDetail(
     parseHomeworkAtUrl(s, homework.url),
     getHomeworkDescription(s, homework.baseId),
   ]);
-  return { ...page, ...description };
+  // the description JSON wins, but an empty one falls back to the page
+  return { ...page, description: description.description ?? page.description };
 }
 
 async function getHomeworkDescription(s: Session, baseId: string): Promise<IHomeworkDetail> {
@@ -228,7 +229,9 @@ async function getHomeworkDescription(s: Session, baseId: string): Promise<IHome
   };
 }
 
-function parseHomeworkFile(s: Session, fileDiv: Element): RemoteFile | undefined {
+/** the attachment in one `div.list.fujian` block; `undefined` if the block is missing or has no link */
+function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile | undefined {
+  if (!fileDiv) return undefined;
   const fileNode = $(fileDiv)('.ftitle').children('a')[0] ?? $(fileDiv)('.fl').children('a')[0];
   const href = fileNode?.attribs.href;
   if (fileNode !== undefined && href) {

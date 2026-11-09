@@ -75,12 +75,12 @@ describe('getFileList', () => {
   it('reads the teacher list from resultsList', async () => {
     const server = new FakeServer()
       .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.TEACHER), () =>
-        success({ resultsList: [{ ...studentFile, xsllcs: undefined, llcs: 9 }] }),
+        success({ resultsList: [{ ...studentFile, xsllcs: undefined, llcs: 9, sfqd: '1' }] }),
       )
       .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.TEACHER), categories);
     const helper = await server.loggedInHelper();
     const [file] = await helper.getFileList('c1', CourseType.TEACHER);
-    expect(file).toMatchObject({ id: 'k1', visitCount: 9 });
+    expect(file).toMatchObject({ id: 'k1', visitCount: 9, markedImportant: true });
     expect(file.downloadUrl).toBe(URLS.LEARN_FILE_DOWNLOAD('w1', CourseType.TEACHER));
   });
 

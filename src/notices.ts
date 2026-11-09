@@ -79,16 +79,6 @@ export async function getNotificationAttachment(
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<RemoteFile | undefined> {
   if (!notification.attachmentName) return undefined;
-  /// from JSON (backup, currently not used)
-  // const postParams = new FormData();
-  // postParams.append('id', id);
-  // postParams.append('wlkcid', courseID);
-  // const metadata = await s.fetchJsonWithToken(URL.LEARN_NOTIFICATION_EDIT(courseType), {
-  //   'method': 'POST',
-  //   'body': postParams,
-  // });
-  // const attachmentId = metadata.ggfjid as string;
-  /// parsed from HTML
   const result = $(await s.fetchTextWithToken(notification.url));
   let path = (courseType === CourseType.STUDENT ? result('.ml-10') : result('#wjid')).attr('href');
   // the page has no attachment link (removed since the list was fetched, or the page changed)
