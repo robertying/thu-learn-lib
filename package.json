@@ -7,9 +7,9 @@
     "tsinghua"
   ],
   "license": "MIT",
-  "author": "Harry Chen <harry-chen@outlook.com> (https://harrychen.xyz)",
+  "author": "Rui Ying (https://github.com/robertying)",
   "contributors": [
-    "Rui Ying (https://github.com/robertying)"
+    "Harry Chen <harry-chen@outlook.com> (https://harrychen.xyz)"
   ],
   "repository": {
     "type": "git",
@@ -40,17 +40,16 @@
     "format": "oxfmt",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:live": "OPENSSL_CONF=openssl.cnf vitest run --config vitest.live.config.ts",
+    "test:live": "OPENSSL_CONF=test/live/openssl.cnf vitest run --config vitest.live.config.ts",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "cheerio": "1.2.0",
+    "cheerio": "^1.2.0",
     "entities": "^9.0.0",
-    "fetch-cookie": "3.2.0",
+    "fetch-cookie": "^3.2.0",
     "js-base64": "^3.9.3",
-    "node-fetch-native": "^1.6.7",
     "sm-crypto": "^0.5.7",
-    "tough-cookie": "6.1.0"
+    "tough-cookie": "^6.1.0"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

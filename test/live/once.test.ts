@@ -1,5 +1,4 @@
 import fetchCookie from 'fetch-cookie';
-import { fetch } from 'node-fetch-native';
 import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 

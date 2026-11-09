@@ -11,7 +11,7 @@ This project is licensed under MIT License. See [CHANGELOG.md](CHANGELOG.md) for
 
 ## Compatibility
 
-The library is ESM-only and uses [node-fetch-native](https://github.com/unjs/node-fetch-native) with [fetch-cookie](https://github.com/valeriangalliat/fetch-cookie) for cookie and redirect support. It runs in Node and in React Native; you can also pass your own `fetch` in `HelperConfig`.
+The library is ESM-only and uses the global `fetch` with [fetch-cookie](https://github.com/valeriangalliat/fetch-cookie) for cookie and redirect support. It runs in Node and in React Native; you can also pass your own `fetch` in `HelperConfig`.
 
 Browsers block these cross-origin requests (CORS), so run the library in Node.js or React Native.
 
