@@ -79,13 +79,13 @@ describe('helper data retrieval', () => {
   });
 
   it('lists the teacher courses of the tested semester', async () => {
-    const courses = await h.getCourseList(semesterTATester, CourseType.TEACHER);
+    const courses = await h.getCourseList(semesterTATester, { courseType: CourseType.TEACHER });
     expectItems(courses, ['id', 'name', 'url']);
     for (const c of courses) expect(c.courseType).toBe(CourseType.TEACHER);
   });
 
   it.skipIf(!courseTATester)('includes the tested course in the teacher course list', async () => {
-    const courses = await h.getCourseList(semesterTATester, CourseType.TEACHER);
+    const courses = await h.getCourseList(semesterTATester, { courseType: CourseType.TEACHER });
     expect(courses.map((c) => c.id)).toContain(courseTATester);
   });
 
@@ -171,7 +171,7 @@ describe('helper data retrieval', () => {
   });
 
   it('gets course time and location on demand', async () => {
-    const courses = await h.getCourseList(semesterTester, CourseType.STUDENT, undefined, { timeAndLocation: true });
+    const courses = await h.getCourseList(semesterTester, { timeAndLocation: true });
     for (const c of courses) expect(Array.isArray(c.timeAndLocation)).toBe(true);
   });
 
@@ -210,7 +210,7 @@ describe('helper data retrieval', () => {
   });
 
   it("reads every entry of the courses' time and location", async () => {
-    const courses = await h.getCourseList(semesterTester, CourseType.STUDENT, undefined, { timeAndLocation: true });
+    const courses = await h.getCourseList(semesterTester, { timeAndLocation: true });
     const entries = courses.flatMap((c) => c.timeAndLocation ?? []);
     // entries without a day or period, which the server lists for courses with no fixed time
     const empty = /星期第0节|section\s*0\b/i;
@@ -228,7 +228,7 @@ describe('helper data retrieval', () => {
 
   it("works out class times that the registrar's calendar agrees with", { timeout: 120_000 }, async () => {
     const semester = await h.getCurrentSemester();
-    const courses = await h.getCourseList(semester.id, CourseType.STUDENT, Language.ZH, { timeAndLocation: true });
+    const courses = await h.getCourseList(semester.id, { lang: Language.ZH, timeAndLocation: true });
     // week 3: past any first-week changes
     const days = Array.from({ length: 28 }, (_, i) => addDays(semester.startDate, i));
     const week = days.filter((d) => semesterWeek(semester.startDate, d) === 3);
@@ -263,7 +263,7 @@ describe('helper data retrieval', () => {
   });
 
   it('builds the homework submit request without sending it', async () => {
-    const request = await h.getHomeworkSubmitRequest('live-test-not-sent', '<p>not sent</p>');
+    const request = await h.getHomeworkSubmitRequest('live-test-not-sent', { content: '<p>not sent</p>' });
     const url = new URL(request.url);
     expect(url.pathname).toBe('/b/wlxt/kczy/zy/student/tjzy');
     // the token of a session that the check just found alive

@@ -29,7 +29,7 @@ describe('favorites', () => {
       return success({ aaData: [item('KCZY'), item('KCTL', { sfzd: '是', zdsj: 1700000000 }), item('KCKB')] });
     });
     const helper = await server.loggedInHelper();
-    const favorites = await helper.getFavorites('c1');
+    const favorites = await helper.getFavorites({ courseID: 'c1' });
 
     expect(favorites).toEqual([
       {
@@ -60,7 +60,7 @@ describe('favorites', () => {
   it('filters by type in the URL', async () => {
     const server = new FakeServer().on('POST', URLS.LEARN_FAVORITE_LIST(), () => success({ aaData: [] }));
     const helper = await server.loggedInHelper();
-    await helper.getFavorites(undefined, ContentType.FILE);
+    await helper.getFavorites({ type: ContentType.FILE });
     expect(server.requests[0].url.searchParams.get('ywlx')).toBe('KCKJ');
   });
 

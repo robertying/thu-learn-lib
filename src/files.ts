@@ -21,7 +21,7 @@ export async function getFileList(
   const [json, categoryList, favorites] = await Promise.all([
     s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
     getFileCategoryList(s, courseID, courseType).catch((): FileCategory[] => []),
-    withFavorites ? getFavorites(s, courseID, ContentType.FILE) : given,
+    withFavorites ? getFavorites(s, { courseID, type: ContentType.FILE }) : given,
   ]);
   expectSuccess(json, FailReason.INVALID_RESPONSE);
 

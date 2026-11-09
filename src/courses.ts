@@ -37,10 +37,9 @@ export async function getCurrentSemester(s: Session): Promise<SemesterInfo> {
 export async function getCourseList(
   s: Session,
   semesterID: string,
-  courseType: CourseType = CourseType.STUDENT,
-  lang = s.lang,
   options: CourseListOptions = {},
 ): Promise<CourseInfo[]> {
+  const { courseType = CourseType.STUDENT, lang = s.lang } = options;
   const json = await s.fetchJsonWithToken(URLS.LEARN_COURSE_LIST(semesterID, courseType, lang));
   if (json.message !== 'success' || !Array.isArray(json.resultList)) {
     throw apiError(FailReason.INVALID_RESPONSE, json);

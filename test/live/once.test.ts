@@ -166,7 +166,7 @@ describe('one-time checks', () => {
       };
 
       const semester = await h.getCurrentSemester();
-      const courses = await h.getCourseList(semester.id, CourseType.STUDENT);
+      const courses = await h.getCourseList(semester.id);
       const findings: string[] = [];
 
       // notices: the detail page, as getNotificationAttachment fetches it
@@ -424,7 +424,7 @@ describe('one-time checks', () => {
         );
       };
 
-      const favorites = await h.getFavorites(undefined, ContentType.FILE);
+      const favorites = await h.getFavorites({ type: ContentType.FILE });
       let target: { courseID: string; id: string } | undefined;
       for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
         const file = (await h.getFileList(c.id)).find((f) => !favorites.some((x) => x.id === f.id));
@@ -452,7 +452,7 @@ describe('one-time checks', () => {
       } finally {
         await h.removeFromFavorites(target.id);
       }
-      const left = (await h.getFavorites(undefined, ContentType.FILE)).some((f) => f.id === target.id);
+      const left = (await h.getFavorites({ type: ContentType.FILE })).some((f) => f.id === target.id);
       findings.push(`removed: ${!left}`);
       await h.logout();
       recordResult(fileFavoriteField.name, findings.join('; '));
@@ -604,9 +604,9 @@ describe('one-time checks', () => {
       const findings: string[] = [`was ${target.submitted ? 'submitted' : 'not submitted'}`];
       try {
         // 1. getHomeworkSubmitRequest, sent with another client, with an attachment
-        const request = await h.getHomeworkSubmitRequest(id, homeworkContentHtml(`live test ${stamp}\nline 2`), {
-          filename,
-          content: new Blob([`thu-learn-lib live test ${stamp}`], { type: 'text/plain' }),
+        const request = await h.getHomeworkSubmitRequest(id, {
+          content: homeworkContentHtml(`live test ${stamp}\nline 2`),
+          attachment: { filename, content: new Blob([`thu-learn-lib live test ${stamp}`], { type: 'text/plain' }) },
         });
         const res = await raw(request.url, { method: 'POST', body: request.body });
         checkHomeworkSubmitResponse(await res.text());
@@ -616,21 +616,21 @@ describe('one-time checks', () => {
         findings.push('request API: answer and attachment submitted');
 
         // 2. removing the attachment keeps the answer (the server ignores zynr then)
-        await h.submitHomework(id, '', undefined, true);
+        await h.submitHomework(id, { removeAttachment: true });
         const removed = await detail();
         expect(removed.submittedAttachment).toBeUndefined();
         expect(removed.submittedContent).toContain(`live test ${stamp}`);
         findings.push('removal: attachment gone, answer kept');
 
         // 3. a new answer replaces the submitted one
-        await h.submitHomework(id, homeworkContentHtml(`replaced ${stamp}`));
+        await h.submitHomework(id, { content: homeworkContentHtml(`replaced ${stamp}`) });
         const replaced = await detail();
         expect(replaced.submittedContent).toContain(`replaced ${stamp}`);
         expect(replaced.submittedContent).not.toContain(`live test ${stamp}`);
         findings.push('answer replaced');
       } finally {
         // put the earlier submission back; an unsubmitted homework stays submitted (with an empty answer)
-        await h.submitHomework(id, before.submittedContent ?? '', previousFile, false);
+        await h.submitHomework(id, { content: before.submittedContent ?? '', attachment: previousFile });
         const restored = await detail();
         findings.push(
           `restored: answer ${restored.submittedContent === before.submittedContent ? 'same' : 'differs'}, attachment ${

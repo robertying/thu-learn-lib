@@ -82,7 +82,8 @@ describe('getCourseList', () => {
   it('parses courses and fetches time and location per course with timeAndLocation', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
-    const courses = await helper.getCourseList('2024-2025-1', CourseType.STUDENT, Language.ZH, {
+    const courses = await helper.getCourseList('2024-2025-1', {
+      lang: Language.ZH,
       timeAndLocation: true,
     });
 
@@ -115,7 +116,7 @@ describe('getCourseList', () => {
       )
       .on('GET', URLS.LEARN_COURSE_TIME_LOCATION(''), () => json([]));
     const helper = await server.loggedInHelper();
-    const [c] = await helper.getCourseList('2024-2025-1', CourseType.TEACHER);
+    const [c] = await helper.getCourseList('2024-2025-1', { courseType: CourseType.TEACHER });
     expect(c).toMatchObject({ id: 't1', courseIndex: 2, courseType: CourseType.TEACHER });
   });
 

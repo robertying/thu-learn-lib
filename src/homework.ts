@@ -13,7 +13,7 @@ import type {
   HomeworkDetail,
   HomeworkListOptions,
   HomeworkStatus,
-  HomeworkSubmitAttachment,
+  HomeworkSubmitOptions,
   HomeworkSubmitRequest,
   HomeworkTA,
   RemoteFile,
@@ -253,18 +253,12 @@ function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile
   });
 }
 
-export async function submitHomework(
-  s: Session,
-  id: string,
-  content = '',
-  attachment?: HomeworkSubmitAttachment,
-  removeAttachment = false,
-): Promise<void> {
+export async function submitHomework(s: Session, id: string, options: HomeworkSubmitOptions = {}): Promise<void> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT, {
     method: 'POST',
-    body: homeworkSubmitForm(id, content, attachment, removeAttachment),
+    body: homeworkSubmitForm(id, options),
     // the response only starts after the whole upload, which can take longer than `requestTimeout`
-    timeout: attachment ? 0 : undefined,
+    timeout: options.attachment ? 0 : undefined,
   });
   checkHomeworkSubmitResponse(json);
 }
@@ -277,14 +271,12 @@ export async function submitHomework(
 export async function getHomeworkSubmitRequest(
   s: Session,
   id: string,
-  content = '',
-  attachment?: HomeworkSubmitAttachment,
-  removeAttachment = false,
+  options: HomeworkSubmitOptions = {},
 ): Promise<HomeworkSubmitRequest> {
   await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
   return {
     url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT, s.csrfToken),
-    body: homeworkSubmitForm(id, content, attachment, removeAttachment),
+    body: homeworkSubmitForm(id, options),
   };
 }
 
@@ -317,9 +309,7 @@ export function checkHomeworkSubmitResponse(body: unknown): void {
  */
 export const homeworkSubmitForm = (
   id: string,
-  content = '',
-  attachment?: HomeworkSubmitAttachment,
-  removeAttachment = false,
+  { content = '', attachment, removeAttachment = false }: HomeworkSubmitOptions = {},
 ) => {
   const form = new FormData();
   form.append('xszyid', id);

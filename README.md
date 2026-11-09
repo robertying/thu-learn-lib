@@ -71,13 +71,13 @@ We currently support both student and teacher (or TA) version of web learning. T
 
 We do not maintain a global type in `Learn2018Helper` class, for there can be the situation that one can be a student and teacher of the same course simultaneously, on which by using different `CourseType` you can get different results.
 
-- `getCourseList(semesterID, courseType, lang, options)`
+- `getCourseList(semesterID, { courseType, lang, timeAndLocation })`
 - `getNotificationList(courseID, courseType, options)`, `getHomeworkList(courseID, courseType, options)`
 - `getFileList/getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, courseType)` (`getFileList(courseID, courseType, { favorites: true })` also fills `isFavorite`, with one more request), `getFileListByCategory(courseID, categoryID, courseType)`
 - `getNotificationAttachment(notification, courseType)`, `getUserInfo(courseType)`
-- `getAllContents(courseIDs, type, { courseType })`
+- `getAllContents(courseIDs, type, { courseType, details, favorites })`
 
-Note that currently fetching homework information from teacher version is **partially implemented**.
+Note that the teacher version hasn't been checked against the real server, and fetching homework information from it is **partially implemented**.
 
 ```typescript
 // get ids of all semesters that current account has access to
@@ -96,8 +96,8 @@ const notifications = await helper.getNotificationList(course.id);
 const files = await helper.getFileList(course.id);
 const homework = await helper.getHomeworkList(course.id);
 const questions = await helper.getAnsweredQuestionList(course.id);
-// questionnaires fetch their questions (one request each) unless you pass { details: 'none' }
-const questionnaires = await helper.getQuestionnaireList(course.id, { details: 'none' });
+// questions are fetched (one request each) only with { details: 'all' } or a predicate
+const questionnaires = await helper.getQuestionnaireList(course.id);
 ```
 
 Every time field is a `ServerTime`: an ISO 8601 string in Beijing time with its offset (`2026-11-07T18:28:00+08:00`), which `new Date()` reads as the right moment in any time zone.
@@ -143,7 +143,7 @@ Off campus the registrar is reached through WebVPN, which reuses the id.tsinghua
 
 ### Timetable
 
-The registrar's calendar knows about holidays and moved classes, but it fails now and then. A timetable can also be worked out from each course's time and location (`getCourseList(..., { timeAndLocation: true })`) and the term's first day:
+The registrar's calendar knows about holidays and moved classes, but it fails now and then. A timetable can also be worked out from each course's time and location (`getCourseList(semesterID, { timeAndLocation: true })`) and the term's first day:
 
 ```typescript
 import { CLASS_PERIOD_TIMES, parseCourseMeeting, semesterWeek } from '@robertying/thu-learn-lib';
@@ -163,9 +163,9 @@ const week = semesterWeek(semester.startDate, '2026-11-04');
 import { homeworkContentHtml } from '@robertying/thu-learn-lib';
 
 // the answer is HTML and replaces the submitted one; pass the submitted HTML to only change the attachment
-await helper.submitHomework(homework.studentHomeworkId, homeworkContentHtml('my answer'), {
-  filename: 'answer.pdf',
-  content: blob, // in React Native: { uri, type }
+await helper.submitHomework(homework.id, {
+  content: homeworkContentHtml('my answer'),
+  attachment: { filename: 'answer.pdf', content: blob }, // in React Native, content is { uri, type }
 });
 ```
 
@@ -174,7 +174,7 @@ await helper.submitHomework(homework.studentHomeworkId, homeworkContentHtml('my 
 ```typescript
 import { checkHomeworkSubmitResponse } from '@robertying/thu-learn-lib';
 
-const { url, body } = await helper.getHomeworkSubmitRequest(id, content, attachment);
+const { url, body } = await helper.getHomeworkSubmitRequest(id, { content, attachment });
 const res = await axios.post(url, body, { onUploadProgress });
 checkHomeworkSubmitResponse(res.data);
 ```

@@ -120,6 +120,10 @@ export interface SemesterInfo {
   type: SemesterType;
 }
 
+/**
+ * Whose view of a course to read. The teacher (TA) view is parsed from what the student view and the website's code
+ * suggest, but has not been checked against the real server: no teacher account was available.
+ */
 export const CourseType = {
   STUDENT: 'student',
   TEACHER: 'teacher',
@@ -137,7 +141,7 @@ export interface CourseInfo {
   chineseName: string;
   englishName: string;
   /**
-   * only with `getCourseList(..., { timeAndLocation: true })`, and left out for a course whose request failed;
+   * only with `getCourseList(semesterID, { timeAndLocation: true })`, and left out for a course whose request failed;
    * see `getCourseTimeAndLocation`. Read an entry with `parseCourseMeeting`.
    */
   timeAndLocation?: string[];
@@ -400,6 +404,18 @@ export interface HomeworkSubmitRequest {
   body: FormData;
 }
 
+export interface HomeworkSubmitOptions {
+  /**
+   * The whole answer as HTML (the website sends its editor's HTML; default `''`). It replaces the submitted one, so pass
+   * the current answer when only changing the attachment (`homeworkContentHtml` turns plain text into it).
+   */
+  content?: string;
+  /** a new attachment; without one the existing attachment is kept */
+  attachment?: HomeworkSubmitAttachment;
+  /** delete the existing attachment; then `content` is ignored and the submitted answer stays */
+  removeAttachment?: boolean;
+}
+
 export interface HomeworkSubmitAttachment {
   filename: string;
   content: Blob | ReactNativeFile;
@@ -489,15 +505,26 @@ export interface Questionnaire {
 export type DetailSelector<T> = 'none' | 'all' | ((item: T) => boolean);
 
 export interface CourseListOptions {
+  /** default `CourseType.STUDENT` */
+  courseType?: CourseType;
+  /** the language of `name`; default the website language (`getCurrentLanguage()`) */
+  lang?: Language;
   /** fetch each course's time and location (one request per course; default false) */
   timeAndLocation?: boolean;
+}
+
+export interface FavoriteListOptions {
+  /** only the items of this course */
+  courseID?: string;
+  /** only the items of this type */
+  type?: ContentType;
 }
 
 export interface FileListOptions {
   /**
    * Fill `isFavorite` (student only). The file list has no favorite flag: `true` adds one request for the course's
-   * file favorites (`getFavorites(courseID, ContentType.FILE)`), sent in parallel, and the list rejects if it fails.
-   * Pass favorites you already have instead (e.g. one `getFavorites(undefined, ContentType.FILE)` for every course)
+   * file favorites (`getFavorites({ courseID, type: ContentType.FILE })`), sent in parallel, and the list rejects if it fails.
+   * Pass favorites you already have instead (e.g. one `getFavorites({ type: ContentType.FILE })` for every course)
    * to fill it without a request; only file favorites are used.
    */
   favorites?: boolean | readonly FavoriteItem[];
@@ -537,6 +564,8 @@ export interface AllContentsOptions<T extends ContentType> {
       : T extends ContentType.QUESTIONNAIRE
         ? DetailSelector<Questionnaire>
         : never;
+  /** file `favorites` (see `FileListOptions`), passed to each course's file list */
+  favorites?: T extends ContentType.FILE ? FileListOptions['favorites'] : never;
 }
 
 export interface AllContentsResult<T extends ContentType> {

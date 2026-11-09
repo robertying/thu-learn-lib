@@ -340,7 +340,10 @@ describe('submitHomework', () => {
   it('posts content and attachment', async () => {
     const server = new FakeServer().on('POST', URLS.LEARN_HOMEWORK_SUBMIT, () => json({ result: 'success' }));
     const helper = await server.loggedInHelper();
-    await helper.submitHomework('s-h1', 'my answer', { filename: 'a.txt', content: new Blob(['hi']) });
+    await helper.submitHomework('s-h1', {
+      content: 'my answer',
+      attachment: { filename: 'a.txt', content: new Blob(['hi']) },
+    });
 
     const form = server.requests[0].form!;
     expect(form.get('xszyid')).toBe('s-h1');
@@ -360,8 +363,11 @@ describe('submitHomework', () => {
     const helper = await server.loggedInHelper({ requestTimeout: 10 });
     server.latency = 30;
 
-    await helper.submitHomework('s-h1', '', { filename: 'a.txt', content: new Blob(['hi']) });
-    await expect(helper.submitHomework('s-h1', 'text')).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
+    await helper.submitHomework('s-h1', { attachment: { filename: 'a.txt', content: new Blob(['hi']) } });
+    await expect(helper.submitHomework('s-h1', { content: 'text' })).rejects.toHaveProperty(
+      'reason',
+      FailReason.REQUEST_TIMEOUT,
+    );
   });
 
   it('logs in again when an expired session answers with a 200 HTML page', async () => {
@@ -370,7 +376,7 @@ describe('submitHomework', () => {
     server.expiry = 'html';
     server.expireSession();
 
-    await helper.submitHomework('s-h1', 'text');
+    await helper.submitHomework('s-h1', { content: 'text' });
     expect(server.loginCount).toBe(2);
     expect(server.count(URLS.LEARN_HOMEWORK_SUBMIT)).toBe(2);
   });
@@ -383,11 +389,11 @@ describe('submitHomework with a React Native file', () => {
       appended.push(args);
     });
     try {
-      homeworkSubmitForm('s-h1', '<p>a</p>', {
-        filename: 'scan.pdf',
-        content: { uri: 'file:///tmp/scan.pdf', type: 'application/pdf' },
+      homeworkSubmitForm('s-h1', {
+        content: '<p>a</p>',
+        attachment: { filename: 'scan.pdf', content: { uri: 'file:///tmp/scan.pdf', type: 'application/pdf' } },
       });
-      homeworkSubmitForm('s-h1', '', { filename: 'x', content: { uri: 'file:///tmp/x' } });
+      homeworkSubmitForm('s-h1', { attachment: { filename: 'x', content: { uri: 'file:///tmp/x' } } });
     } finally {
       append.mockRestore();
     }
@@ -398,7 +404,7 @@ describe('submitHomework with a React Native file', () => {
   });
 
   it('sends the text "undefined" as fileupload without a file, as the website does', () => {
-    const form = homeworkSubmitForm('s-h1', '<p>a</p>', undefined, true);
+    const form = homeworkSubmitForm('s-h1', { content: '<p>a</p>', removeAttachment: true });
     expect(form.get('fileupload')).toBe('undefined');
     expect(form.get('isDeleted')).toBe('1');
   });
@@ -413,9 +419,9 @@ describe('getHomeworkSubmitRequest', () => {
   it('checks the session and returns the URL with the CSRF token and the form', async () => {
     const server = submitServer();
     const helper = await server.loggedInHelper();
-    const request = await helper.getHomeworkSubmitRequest('s-h1', '<p>answer</p>', {
-      filename: 'a.txt',
-      content: new Blob(['hi']),
+    const request = await helper.getHomeworkSubmitRequest('s-h1', {
+      content: '<p>answer</p>',
+      attachment: { filename: 'a.txt', content: new Blob(['hi']) },
     });
 
     expect(server.count(URLS.LEARN_CURRENT_SEMESTER)).toBe(1);
@@ -436,7 +442,7 @@ describe('getHomeworkSubmitRequest', () => {
     const helper = await server.loggedInHelper();
     server.expireSession();
 
-    const request = await helper.getHomeworkSubmitRequest('s-h1', '<p>answer</p>');
+    const request = await helper.getHomeworkSubmitRequest('s-h1', { content: '<p>answer</p>' });
     expect(server.loginCount).toBe(2);
     expect(new URL(request.url).searchParams.get('_csrf')).toBe('csrf-2');
   });
