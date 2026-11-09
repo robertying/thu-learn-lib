@@ -236,11 +236,6 @@ export interface IHomework extends IHomeworkStatus {
   graderName?: string;
   gradeContent?: string;
   isFavorite: boolean;
-  /**
-   * @deprecated always `undefined`: the homework lists don't send when an item was favorited (their `scsj` is the
-   * submit time). Use `FavoriteItem.addedTime` from `getFavorites` instead.
-   */
-  favoriteTime?: string;
   comment?: string;
   excellentHomeworkList?: ExcellentHomework[];
 }
