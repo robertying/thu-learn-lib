@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FailReason } from '../src/index.ts';
-import { isConnectionError, withNetworkError, withTimeout } from '../src/request.ts';
+import { isConnectionError, limitConcurrency, withNetworkError, withTimeout } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
 import {
   FINGERPRINT,
@@ -466,5 +466,73 @@ describe('isConnectionError', () => {
     expect(isConnectionError({ reason: FailReason.ERROR_FETCH_FROM_ID })).toBe(false);
     expect(isConnectionError(new TypeError('fetch failed'))).toBe(false);
     expect(isConnectionError(undefined)).toBe(false);
+  });
+});
+
+describe('limitConcurrency', () => {
+  /** an inner fetch whose calls wait until the test settles them, by their argument */
+  const controlled = () => {
+    const calls: { id: number; resolve: () => void; reject: (err: unknown) => void }[] = [];
+    let running = 0;
+    let maxRunning = 0;
+    const inner = (id: number) => {
+      running += 1;
+      maxRunning = Math.max(maxRunning, running);
+      return new Promise<Response>((resolve, reject) => {
+        const done = () => (running -= 1);
+        calls.push({
+          id,
+          resolve: () => (done(), resolve(new Response(String(id)))),
+          reject: (err) => (done(), reject(err)),
+        });
+      });
+    };
+    return { inner, calls, started: () => calls.map((c) => c.id), maxRunning: () => maxRunning };
+  };
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it('runs at most max calls at once and starts the waiting ones in FIFO order', async () => {
+    const { inner, calls, started, maxRunning } = controlled();
+    const limited = limitConcurrency(inner, 2);
+    const results = [1, 2, 3, 4, 5].map((id) => limited(id));
+    await tick();
+    expect(started()).toEqual([1, 2]);
+
+    calls[1].resolve();
+    await tick();
+    expect(started()).toEqual([1, 2, 3]);
+    calls[0].resolve();
+    await tick();
+    expect(started()).toEqual([1, 2, 3, 4]);
+    calls[2].resolve();
+    calls[3].resolve();
+    await tick();
+    calls[4].resolve();
+
+    expect(await Promise.all(results.map(async (r) => (await r).text()))).toEqual(['1', '2', '3', '4', '5']);
+    expect(maxRunning()).toBe(2);
+  });
+
+  it('frees the slot of a call that rejects', async () => {
+    const { inner, calls, started } = controlled();
+    const limited = limitConcurrency(inner, 1);
+    const first = limited(1);
+    const second = limited(2);
+    await tick();
+    expect(started()).toEqual([1]);
+
+    calls[0].reject(new Error('boom'));
+    await expect(first).rejects.toThrow('boom');
+    await tick();
+    expect(started()).toEqual([1, 2]);
+    calls[1].resolve();
+    expect(await (await second).text()).toBe('2');
+  });
+
+  it('does not limit for Infinity or a max below 1', () => {
+    const inner = async () => new Response('');
+    expect(limitConcurrency(inner, Infinity)).toBe(inner);
+    expect(limitConcurrency(inner, 0)).toBe(inner);
+    expect(limitConcurrency(inner, NaN)).toBe(inner);
   });
 });
