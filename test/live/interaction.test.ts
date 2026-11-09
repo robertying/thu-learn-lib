@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { ContentType, Language, Learn2018Helper } from '../../src/index.ts';
 import { config } from './config.ts';
+import { ALLOW_WRITES } from './guard.ts';
 
 describe('helper interaction', () => {
   const h = new Learn2018Helper(config);
@@ -22,7 +23,8 @@ describe('helper interaction', () => {
     await h.setLanguage(pre_lang);
   });
 
-  it('should operate on favorites correctly', async () => {
+  // adds, pins and removes favorites, so only with LIVE_ALLOW_WRITES=1
+  it.runIf(ALLOW_WRITES)('should operate on favorites correctly', async () => {
     const oldFavorites = await h.getFavorites();
     expect(oldFavorites).toBeDefined();
     expect(oldFavorites.length).toBeGreaterThanOrEqual(0);

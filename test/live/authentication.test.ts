@@ -25,13 +25,7 @@ describe('helper authentication', () => {
     await helper.logout();
   });
 
-  it('should failed to login if account is incorrect', async () => {
-    const helper = new Learn2018Helper();
-    await expect(helper.login('nouser', 'nopass', FINGERPRINT)).rejects.toHaveProperty(
-      'reason',
-      FailReason.BAD_CREDENTIAL,
-    );
-  });
+  // the wrong password test is in once.test.ts
 
   it("should throw error if hasn't login and not provide up config", async () => {
     const helper = new Learn2018Helper();
