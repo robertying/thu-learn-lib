@@ -1,7 +1,8 @@
 // Course files (课程文件) and file categories.
 
 import type { Session } from './request.ts';
-import type { CourseFile, FileCategory } from './types.ts';
+import type { CourseFile, FileCategory, FileListOptions } from './types.ts';
+import { getFavorites } from './favorites.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { YES, decodeHTML, expectSuccess, formatFileSize, toRequiredServerTime } from './utils.ts';
@@ -11,11 +12,15 @@ export async function getFileList(
   s: Session,
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
+  options: FileListOptions = {},
 ): Promise<CourseFile[]> {
+  // the file list has no favorite flag; the course's file favorites are fetched next to it
+  const withFavorites = !!options.favorites && courseType === CourseType.STUDENT;
   // categories only fill `category`; don't fail the whole list when they can't be fetched
-  const [json, categoryList] = await Promise.all([
+  const [json, categoryList, favorites] = await Promise.all([
     s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
     getFileCategoryList(s, courseID, courseType).catch((): FileCategory[] => []),
+    withFavorites ? getFavorites(s, courseID, ContentType.FILE) : undefined,
   ]);
   expectSuccess(json, FailReason.INVALID_RESPONSE);
 
@@ -29,7 +34,11 @@ export async function getFileList(
   }
 
   const categories = new Map(categoryList.map((c) => [c.id, c]));
-  return result.map((f) => ({ ...parseFile(s, f, courseType), category: categories.get(f.kjflid) }));
+  const favoriteIds = favorites && new Set(favorites.map((f) => f.id));
+  return result.map((f) => {
+    const file: CourseFile = { ...parseFile(s, f, courseType), category: categories.get(f.kjflid) };
+    return favoriteIds ? { ...file, isFavorite: favoriteIds.has(file.id) } : file;
+  });
 }
 
 /** a 0 / 1 flag, which the server sends as a number, a string or (in older answers) a boolean */

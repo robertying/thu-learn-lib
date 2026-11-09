@@ -73,7 +73,7 @@ We do not maintain a global type in `Learn2018Helper` class, for there can be th
 
 - `getCourseList(semesterID, courseType, lang, options)`
 - `getNotificationList(courseID, courseType, options)`, `getHomeworkList(courseID, courseType, options)`
-- `getFileList/getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, courseType)`, `getFileListByCategory(courseID, categoryID, courseType)`
+- `getFileList/getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, courseType)` (`getFileList(courseID, courseType, { favorites: true })` also fills `isFavorite`, with one more request), `getFileListByCategory(courseID, categoryID, courseType)`
 - `getNotificationAttachment(notification, courseType)`, `getUserInfo(courseType)`
 - `getAllContents(courseIDs, type, { courseType })`
 

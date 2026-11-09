@@ -32,7 +32,7 @@ Checked in 2026-11:
   it pages only when asked (`iDisplayStart` / `iDisplayLength`).
 - The one-time `file-favorite-field` check (2026-11-09): favoriting a file changes no key of its student file-list row
   (`bt, fileSize, isNew, kjflid, kjxxid, llcs, ms, rownum_, scsj, sfqd, sxsj, sxsjStr, wjdx, wjid, wjlx, wlkcid, xzcs`),
-  so `getFileList` can't say a file is favorited; use `getFavorites(courseID, ContentType.FILE)`.
+  so `getFileList` can't say a file is favorited by itself; `getFileList(..., { favorites: true })` fills it from `getFavorites(courseID, ContentType.FILE)`.
 - `read-mark` (2026-11-09): starting a file download does not mark it seen (`isNew` stays).
 - Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
   language ("Added successfully." in English), so only `result` is checked.
