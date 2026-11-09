@@ -5,3 +5,4 @@ node_modules
 *.tgz
 lib
 test/live/.once.json
+coverage
