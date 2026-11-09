@@ -5,7 +5,7 @@ import { FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
 import { JSONP_EXTRACTOR_NAME } from '../src/utils.ts';
 import type { Request } from './helpers/fake-server.ts';
-import { FINGERPRINT, FakeServer, PASSWORD, USERNAME, credential, field, html } from './helpers/fake-server.ts';
+import { FINGERPRINT, FakeServer, PASSWORD, credential, field, html } from './helpers/fake-server.ts';
 
 const setup = (calendar: (req: Request) => Response | Promise<Response>) =>
   new FakeServer()
@@ -374,7 +374,7 @@ describe('getCalendar', () => {
       it('does not log in without a provider', async () => {
         const server = offCampus(passwordForm);
         const helper = server.helper();
-        await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+        await helper.login(credential);
         await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
           'reason',
           FailReason.ERROR_REGISTRAR_AUTH,

@@ -3,16 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { FailReason } from '../src/index.ts';
 import { isConnectionError, limitConcurrency, withNetworkError, withTimeout } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
-import {
-  FINGERPRINT,
-  FakeServer,
-  PASSWORD,
-  USERNAME,
-  credential,
-  html,
-  json,
-  withSemesterList,
-} from './helpers/fake-server.ts';
+import { FakeServer, PASSWORD, credential, html, json, withSemesterList } from './helpers/fake-server.ts';
 
 describe('CSRF token', () => {
   it('logs in lazily before the first request and adds the token to the URL', async () => {
@@ -51,7 +42,7 @@ describe('expired session', () => {
   it('rejects with NOT_LOGGED_IN without a CredentialProvider', async () => {
     const server = withSemesterList(new FakeServer());
     const helper = server.helper();
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
     server.expireSession();
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
@@ -266,7 +257,7 @@ describe('expired sessions that are not a 403', () => {
   it('rejects with NOT_LOGGED_IN for a 200 HTML page without a provider', async () => {
     const server = withSemesterList(new FakeServer());
     const helper = server.helper();
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
     server.expiry = 'html';
     server.expireSession();
 
@@ -311,7 +302,7 @@ describe('expired sessions that are not a 403', () => {
 
     it('logs in again automatically after an explicit login with credentials', async () => {
       const { server, helper } = await turnedDown();
-      await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+      await helper.login(credential);
       server.expireSession();
       await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
       // the provider still has the old password: one more SSO check for it, then it is remembered again
@@ -371,7 +362,7 @@ describe('logins never overlap', () => {
     server.latency = 3;
     const helper = server.helper({ provider: () => credential });
 
-    await Promise.all([helper.login(), helper.login(USERNAME, PASSWORD, FINGERPRINT)]);
+    await Promise.all([helper.login(), helper.login(credential)]);
     expect(server.loginCount).toBe(2);
     expect(server.maxConcurrentSso).toBe(1);
   });
@@ -382,10 +373,7 @@ describe('logins never overlap', () => {
     server.expireSession();
     server.latency = 3;
 
-    await Promise.all([
-      helper.login(USERNAME, PASSWORD, FINGERPRINT),
-      ...Array.from({ length: 4 }, () => helper.getSemesterIdList()),
-    ]);
+    await Promise.all([helper.login(credential), ...Array.from({ length: 4 }, () => helper.getSemesterIdList())]);
     expect(server.maxConcurrentSso).toBe(1);
     expect(server.loginCount).toBe(2);
   });
@@ -393,11 +381,11 @@ describe('logins never overlap', () => {
   it('still runs an explicit login after a failed one', async () => {
     const server = new FakeServer();
     const helper = server.helper();
-    await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toHaveProperty(
+    await expect(helper.login({ ...credential, password: 'wrong' })).rejects.toHaveProperty(
       'reason',
       FailReason.BAD_CREDENTIAL,
     );
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
     expect(server.loginCount).toBe(1);
   });
 });
@@ -469,28 +457,31 @@ describe('isConnectionError', () => {
   });
 });
 
-describe('limitConcurrency', () => {
-  /** an inner fetch whose calls wait until the test settles them, by their argument */
-  const controlled = () => {
-    const calls: { id: number; resolve: () => void; reject: (err: unknown) => void }[] = [];
-    let running = 0;
-    let maxRunning = 0;
-    const inner = (id: number) => {
-      running += 1;
-      maxRunning = Math.max(maxRunning, running);
-      return new Promise<Response>((resolve, reject) => {
-        const done = () => (running -= 1);
-        calls.push({
-          id,
-          resolve: () => (done(), resolve(new Response(String(id)))),
-          reject: (err) => (done(), reject(err)),
-        });
+/** an inner fetch whose calls wait until the test settles them, by their argument */
+const controlled = () => {
+  const calls: { id: number; resolve: () => void; reject: (err: unknown) => void }[] = [];
+  let running = 0;
+  let maxRunning = 0;
+  const done = () => (running -= 1);
+  const inner = (id: number) => {
+    running += 1;
+    maxRunning = Math.max(maxRunning, running);
+    return new Promise<Response>((resolve, reject) => {
+      calls.push({
+        id,
+        resolve: () => (done(), resolve(new Response(String(id)))),
+        reject: (err) => (done(), reject(err)),
       });
-    };
-    return { inner, calls, started: () => calls.map((c) => c.id), maxRunning: () => maxRunning };
+    });
   };
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  return { inner, calls, started: () => calls.map((c) => c.id), maxRunning: () => maxRunning };
+};
 
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const respondEmpty = async () => new Response('');
+
+describe('limitConcurrency', () => {
   it('runs at most max calls at once and starts the waiting ones in FIFO order', async () => {
     const { inner, calls, started, maxRunning } = controlled();
     const limited = limitConcurrency(inner, 2);
@@ -530,9 +521,8 @@ describe('limitConcurrency', () => {
   });
 
   it('does not limit for Infinity or a max below 1', () => {
-    const inner = async () => new Response('');
-    expect(limitConcurrency(inner, Infinity)).toBe(inner);
-    expect(limitConcurrency(inner, 0)).toBe(inner);
-    expect(limitConcurrency(inner, NaN)).toBe(inner);
+    expect(limitConcurrency(respondEmpty, Infinity)).toBe(respondEmpty);
+    expect(limitConcurrency(respondEmpty, 0)).toBe(respondEmpty);
+    expect(limitConcurrency(respondEmpty, NaN)).toBe(respondEmpty);
   });
 });

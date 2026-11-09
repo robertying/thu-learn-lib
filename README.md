@@ -47,7 +47,7 @@ const helper = new Learn2018Helper({
 
 // Without a CredentialProvider you must log in yourself. With one, the first request logs in.
 try {
-  await helper.login(username, password, fingerPrint);
+  await helper.login({ username, password, fingerPrint });
 } catch (e) {
   // e is an ApiError: check e.reason (a FailReason) and e.extra
 }
@@ -102,7 +102,7 @@ const questionnaires = await helper.getQuestionnaireList(course.id, { details: '
 
 Every time field is a `ServerTime`: an ISO 8601 string in Beijing time with its offset (`2026-11-07T18:28:00+08:00`), which `new Date()` reads as the right moment in any time zone.
 
-The lists give `CourseNotification`, `CourseFile`, `Homework`, `Discussion`, `Question` and `Questionnaire` items. A type for an item without its on-demand detail ends in `Base` (`HomeworkBase`, `CourseNotificationBase`), and the detail alone in `Detail` (`HomeworkDetail`). The earlier names (`File`, `Notification`, `IHomework`, `INotification`, …) still work but are deprecated: `File` and `Notification` shadow the DOM's types of the same name.
+The lists give `CourseNotification`, `CourseFile`, `Homework`, `Discussion`, `Question` and `Questionnaire` items. A type for an item without its on-demand detail ends in `Base` (`HomeworkBase`, `CourseNotificationBase`), and the detail alone in `Detail` (`HomeworkDetail`).
 
 ### Details on demand
 

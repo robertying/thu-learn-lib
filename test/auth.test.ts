@@ -18,7 +18,7 @@ describe('login', () => {
     server.lang = 'en';
     const helper = server.helper();
 
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
 
     expect(helper.getCSRFToken()).toBe('csrf-1');
     expect(helper.getCurrentLanguage()).toBe(Language.EN);
@@ -52,6 +52,26 @@ describe('login', () => {
     expect(server.requests).toHaveLength(0);
   });
 
+  it('rejects an incomplete credential with NO_CREDENTIAL, without asking the provider or the SSO server', async () => {
+    const server = new FakeServer();
+    let asked = 0;
+    const helper = server.helper({ provider: () => (asked++, credential) });
+    await expect(helper.login({ username: USERNAME, password: PASSWORD })).rejects.toEqual({
+      reason: FailReason.NO_CREDENTIAL,
+    });
+    await expect(helper.getRoamingTicket({ ...credential, password: '' })).rejects.toEqual({
+      reason: FailReason.NO_CREDENTIAL,
+    });
+    expect(asked).toBe(0);
+    expect(server.requests).toEqual([]);
+  });
+
+  it('gets a roaming ticket without logging in to Web Learning', async () => {
+    const server = new FakeServer();
+    expect(await server.helper().getRoamingTicket(credential)).toBe('ticket-1');
+    expect(server.loginCount).toBe(0);
+  });
+
   it('rejects with NO_CREDENTIAL when the provider returns no fingerprint', async () => {
     const server = new FakeServer();
     const helper = server.helper({ provider: () => ({ username: USERNAME, password: PASSWORD }) });
@@ -61,7 +81,7 @@ describe('login', () => {
   it('rejects with BAD_CREDENTIAL and the page message for a wrong password', async () => {
     const server = new FakeServer();
     const helper = server.helper();
-    await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toEqual({
+    await expect(helper.login({ ...credential, password: 'wrong' })).rejects.toEqual({
       reason: FailReason.BAD_CREDENTIAL,
       extra: '您的用户名或密码不正确，请重试！',
     });
@@ -78,14 +98,14 @@ describe('login', () => {
         ),
       { public: true },
     );
-    await server.helper().login(USERNAME, PASSWORD, FINGERPRINT);
+    await server.helper().login(credential);
     expect(server.loginCount).toBe(1);
   });
 
   it('rejects with ERROR_FETCH_FROM_ID, not BAD_CREDENTIAL, for a page that is neither the ticket nor the login form', async () => {
     const page = '<html><body><p>请完成二次认证</p><a href="/f/help">help</a><script>var x = 1;</script></body></html>';
     const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => html(page), { public: true });
-    await expect(server.helper().login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toEqual({
+    await expect(server.helper().login(credential)).rejects.toEqual({
       reason: FailReason.ERROR_FETCH_FROM_ID,
       extra: '请完成二次认证help',
     });
@@ -95,16 +115,13 @@ describe('login', () => {
     const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => new Response('', { status: 502 }), {
       public: true,
     });
-    await expect(server.helper().login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
-      'reason',
-      FailReason.ERROR_FETCH_FROM_ID,
-    );
+    await expect(server.helper().login(credential)).rejects.toHaveProperty('reason', FailReason.ERROR_FETCH_FROM_ID);
   });
 
   it('rejects with NETWORK_ERROR, not ERROR_FETCH_FROM_ID, when the SSO server is not reached', async () => {
     const error = new TypeError('Network request failed');
     const offline = new FakeServer().helper({ fetch: () => Promise.reject(error) });
-    await expect(offline.login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toEqual({
+    await expect(offline.login(credential)).rejects.toEqual({
       reason: FailReason.NETWORK_ERROR,
       extra: error,
     });
@@ -114,7 +131,7 @@ describe('login', () => {
     const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => new Promise<Response>(() => {}), {
       public: true,
     });
-    await expect(server.helper({ requestTimeout: 20 }).login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
+    await expect(server.helper({ requestTimeout: 20 }).login(credential)).rejects.toHaveProperty(
       'reason',
       FailReason.REQUEST_TIMEOUT,
     );
@@ -128,10 +145,7 @@ describe('login', () => {
           ? Promise.reject(new TypeError('fetch failed'))
           : server.fetch(input, init),
     });
-    await expect(helper.login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toHaveProperty(
-      'reason',
-      FailReason.NETWORK_ERROR,
-    );
+    await expect(helper.login(credential)).rejects.toHaveProperty('reason', FailReason.NETWORK_ERROR);
   });
 
   it('logs out with one POST and forgets the CSRF token', async () => {

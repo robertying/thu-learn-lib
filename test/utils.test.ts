@@ -113,9 +113,9 @@ describe('trimAndDefine', () => {
   });
 });
 
-describe('extractJSONPResult', () => {
-  const call = (body: string) => `${JSONP_EXTRACTOR_NAME}(${body})`;
+const call = (body: string) => `${JSONP_EXTRACTOR_NAME}(${body})`;
 
+describe('extractJSONPResult', () => {
   it('parses the argument as JSON', () => {
     expect(extractJSONPResult(call('[{"nr":"课程"}]'))).toEqual([{ nr: '课程' }]);
   });

@@ -11,6 +11,7 @@ import * as questionnaires from './questionnaires.ts';
 import { Session } from './request.ts';
 import type {
   AllContentsOptions,
+  Credential,
   AllContentsResult,
   CalendarOptions,
   CalendarResult,
@@ -41,7 +42,8 @@ import type {
   SemesterInfo,
   UserInfo,
 } from './types.ts';
-import { CourseType } from './types.ts';
+import { CourseType, FailReason } from './types.ts';
+import { apiError } from './utils.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
@@ -79,33 +81,24 @@ export class Learn2018Helper {
   }
 
   /**
-   * If using alternative cookie management systems,
-   * be sure to clear id.tsinghua.edu.cn cookies before calling this function
+   * Sign in to id.tsinghua.edu.cn and return the Web Learning roaming ticket, without logging in to Web Learning.
+   * Rejects with `NO_CREDENTIAL` unless `credential` has a username, a password and a fingerprint. If using
+   * alternative cookie management systems, be sure to clear id.tsinghua.edu.cn cookies before calling this function.
    */
-  public async getRoamingTicket(
-    username: string,
-    password: string,
-    fingerPrint: string,
-    fingerGenPrint: string = '',
-    fingerGenPrint3: string = '',
-  ): Promise<string> {
-    return auth.getRoamingTicket(this.#session, { username, password, fingerPrint, fingerGenPrint, fingerGenPrint3 });
+  public async getRoamingTicket(credential: Credential): Promise<string> {
+    if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
+    return auth.getRoamingTicket(this.#session, credential);
   }
 
   /**
    * Login is necessary if you do not provide a `CredentialProvider`.
-   * Without credentials it uses the provider, and concurrent calls share one SSO login. Logins never overlap: one with
-   * credentials waits for a login in progress, and requests that find the session expired meanwhile wait for it.
+   * Without a credential it uses the provider, and concurrent calls share one SSO login; a credential without a
+   * username, a password and a fingerprint rejects with `NO_CREDENTIAL`. Logins never overlap: one with a credential
+   * waits for a login in progress, and requests that find the session expired meanwhile wait for it.
    */
-  public async login(
-    username?: string,
-    password?: string,
-    fingerPrint?: string,
-    fingerGenPrint?: string,
-    fingerGenPrint3?: string,
-  ): Promise<void> {
-    const credential = { username, password, fingerPrint, fingerGenPrint, fingerGenPrint3 };
-    if (!auth.isComplete(credential)) return this.#session.relogin();
+  public async login(credential?: Credential): Promise<void> {
+    if (credential === undefined) return this.#session.relogin();
+    if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
     return this.#session.runLogin(() => auth.login(this.#session, credential));
   }
 

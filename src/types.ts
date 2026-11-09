@@ -528,30 +528,3 @@ export enum Language {
   ZH = 'zh',
   EN = 'en',
 }
-
-// The earlier names of some of the types above, for code written against them.
-
-/** @deprecated use `CourseFile` (`File` shadows the DOM's `File`) */
-export type File = CourseFile;
-/** @deprecated use `CourseNotification` (`Notification` shadows the DOM's `Notification`) */
-export type Notification = CourseNotification;
-/** @deprecated use `CourseNotificationBase` */
-export type INotification = CourseNotificationBase;
-/** @deprecated use `CourseNotificationDetail` */
-export type INotificationDetail = CourseNotificationDetail;
-/** @deprecated use `HomeworkStatus` */
-export type IHomeworkStatus = HomeworkStatus;
-/** @deprecated use `HomeworkBase` */
-export type IHomework = HomeworkBase;
-/** @deprecated use `HomeworkDetail` */
-export type IHomeworkDetail = HomeworkDetail;
-/** @deprecated use `ExcellentHomeworkBase` */
-export type IExcellentHomework = ExcellentHomeworkBase;
-/** @deprecated use `HomeworkTA` */
-export type IHomeworkTA = HomeworkTA;
-/** @deprecated use `HomeworkSubmitAttachment` */
-export type IHomeworkSubmitAttachment = HomeworkSubmitAttachment;
-/** @deprecated use `DiscussionBase` */
-export type IDiscussionBase = DiscussionBase;
-/** @deprecated use `Questionnaire` */
-export type IQuestionnaire = Questionnaire;

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { Fetch } from '../../src/index.ts';
 import { FailReason, Learn2018Helper, isConnectionError } from '../../src/index.ts';
 import { urlOf } from '../../src/utils.ts';
-import { FINGERPRINT, PASSWORD, USERNAME, config, credential } from './config.ts';
+import { config, credential } from './config.ts';
 import { addDays, toYyyymmdd } from './dates.ts';
 
 /** a fetch with cookies that sends requests for `host` to a name that can't resolve, so they really fail */
@@ -42,7 +42,7 @@ const counting = (cookieJar = new CookieJar()) => {
 describe('helper authentication', () => {
   it('logs in and out with the right credentials', async () => {
     const helper = new Learn2018Helper();
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
     await helper.logout();
   });
 
@@ -56,7 +56,7 @@ describe('helper authentication', () => {
 
   it('gets data after an explicit login', async () => {
     const helper = new Learn2018Helper();
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
   });
@@ -100,7 +100,7 @@ describe('expired sessions', () => {
 
   it('rejects with NOT_LOGGED_IN without a provider, for JSON and HTML requests', async () => {
     const helper = new Learn2018Helper();
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+    await helper.login(credential);
     const token = helper.getCSRFToken();
     await helper.logout();
     helper.setCSRFToken(token);
@@ -138,7 +138,7 @@ describe('session resume', () => {
 describe('connection errors', () => {
   it('rejects a login whose SSO server is not reached with NETWORK_ERROR, not ERROR_FETCH_FROM_ID', async () => {
     const helper = new Learn2018Helper({ fetch: unreachable('id.tsinghua.edu.cn') });
-    const err = await helper.login(USERNAME, PASSWORD, FINGERPRINT).catch((e: unknown) => e);
+    const err = await helper.login(credential).catch((e: unknown) => e);
     expect(err).toHaveProperty('reason', FailReason.NETWORK_ERROR);
     // Node's fetch error is kept in extra
     expect((err as { extra?: unknown }).extra).toBeInstanceOf(Error);
