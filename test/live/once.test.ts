@@ -33,7 +33,7 @@ const favorite: OnceTest = { name: 'favorite', covers: ['src/favorites.ts', 'src
 const favoriteTypes: OnceTest = {
   name: 'favorite-types',
   covers: ['src/favorites.ts', 'src/notices.ts', 'src/files.ts'],
-  maxPerDay: 1,
+  maxPerDay: 2,
 };
 
 const submission: OnceTest = {
@@ -60,8 +60,8 @@ const outcome = async (call: () => Promise<unknown>) => {
     await call();
     return 'ok';
   } catch (e) {
-    const err = e as { reason?: string; message?: string; extra?: { result?: unknown } };
-    return `${err.reason ?? err.message} (result ${JSON.stringify(err.extra?.result)})`;
+    const err = e as { reason?: string; message?: string; extra?: { result?: unknown; code?: unknown } };
+    return `${err.reason ?? err.message} (result ${JSON.stringify(err.extra?.result)}, status ${JSON.stringify(err.extra?.code)})`;
   }
 };
 
@@ -240,15 +240,15 @@ describe('one-time checks', () => {
       const added = new Set<string>();
 
       try {
-        // the raw favorites list: does it page?
-        const u = new URL(URLS.LEARN_FAVORITE_LIST());
-        u.searchParams.set('_csrf', h.getCSRFToken());
-        const json = await (await raw(u.href, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA() })).json();
-        const obj = json.object ?? {};
-        findings.push(
-          `list object keys: ${Object.keys(obj).toSorted().join(', ')}`,
-          `list rows ${(obj.aaData ?? []).length}, iTotalRecords ${obj.iTotalRecords}, iTotalDisplayRecords ${obj.iTotalDisplayRecords}`,
-        );
+        /** the raw favorites list, with extra DataTables parameters in `aoData` */
+        const rawList = async (extra: { name: string; value: number }[] = []) => {
+          const u = new URL(URLS.LEARN_FAVORITE_LIST());
+          u.searchParams.set('_csrf', h.getCSRFToken());
+          const form = new FormData();
+          form.append('aoData', JSON.stringify(extra));
+          const json = await (await raw(u.href, { method: 'POST', body: form })).json();
+          return json.object ?? {};
+        };
 
         const favoritesBefore = await h.getFavorites();
         const isFav = (id: string) => favoritesBefore.some((f) => f.id === id);
@@ -295,8 +295,24 @@ describe('one-time checks', () => {
             }
             for (const f of [byId, byFileId]) if (f) await h.removeFromFavorites(f.id);
           }
+          // keep one file favorited for the paging check below
+          if ((await outcome(() => h.addToFavorites(ContentType.FILE, file.id))) === 'ok') added.add(file.id);
           break;
         }
+
+        // does the list page? Read it as the library does, then ask for one row at a time
+        const whole = await rawList();
+        findings.push(
+          `list object keys: ${Object.keys(whole).toSorted().join(', ')}`,
+          `list rows ${(whole.aaData ?? []).length}, iTotalRecords ${whole.iTotalRecords}, iDisplayLength ${JSON.stringify(whole.iDisplayLength)}, iDisplayStart ${JSON.stringify(whole.iDisplayStart)}`,
+        );
+        const paged = await rawList([
+          { name: 'iDisplayStart', value: 1 },
+          { name: 'iDisplayLength', value: 1 },
+        ]);
+        findings.push(
+          `asked for 1 row from 1: rows ${(paged.aaData ?? []).length}, iTotalRecords ${paged.iTotalRecords}, iDisplayLength ${JSON.stringify(paged.iDisplayLength)}, iDisplayStart ${JSON.stringify(paged.iDisplayStart)}`,
+        );
 
         // ids the server doesn't know, and removing what isn't a favorite
         findings.push(
