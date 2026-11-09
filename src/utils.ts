@@ -1,4 +1,6 @@
-import * as cheerio from 'cheerio';
+// cheerio's main entry also exports its fetch/stream loaders, which import undici and node:stream and break React Native
+// bundlers. `cheerio/slim` is only htmlparser2, which is what `{ xml: true }` parses with anyway.
+import * as cheerio from 'cheerio/slim';
 import { decodeHTML as _decodeHTML } from 'entities';
 
 import type { ApiError, DetailSelector, Fetch } from './types.ts';

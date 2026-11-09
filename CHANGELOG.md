@@ -1,5 +1,8 @@
 # Changelog
 
+- v6.0.1
+  - Imports `cheerio/slim` instead of `cheerio`, so React Native (Metro) bundles the library without undici or `node:stream` and needs no resolver workaround. Parsing is unchanged: the library already parsed with htmlparser2 (`xml: true`), which is all `cheerio/slim` contains
+
 - v6.0.0
   - (_BREAKING CHANGE_) `login` and `getRoamingTicket` take one `Credential` object instead of five positional arguments. `login(credential)` rejects with `NO_CREDENTIAL` when the credential lacks a username, a password or a fingerprint, instead of quietly falling back to the `CredentialProvider`; `login()` still uses the provider. `getRoamingTicket` rejects an incomplete credential with `NO_CREDENTIAL` too. Migration: `login(username, password, fingerPrint)` → `login({ username, password, fingerPrint })`, and the same for `getRoamingTicket`
   - (_BREAKING CHANGE_) Renamed types: `File` → `CourseFile` and `Notification` → `CourseNotification` (the old names shadow the DOM's `File` and `Notification`); `INotification` → `CourseNotificationBase`, `INotificationDetail` → `CourseNotificationDetail`, `IHomework` → `HomeworkBase`, `IHomeworkDetail` → `HomeworkDetail`, `IHomeworkStatus` → `HomeworkStatus`, `IExcellentHomework` → `ExcellentHomeworkBase`, `IHomeworkSubmitAttachment` → `HomeworkSubmitAttachment`, `IDiscussionBase` → `DiscussionBase`; `IHomeworkTA` and `IQuestionnaire` are gone (use `HomeworkTA` and `Questionnaire`, which were the same types). Migration: rename the imports; the shapes are unchanged
