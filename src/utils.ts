@@ -44,19 +44,16 @@ export const looksLikeLoginPage = (text: string) =>
     text,
   );
 
-export function parseSemesterType(n: number): SemesterType {
-  if (n === 1) {
-    return SemesterType.FALL;
-  } else if (n === 2) {
-    return SemesterType.SPRING;
-  } else if (n === 3) {
-    return SemesterType.SUMMER;
-  } else {
-    return SemesterType.UNKNOWN;
-  }
-}
+const SEMESTER_TYPES: Record<number, SemesterType> = {
+  1: SemesterType.FALL,
+  2: SemesterType.SPRING,
+  3: SemesterType.SUMMER,
+};
 
-const CONTENT_TYPE_MK_MAP = {
+/** the semester type from the last digit of a semester id (`2024-2025-1`) */
+export const parseSemesterType = (n: number): SemesterType => SEMESTER_TYPES[n] ?? SemesterType.UNKNOWN;
+
+const CONTENT_TYPE_MK_MAP: Record<ContentType, string> = {
   [ContentType.NOTIFICATION]: 'kcgg',
   [ContentType.FILE]: 'kcwj',
   [ContentType.HOMEWORK]: 'kczy',
@@ -66,7 +63,7 @@ const CONTENT_TYPE_MK_MAP = {
 };
 
 export function getMkFromType(type: ContentType): string {
-  return 'mk_' + (CONTENT_TYPE_MK_MAP[type] ?? 'UNKNOWN');
+  return 'mk_' + CONTENT_TYPE_MK_MAP[type];
 }
 
 export function decodeHTML(html: string): string {
@@ -181,14 +178,7 @@ export const CONTENT_TYPE_MAP = new Map([
   [ContentType.QUESTIONNAIRE, 'KCWJ'],
   // omitted: 课表(KCKB)
 ]);
-export const CONTENT_TYPE_MAP_REVERSE = new Map([
-  [CONTENT_TYPE_MAP.get(ContentType.NOTIFICATION)!, ContentType.NOTIFICATION],
-  [CONTENT_TYPE_MAP.get(ContentType.FILE)!, ContentType.FILE],
-  [CONTENT_TYPE_MAP.get(ContentType.HOMEWORK)!, ContentType.HOMEWORK],
-  [CONTENT_TYPE_MAP.get(ContentType.DISCUSSION)!, ContentType.DISCUSSION],
-  [CONTENT_TYPE_MAP.get(ContentType.QUESTION)!, ContentType.QUESTION],
-  [CONTENT_TYPE_MAP.get(ContentType.QUESTIONNAIRE)!, ContentType.QUESTIONNAIRE],
-]);
+export const CONTENT_TYPE_MAP_REVERSE = new Map([...CONTENT_TYPE_MAP].map(([type, code]) => [code, type]));
 
 export const QNR_TYPE_MAP = new Map([
   ['投票', QuestionnaireType.VOTE],
