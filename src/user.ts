@@ -16,7 +16,7 @@ const NO_DEPARTMENT = 'none';
  * The homepage's profile card (`.fl.up-img-info`) has two `<p>`: the name and role labels (同学 / Student), then the
  * department label (for undergraduates, their 书院). The name is also in the header's `a.user-log`.
  */
-export async function getUserInfo(s: Session, courseType = CourseType.STUDENT): Promise<UserInfo> {
+export async function getUserInfo(s: Session, courseType: CourseType = CourseType.STUDENT): Promise<UserInfo> {
   const content = await s.fetchTextWithToken(URLS.LEARN_HOMEPAGE(courseType));
 
   const dom = $(content);

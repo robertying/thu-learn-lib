@@ -24,12 +24,13 @@ import type {
   Discussion,
   ExcellentHomework,
   FavoriteItem,
+  FavoriteListOptions,
   FileCategory,
   HelperConfig,
   Homework,
   HomeworkDetail,
   HomeworkListOptions,
-  HomeworkSubmitAttachment,
+  HomeworkSubmitOptions,
   HomeworkSubmitRequest,
   HomeworkTA,
   Language,
@@ -118,7 +119,7 @@ export class Learn2018Helper {
   }
 
   /** get user's name and department */
-  public async getUserInfo(courseType = CourseType.STUDENT): Promise<UserInfo> {
+  public async getUserInfo(courseType: CourseType = CourseType.STUDENT): Promise<UserInfo> {
     return parsed(user.getUserInfo(this.#session, courseType));
   }
 
@@ -147,13 +148,8 @@ export class Learn2018Helper {
    * `timeAndLocation` is only fetched (one request per course) with `options.timeAndLocation`, and left out for a
    * course whose request failed.
    */
-  public async getCourseList(
-    semesterID: string,
-    courseType: CourseType = CourseType.STUDENT,
-    lang: Language = this.#session.lang,
-    options?: CourseListOptions,
-  ): Promise<CourseInfo[]> {
-    return parsed(courses.getCourseList(this.#session, semesterID, courseType, lang, options));
+  public async getCourseList(semesterID: string, options?: CourseListOptions): Promise<CourseInfo[]> {
+    return parsed(courses.getCourseList(this.#session, semesterID, options));
   }
 
   /** Get the time and location of one course. */
@@ -164,7 +160,8 @@ export class Learn2018Helper {
   /**
    * Get certain type of content of all specified courses.
    * It wraps around the `getXXX` list functions; a course that fails is reported in `errors` instead of failing
-   * the rest. `options.details` is passed on as homework `details` or notification `attachments`.
+   * the rest. `options.details` is passed on as homework or questionnaire `details` or notification `attachments`, and
+   * `options.favorites` as the file list's `favorites`.
    */
   public async getAllContents<T extends ContentType>(
     courseIDs: string[],
@@ -276,8 +273,8 @@ export class Learn2018Helper {
 
   /**
    * Get all questionnaires （课程问卷/QNR） of the specified course.
-   * Questions (`detail`, one request per questionnaire) for the questionnaires `options.details` selects, by default
-   * all; use `getQuestionnaireDetail` for the others.
+   * Questions (`detail`, one request per questionnaire) only for the questionnaires `options.details` selects;
+   * use `getQuestionnaireDetail` for the others.
    */
   public async getQuestionnaireList(courseID: string, options?: QuestionnaireListOptions): Promise<Questionnaire[]> {
     return parsed(questionnaires.getQuestionnaireList(this.#session, courseID, options));
@@ -307,10 +304,10 @@ export class Learn2018Helper {
 
   /**
    * Get favorites. (我的收藏)
-   * If `courseID` or `type` is specified, only return favorites of that course or type.
+   * With `options.courseID` or `options.type`, only the favorites of that course or type.
    */
-  public async getFavorites(courseID?: string, type?: ContentType): Promise<FavoriteItem[]> {
-    return parsed(favorites.getFavorites(this.#session, courseID, type));
+  public async getFavorites(options?: FavoriteListOptions): Promise<FavoriteItem[]> {
+    return parsed(favorites.getFavorites(this.#session, options));
   }
 
   /**
@@ -337,10 +334,10 @@ export class Learn2018Helper {
 
   /**
    * Get comments. (我的备注)
-   * If `courseID` or `type` is specified, only return comments of that course or type.
+   * With `options.courseID` or `options.type`, only the comments of that course or type.
    */
-  public async getComments(courseID?: string, type?: ContentType): Promise<CommentItem[]> {
-    return parsed(favorites.getComments(this.#session, courseID, type));
+  public async getComments(options?: FavoriteListOptions): Promise<CommentItem[]> {
+    return parsed(favorites.getComments(this.#session, options));
   }
 
   public async sortCourses(courseIDs: string[]): Promise<void> {
@@ -348,19 +345,11 @@ export class Learn2018Helper {
   }
 
   /**
-   * Submit homework `id` (the `studentHomeworkId`), the way the website's submit page does. `content` is the whole
-   * answer as HTML (the website sends its editor's HTML) and replaces the submitted one, so pass the current answer
-   * when only changing the attachment (`homeworkContentHtml` turns plain text into the editor's HTML). With no
-   * `attachment` the existing one is kept, unless `removeAttachment`: that only deletes the attachment, and `content` is
-   * ignored. In React Native, pass the attachment's `content` as `{ uri, type }`.
+   * Submit homework `id` (`Homework.id`), the way the website's submit page does; see `HomeworkSubmitOptions`. In
+   * React Native, pass the attachment's `content` as `{ uri, type }`.
    */
-  public async submitHomework(
-    id: string,
-    content = '',
-    attachment?: HomeworkSubmitAttachment,
-    removeAttachment = false,
-  ): Promise<void> {
-    return parsed(homework.submitHomework(this.#session, id, content, attachment, removeAttachment));
+  public async submitHomework(id: string, options?: HomeworkSubmitOptions): Promise<void> {
+    return parsed(homework.submitHomework(this.#session, id, options));
   }
 
   /**
@@ -368,13 +357,8 @@ export class Learn2018Helper {
    * `fetch` can't): POST `body` to `url`, then pass the answer (parsed JSON or text) to `checkHomeworkSubmitResponse`.
    * It checks the session first (`ensureSession`), since that request doesn't log in again and retry.
    */
-  public async getHomeworkSubmitRequest(
-    id: string,
-    content = '',
-    attachment?: HomeworkSubmitAttachment,
-    removeAttachment = false,
-  ): Promise<HomeworkSubmitRequest> {
-    return parsed(homework.getHomeworkSubmitRequest(this.#session, id, content, attachment, removeAttachment));
+  public async getHomeworkSubmitRequest(id: string, options?: HomeworkSubmitOptions): Promise<HomeworkSubmitRequest> {
+    return parsed(homework.getHomeworkSubmitRequest(this.#session, id, options));
   }
 
   public async setLanguage(lang: Language): Promise<void> {

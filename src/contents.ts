@@ -28,7 +28,9 @@ export async function getAllContents<T extends ContentType>(
           attachments: (options as AllContentsOptions<ContentType.NOTIFICATION>).details,
         }) as Promise<ContentTypeMap[T][]>;
       case ContentType.FILE:
-        return getFileList(s, id, courseType) as Promise<ContentTypeMap[T][]>;
+        return getFileList(s, id, courseType, {
+          favorites: (options as AllContentsOptions<ContentType.FILE>).favorites,
+        }) as Promise<ContentTypeMap[T][]>;
       case ContentType.HOMEWORK:
         if (courseType === CourseType.TEACHER) {
           // the teacher list has another shape (`HomeworkTA`); use `getHomeworkList(id, CourseType.TEACHER)`

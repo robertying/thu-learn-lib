@@ -146,7 +146,7 @@ export class Session {
    * `login`, or a new CSRF token, clears it.
    */
   #badCredential?: ApiError;
-  lang = Language.ZH;
+  lang: Language = Language.ZH;
   previewFirstPage: boolean;
   /**
    * The device fingerprints of the last SSO login. id.tsinghua.edu.cn asks for them again when another site (WebVPN,
@@ -154,11 +154,11 @@ export class Session {
    */
   fingerprints?: { fingerPrint: string; fingerGenPrint: string; fingerGenPrint3: string };
 
-  /** `loginWithProvider` signs in through SSO with the `CredentialProvider` */
-  constructor(
-    config: HelperConfig | undefined,
-    readonly loginWithProvider: () => Promise<void>,
-  ) {
+  /** signs in through SSO with the `CredentialProvider` */
+  readonly loginWithProvider: () => Promise<void>;
+
+  constructor(config: HelperConfig | undefined, loginWithProvider: () => Promise<void>) {
+    this.loginWithProvider = loginWithProvider;
     this.previewFirstPage = config?.generatePreviewUrlForFirstPage ?? true;
     this.provider = config?.provider;
     this.cookieJar = config?.cookieJar ?? new CookieJar();

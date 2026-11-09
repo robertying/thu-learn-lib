@@ -14,7 +14,7 @@ export default async function setup(project: TestProject) {
 
   const semesters = await h.getSemesterIdList();
   const firstCourse = async (semester: string, courseType: CourseType) =>
-    (await h.getCourseList(semester, courseType))[0]?.id;
+    (await h.getCourseList(semester, { courseType }))[0]?.id;
 
   /**
    * The semester and course to test `courseType` with. With a semester from the environment: that one, and the

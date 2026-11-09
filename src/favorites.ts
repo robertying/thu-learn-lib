@@ -1,7 +1,7 @@
 // Favorites (收藏) and comments (备注).
 
 import type { Session } from './request.ts';
-import type { CommentItem, FavoriteItem } from './types.ts';
+import type { CommentItem, FavoriteItem, FavoriteListOptions } from './types.ts';
 import { ContentType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { contentTypeOfCode } from './codes.ts';
@@ -20,7 +20,7 @@ export async function removeFromFavorites(s: Session, id: string): Promise<void>
   expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
-export async function getFavorites(s: Session, courseID?: string, type?: ContentType): Promise<FavoriteItem[]> {
+export async function getFavorites(s: Session, { courseID, type }: FavoriteListOptions = {}): Promise<FavoriteItem[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FAVORITE_LIST(type), {
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
@@ -76,7 +76,7 @@ export async function setComment(s: Session, type: ContentType, id: string, cont
   expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 
-export async function getComments(s: Session, courseID?: string, type?: ContentType): Promise<CommentItem[]> {
+export async function getComments(s: Session, { courseID, type }: FavoriteListOptions = {}): Promise<CommentItem[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_COMMENT_LIST(type), {
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),

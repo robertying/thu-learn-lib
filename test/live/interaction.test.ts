@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ContentType, CourseType, Language, Learn2018Helper, parseCourseMeeting } from '../../src/index.ts';
+import { ContentType, Language, Learn2018Helper, parseCourseMeeting } from '../../src/index.ts';
 import { config } from './config.ts';
 import { ALLOW_WRITES } from './guard.ts';
 
@@ -31,7 +31,7 @@ describe('helper interaction', () => {
     try {
       for (const lang of [Language.ZH, Language.EN]) {
         await h.setLanguage(lang);
-        const courses = await h.getCourseList(semesterTester, CourseType.STUDENT, lang, { timeAndLocation: true });
+        const courses = await h.getCourseList(semesterTester, { lang, timeAndLocation: true });
         const entries = courses.flatMap((c) => c.timeAndLocation ?? []);
         expect({ lang, unread: entries.filter((e) => !parseCourseMeeting(e) && !empty.test(e)) }).toEqual({
           lang,

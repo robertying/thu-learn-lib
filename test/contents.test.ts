@@ -103,5 +103,8 @@ describe('getAllContents', () => {
       .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('', CourseType.STUDENT), () => success({ rows: [] }));
     const helper = await server.loggedInHelper();
     expect(await helper.getAllContents(['c1'], ContentType.FILE)).toEqual({ contents: { c1: [] }, errors: {} });
+    // favorites passed in are used without a request
+    await helper.getAllContents(['c1'], ContentType.FILE, { favorites: [] });
+    expect(server.count(URLS.LEARN_FAVORITE_LIST(ContentType.FILE), 'POST')).toBe(0);
   });
 });

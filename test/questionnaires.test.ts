@@ -40,7 +40,7 @@ describe('getQuestionnaireList', () => {
         ]),
       );
     const helper = await server.loggedInHelper();
-    const list = await helper.getQuestionnaireList('c1');
+    const list = await helper.getQuestionnaireList('c1', { details: 'all' });
 
     expect(list.map((q) => [q.id, q.type, q.submitTime])).toEqual([
       ['w1', QuestionnaireType.VOTE, undefined],
@@ -87,6 +87,9 @@ describe('getQuestionnaireList', () => {
       .on('POST', URLS.LEARN_QNR_LIST_ENDED, () => success({ aaData: [] }))
       .on('POST', URLS.LEARN_QNR_DETAIL, () => json({ result: 'error' }));
     const helper = await server.loggedInHelper();
-    await expect(helper.getQuestionnaireList('c1')).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+    await expect(helper.getQuestionnaireList('c1', { details: 'all' })).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
   });
 });

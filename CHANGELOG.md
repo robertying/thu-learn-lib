@@ -1,15 +1,22 @@
 # Changelog
 
-- Unreleased
+- v7.0.0
+  - (_BREAKING CHANGE_) Enums are `as const` objects with a type of the same name: `CourseType.STUDENT` still works as a value and as a type, and the values are the same strings and numbers. The source now runs under Node's type stripping, and `erasableSyntaxOnly` is on. Migration: none for code that uses the members; code that iterated an enum with `Object.values` gets the same values; numeric enums (`HomeworkCompletionType`, `HomeworkSubmissionType`) no longer have reverse mappings (`HomeworkSubmissionType[2]`)
+  - (_BREAKING CHANGE_) `getCourseList(semesterID, { courseType, lang, timeAndLocation })` instead of `getCourseList(semesterID, courseType, lang, options)`. Migration: move the second and third arguments into the options
+  - (_BREAKING CHANGE_) `submitHomework(id, { content, attachment, removeAttachment })` and `getHomeworkSubmitRequest(id, { content, attachment, removeAttachment })` (`HomeworkSubmitOptions`) instead of three positional arguments. Migration: `submitHomework(id, content, attachment, true)` → `submitHomework(id, { content, attachment, removeAttachment: true })`
+  - (_BREAKING CHANGE_) `getFavorites({ courseID, type })` and `getComments({ courseID, type })` (`FavoriteListOptions`) instead of two positional arguments. Migration: `getFavorites(undefined, ContentType.FILE)` → `getFavorites({ type: ContentType.FILE })`
+  - (_BREAKING CHANGE_) `getQuestionnaireList` fetches no questions by default (`details: 'none'`, like the homework and notice lists). Migration: pass `{ details: 'all' }` to keep the old behavior
+  - (_BREAKING CHANGE_) `Homework.grade` is left out for a grade level: the server sends a level as a negative grade (`-99` for A+), which was passed on next to `gradeLevel`. Migration: read `gradeLevel` for levels; `grade` is only a numeric grade now
+  - (_BREAKING CHANGE_) `HomeworkBase.studentHomeworkId` (deprecated, the same as `id`) is removed. Migration: use `id`
+  - `getAllContents(ids, ContentType.FILE, { favorites })` passes `favorites` on to each course's file list
+  - The teacher (TA) view is documented as not checked against the real server
   - `CalendarEvent` has `start` and `end`: its date and times as `ServerTime`s, so callers don't rebuild Beijing times from `date` + `startTime`. The formats of `date`, `startTime`, `endTime` and `SemesterInfo.startDate` / `endDate` are documented
-  - `getFileList`'s `favorites` option also takes favorites you already have (`FavoriteItem[]`), so one `getFavorites(undefined, ContentType.FILE)` can fill `isFavorite` for every course without a request per course
+  - `getFileList`'s `favorites` option also takes favorites you already have (`FavoriteItem[]`), so one `getFavorites({ type: ContentType.FILE })` can fill `isFavorite` for every course without a request per course
   - Every `Learn2018Helper` method (and each course in `getAllContents` errors) rejects with `INVALID_RESPONSE` instead of a bare `TypeError` when the server answers in a shape the parser doesn't expect (a missing field, a `null` row), so errors are always `{ reason, extra }`
   - A homework attachment's `name` is the link's whole text (it was empty when the name was wrapped in another element)
   - Roaming and registrar tickets and favorite ids are URL-encoded in the URLs they go into
   - Uses the global `fetch` (Node 22 and later, React Native, browsers) instead of `node-fetch-native`, which only passed it through. It is looked up on each request, so a `fetch` polyfill installed after the library loads is used too
   - `cheerio`, `fetch-cookie` and `tough-cookie` take caret ranges instead of exact versions, so apps can share one copy
-
-- Unreleased
   - Notice and homework attachment links are resolved against Web Learning (`learnUrl`) instead of prefixed to it, and an attachment whose link points to another site comes back as `undefined`, so `downloadUrl` (which apps fetch with the session's cookies) is always on learn.tsinghua.edu.cn
 
 - v6.1.0
