@@ -4,7 +4,7 @@ import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
 import type { Fetch } from '../../src/index.ts';
-import type { Homework, IHomeworkDetail } from '../../src/index.ts';
+import type { Homework, HomeworkDetail } from '../../src/index.ts';
 import {
   ContentType,
   CourseType,
@@ -243,7 +243,7 @@ describe('one-time checks', () => {
       const detail = () => h.getHomeworkDetail(target);
 
       // what to put back afterwards: the submitted answer and attachment (downloaded), if any
-      const before: IHomeworkDetail = await detail();
+      const before: HomeworkDetail = await detail();
       let previousFile: { filename: string; content: Blob } | undefined;
       if (before.submittedAttachment) {
         const res = await raw(withToken(before.submittedAttachment.downloadUrl));

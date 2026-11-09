@@ -1,5 +1,8 @@
 # Changelog
 
+- Unreleased
+  - Types are named without the `I` prefix: `CourseFile` and `CourseNotification` (instead of `File` and `Notification`, which shadow the DOM's types), `HomeworkBase`, `HomeworkDetail`, `HomeworkStatus`, `ExcellentHomeworkBase`, `CourseNotificationBase`, `CourseNotificationDetail`, `HomeworkSubmitAttachment` and `DiscussionBase`. The old names stay as deprecated aliases
+  - A JSON request retried after logging in again rejects with `UNEXPECTED_STATUS` when the retry's status is not 200, as text and plain requests already did, instead of returning its body
 - v6.0.0
   - (_BREAKING CHANGE_) Every time field is a `ServerTime`: an ISO 8601 string in Beijing time with its offset (`2026-11-07T18:28:00+08:00`), which `new Date()` reads as the right moment in any time zone. The server's millisecond timestamps (homework `deadline`, `submitTime`, `lateSubmissionDeadline`, teacher homework and questionnaire times) and zone-less Beijing strings (notice, file, grade, discussion, favorite and comment times) are converted (a timestamp of 0, the server's "none", gives `undefined`); `FileCategory.creationTime` is a `ServerTime` instead of a `Date`. Semester and calendar dates stay date-only, and calendar `startTime` / `endTime` stay `HH:mm`
   - (_BREAKING CHANGE_) `Homework.excellentHomeworkList` is `[]` when a homework has no excellent homework, and `undefined` only when the course's excellent homework list couldn't be fetched

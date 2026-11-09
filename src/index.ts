@@ -16,22 +16,22 @@ import type {
   CalendarResult,
   CommentItem,
   ContentType,
+  CourseFile,
   CourseInfo,
   CourseListOptions,
+  CourseNotification,
   Discussion,
   ExcellentHomework,
   FavoriteItem,
-  File,
   FileCategory,
   HelperConfig,
   Homework,
+  HomeworkDetail,
   HomeworkListOptions,
+  HomeworkSubmitAttachment,
   HomeworkSubmitRequest,
   HomeworkTA,
-  IHomeworkDetail,
-  IHomeworkSubmitAttachment,
   Language,
-  Notification,
   NotificationListOptions,
   Question,
   Questionnaire,
@@ -189,20 +189,20 @@ export class Learn2018Helper {
     courseID: string,
     courseType: CourseType = CourseType.STUDENT,
     options?: NotificationListOptions,
-  ): Promise<Notification[]> {
+  ): Promise<CourseNotification[]> {
     return notices.getNotificationList(this.#session, courseID, courseType, options);
   }
 
   /** Get the attachment of a notice (one request), `undefined` if it has none. */
   public async getNotificationAttachment(
-    notification: Pick<Notification, 'url' | 'attachmentName'>,
+    notification: Pick<CourseNotification, 'url' | 'attachmentName'>,
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<RemoteFile | undefined> {
     return notices.getNotificationAttachment(this.#session, notification, courseType);
   }
 
   /** Get all files （课程文件） of the specified course. */
-  public async getFileList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<File[]> {
+  public async getFileList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<CourseFile[]> {
     return files.getFileList(this.#session, courseID, courseType);
   }
 
@@ -222,7 +222,7 @@ export class Learn2018Helper {
     courseID: string,
     categoryId: string,
     courseType: CourseType = CourseType.STUDENT,
-  ): Promise<File[]> {
+  ): Promise<CourseFile[]> {
     return files.getFileListByCategory(this.#session, courseID, categoryId, courseType);
   }
 
@@ -248,12 +248,12 @@ export class Learn2018Helper {
   }
 
   /** Get the detail (page content, attachments and description) of one homework. */
-  public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<IHomeworkDetail> {
+  public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
     return homework.getHomeworkDetail(this.#session, item);
   }
 
   /** Get the detail (page content, attachments and description) of one excellent homework. */
-  public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<IHomeworkDetail> {
+  public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
     return homework.getHomeworkDetail(this.#session, item);
   }
 
@@ -353,7 +353,7 @@ export class Learn2018Helper {
   public async submitHomework(
     id: string,
     content = '',
-    attachment?: IHomeworkSubmitAttachment,
+    attachment?: HomeworkSubmitAttachment,
     removeAttachment = false,
   ): Promise<void> {
     return homework.submitHomework(this.#session, id, content, attachment, removeAttachment);
@@ -367,7 +367,7 @@ export class Learn2018Helper {
   public async getHomeworkSubmitRequest(
     id: string,
     content = '',
-    attachment?: IHomeworkSubmitAttachment,
+    attachment?: HomeworkSubmitAttachment,
     removeAttachment = false,
   ): Promise<HomeworkSubmitRequest> {
     return homework.getHomeworkSubmitRequest(this.#session, id, content, attachment, removeAttachment);

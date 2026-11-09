@@ -7,15 +7,15 @@ import type { Session } from './request.ts';
 import { addCSRFTokenToUrl } from './request.ts';
 import type {
   ExcellentHomework,
+  ExcellentHomeworkBase,
   Homework,
+  HomeworkBase,
+  HomeworkDetail,
   HomeworkListOptions,
+  HomeworkStatus,
+  HomeworkSubmitAttachment,
   HomeworkSubmitRequest,
   HomeworkTA,
-  IExcellentHomework,
-  IHomework,
-  IHomeworkDetail,
-  IHomeworkStatus,
-  IHomeworkSubmitAttachment,
   RemoteFile,
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
@@ -35,7 +35,7 @@ import {
 } from './utils.ts';
 
 /** the student homework lists, by submission status */
-export const HOMEWORK_LIST_SOURCES: readonly { url: string; status: IHomeworkStatus }[] = [
+export const HOMEWORK_LIST_SOURCES: readonly { url: string; status: HomeworkStatus }[] = [
   { url: URLS.LEARN_HOMEWORK_LIST_NEW, status: { submitted: false, graded: false } },
   { url: URLS.LEARN_HOMEWORK_LIST_SUBMITTED, status: { submitted: true, graded: false } },
   { url: URLS.LEARN_HOMEWORK_LIST_GRADED, status: { submitted: true, graded: true } },
@@ -117,8 +117,8 @@ async function getHomeworkListAtUrl(
   s: Session,
   courseID: string,
   url: string,
-  status: IHomeworkStatus,
-): Promise<IHomework[]> {
+  status: HomeworkStatus,
+): Promise<HomeworkBase[]> {
   const json = await s.fetchJsonWithToken(url, {
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
@@ -150,7 +150,7 @@ async function getHomeworkListAtUrl(
         isFavorite: h.sfsc === YES,
         comment: h.bznr ?? undefined,
         ...status,
-      }) satisfies IHomework,
+      }) satisfies HomeworkBase,
   );
 }
 
@@ -180,7 +180,7 @@ async function getExcellentHomeworkListByHomework(
             name: h.cy?.split(' ')?.[1],
             anonymous: h.sfzm === YES,
           },
-        }) satisfies IExcellentHomework,
+        }) satisfies ExcellentHomeworkBase,
     )
     .reduce<{ [id: string]: ExcellentHomework[] }>((acc, cur) => {
       if (!acc[cur.baseId]) {
@@ -191,7 +191,7 @@ async function getExcellentHomeworkListByHomework(
     }, {});
 }
 
-async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDetail> {
+async function parseHomeworkAtUrl(s: Session, url: string): Promise<HomeworkDetail> {
   const result = $(await s.fetchTextWithToken(url));
 
   const fileDivs = result('div.list.fujian.clearfix');
@@ -213,8 +213,8 @@ async function parseHomeworkAtUrl(s: Session, url: string): Promise<IHomeworkDet
  */
 export async function getHomeworkDetail(
   s: Session,
-  homework: Pick<IHomework | IExcellentHomework, 'url' | 'baseId'>,
-): Promise<IHomeworkDetail> {
+  homework: Pick<HomeworkBase | ExcellentHomeworkBase, 'url' | 'baseId'>,
+): Promise<HomeworkDetail> {
   const [page, description] = await Promise.all([
     parseHomeworkAtUrl(s, homework.url),
     getHomeworkDescription(s, homework.baseId),
@@ -223,7 +223,7 @@ export async function getHomeworkDetail(
   return { ...page, description: description.description ?? page.description };
 }
 
-async function getHomeworkDescription(s: Session, baseId: string): Promise<IHomeworkDetail> {
+async function getHomeworkDescription(s: Session, baseId: string): Promise<HomeworkDetail> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_DETAIL, {
     method: 'POST',
     body: URLS.LEARN_HOMEWORK_DETAIL_FORM_DATA(baseId),
@@ -261,7 +261,7 @@ export async function submitHomework(
   s: Session,
   id: string,
   content = '',
-  attachment?: IHomeworkSubmitAttachment,
+  attachment?: HomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<void> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT, {
@@ -282,7 +282,7 @@ export async function getHomeworkSubmitRequest(
   s: Session,
   id: string,
   content = '',
-  attachment?: IHomeworkSubmitAttachment,
+  attachment?: HomeworkSubmitAttachment,
   removeAttachment = false,
 ): Promise<HomeworkSubmitRequest> {
   await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
@@ -322,7 +322,7 @@ export function checkHomeworkSubmitResponse(body: unknown): void {
 export const homeworkSubmitForm = (
   id: string,
   content = '',
-  attachment?: IHomeworkSubmitAttachment,
+  attachment?: HomeworkSubmitAttachment,
   removeAttachment = false,
 ) => {
   const form = new FormData();

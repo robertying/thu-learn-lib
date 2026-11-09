@@ -3,7 +3,7 @@
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import type { Discussion, IDiscussionBase, Question } from './types.ts';
+import type { Discussion, DiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { YES, decodeHTML, expectSuccess, toRequiredServerTime } from './utils.ts';
@@ -53,7 +53,7 @@ export async function getAnsweredQuestionList(
   );
 }
 
-function parseDiscussionBase(d: any): IDiscussionBase {
+function parseDiscussionBase(d: any): DiscussionBase {
   return {
     id: d.id,
     title: decodeHTML(d.bt),

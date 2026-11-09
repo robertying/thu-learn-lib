@@ -1,7 +1,7 @@
 // Course files (课程文件) and file categories.
 
 import type { Session } from './request.ts';
-import type { File as CourseFile, FileCategory } from './types.ts';
+import type { CourseFile, FileCategory } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { YES, decodeHTML, expectSuccess, formatFileSize, toRequiredServerTime } from './utils.ts';

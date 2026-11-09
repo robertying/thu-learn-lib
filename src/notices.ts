@@ -3,7 +3,7 @@
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import type { INotification, Notification, NotificationListOptions, RemoteFile } from './types.ts';
+import type { CourseNotification, CourseNotificationBase, NotificationListOptions, RemoteFile } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import {
@@ -26,13 +26,13 @@ export async function getNotificationList(
   courseID: string,
   courseType: CourseType = CourseType.STUDENT,
   options: NotificationListOptions = {},
-): Promise<Notification[]> {
+): Promise<CourseNotification[]> {
   const lists = await Promise.all([
     getNotificationListKind(s, courseID, courseType, false),
     getNotificationListKind(s, courseID, courseType, true),
   ]);
   return Promise.all(
-    lists.flat().map(async (n): Promise<Notification> => {
+    lists.flat().map(async (n): Promise<CourseNotification> => {
       if (!n.attachmentName || !isSelected(options.attachments, n)) return n;
       return { ...n, attachment: await getNotificationAttachment(s, n, courseType) };
     }),
@@ -44,7 +44,7 @@ async function getNotificationListKind(
   courseID: string,
   courseType: CourseType,
   expired: boolean,
-): Promise<INotification[]> {
+): Promise<CourseNotificationBase[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_NOTIFICATION_LIST(courseType, expired), {
     method: 'POST',
     body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID),
@@ -68,7 +68,7 @@ async function getNotificationListKind(
       isFavorite: n.sfsc === YES,
       comment: n.bznr ?? undefined,
       attachmentName: typeof attachmentName === 'string' && attachmentName ? attachmentName : undefined,
-    } satisfies INotification;
+    } satisfies CourseNotificationBase;
   });
 }
 
@@ -78,7 +78,7 @@ async function getNotificationListKind(
  */
 export async function getNotificationAttachment(
   s: Session,
-  notification: Pick<INotification, 'url' | 'attachmentName'>,
+  notification: Pick<CourseNotificationBase, 'url' | 'attachmentName'>,
   courseType: CourseType = CourseType.STUDENT,
 ): Promise<RemoteFile | undefined> {
   if (!notification.attachmentName) return undefined;

@@ -65,7 +65,7 @@ export enum ContentType {
   QUESTIONNAIRE = 'questionnaire',
 }
 
-interface IUserInfo {
+export interface UserInfo {
   name: string;
   /**
    * The department (for undergraduates, their 书院) as the homepage shows it, in the website language.
@@ -74,9 +74,7 @@ interface IUserInfo {
   department: string;
 }
 
-export type UserInfo = IUserInfo;
-
-interface ISemesterInfo {
+export interface SemesterInfo {
   id: string;
   startDate: string;
   endDate: string;
@@ -85,14 +83,12 @@ interface ISemesterInfo {
   type: SemesterType;
 }
 
-export type SemesterInfo = ISemesterInfo;
-
 export enum CourseType {
   STUDENT = 'student',
   TEACHER = 'teacher',
 }
 
-interface ICourseInfo {
+export interface CourseInfo {
   id: string;
   name: string;
   chineseName: string;
@@ -110,9 +106,7 @@ interface ICourseInfo {
   courseType: CourseType;
 }
 
-export type CourseInfo = ICourseInfo;
-
-interface IRemoteFile {
+export interface RemoteFile {
   id: string;
   name: string;
   downloadUrl: string;
@@ -120,9 +114,8 @@ interface IRemoteFile {
   size: string;
 }
 
-export type RemoteFile = IRemoteFile;
-
-export interface INotification {
+/** a course notification as the list gives it, without its attachment */
+export interface CourseNotificationBase {
   id: string;
   title: string;
   content: string;
@@ -138,21 +131,19 @@ export interface INotification {
   attachmentName?: string;
 }
 
-export interface INotificationDetail {
+export interface CourseNotificationDetail {
   attachment?: RemoteFile;
 }
 
-export type Notification = INotification & INotificationDetail;
+export type CourseNotification = CourseNotificationBase & CourseNotificationDetail;
 
-interface IFileCategory {
+export interface FileCategory {
   id: string;
   title: string;
   creationTime: ServerTime;
 }
 
-export type FileCategory = IFileCategory;
-
-interface IFile {
+export interface CourseFile {
   /** the id of this file entry in the course (`kjxxid`) */
   id: string;
   /** the id of the stored file (`wjid`), which the download and preview URLs use */
@@ -182,9 +173,7 @@ interface IFile {
   comment?: string;
 }
 
-export type File = IFile;
-
-export interface IHomeworkStatus {
+export interface HomeworkStatus {
   submitted: boolean;
   graded: boolean;
 }
@@ -224,7 +213,8 @@ export enum HomeworkGradeLevel {
   F = 'F',
 }
 
-export interface IHomework extends IHomeworkStatus {
+/** a homework as the lists give it, without its detail */
+export interface HomeworkBase extends HomeworkStatus {
   id: string;
   /** @deprecated use `id` */
   studentHomeworkId: string;
@@ -250,7 +240,7 @@ export interface IHomework extends IHomeworkStatus {
   excellentHomeworkList?: ExcellentHomework[];
 }
 
-export interface IHomeworkDetail {
+export interface HomeworkDetail {
   description?: string;
   /** attachment from teacher */
   attachment?: RemoteFile;
@@ -264,7 +254,7 @@ export interface IHomeworkDetail {
   gradeAttachment?: RemoteFile;
 }
 
-export type Homework = IHomework & IHomeworkDetail;
+export type Homework = HomeworkBase & HomeworkDetail;
 
 export enum HomeworkCompletionType {
   INDIVIDUAL = 1,
@@ -276,7 +266,8 @@ export enum HomeworkSubmissionType {
   OFFLINE = 0,
 }
 
-export interface IExcellentHomework {
+/** an excellent homework as the list gives it, without its detail */
+export interface ExcellentHomeworkBase {
   id: string;
   baseId: string;
   title: string;
@@ -289,9 +280,9 @@ export interface IExcellentHomework {
   };
 }
 
-export type ExcellentHomework = IExcellentHomework & IHomeworkDetail;
+export type ExcellentHomework = ExcellentHomeworkBase & HomeworkDetail;
 
-export interface IHomeworkTA {
+export interface HomeworkTA {
   id: string;
   index: number;
   title: string;
@@ -308,8 +299,6 @@ export interface IHomeworkTA {
   submittedCount: number;
   unsubmittedCount: number;
 }
-
-export type HomeworkTA = IHomeworkTA;
 
 /**
  * A file to upload in React Native, whose `FormData` takes the file's `uri` (and MIME `type`) instead of a `Blob`.
@@ -328,12 +317,12 @@ export interface HomeworkSubmitRequest {
   body: FormData;
 }
 
-export interface IHomeworkSubmitAttachment {
+export interface HomeworkSubmitAttachment {
   filename: string;
   content: Blob | ReactNativeFile;
 }
 
-export interface IDiscussionBase {
+export interface DiscussionBase {
   id: string;
   title: string;
   publisherName: string;
@@ -346,19 +335,15 @@ export interface IDiscussionBase {
   comment?: string;
 }
 
-interface IDiscussion extends IDiscussionBase {
+export interface Discussion extends DiscussionBase {
   url: string;
   boardId: string;
 }
 
-export type Discussion = IDiscussion;
-
-interface IQuestion extends IDiscussionBase {
+export interface Question extends DiscussionBase {
   url: string;
   question: string;
 }
-
-export type Question = IQuestion;
 
 export enum QuestionnaireDetailType {
   SINGLE = 'dnx',
@@ -386,7 +371,7 @@ export enum QuestionnaireType {
   SURVEY = 'wj',
 }
 
-export interface IQuestionnaire {
+export interface Questionnaire {
   id: string;
   type: QuestionnaireType;
   title: string;
@@ -403,8 +388,6 @@ export interface IQuestionnaire {
   detail?: QuestionnaireDetail[];
 }
 
-export type Questionnaire = IQuestionnaire;
-
 /** which items get their extra per-item requests: none (default), all, or those the predicate accepts */
 export type DetailSelector<T> = 'none' | 'all' | ((item: T) => boolean);
 
@@ -418,7 +401,7 @@ export interface HomeworkListOptions {
    * Which homework gets its detail (page + description JSON, 2 requests each); default `'none'`.
    * The same as calling `getHomeworkDetail` for those items.
    */
-  details?: DetailSelector<IHomework>;
+  details?: DetailSelector<HomeworkBase>;
 }
 
 export interface NotificationListOptions {
@@ -426,7 +409,7 @@ export interface NotificationListOptions {
    * Which notices with an attachment get it (1 request each); default `'none'`.
    * The same as calling `getNotificationAttachment` for those items.
    */
-  attachments?: DetailSelector<INotification>;
+  attachments?: DetailSelector<CourseNotificationBase>;
 }
 
 export interface QuestionnaireListOptions {
@@ -434,18 +417,18 @@ export interface QuestionnaireListOptions {
    * Which questionnaires get their questions (`detail`, 1 request each); default `'all'` (unlike the other lists, for
    * compatibility). The same as calling `getQuestionnaireDetail` for those items.
    */
-  details?: DetailSelector<IQuestionnaire>;
+  details?: DetailSelector<Questionnaire>;
 }
 
 export interface AllContentsOptions<T extends ContentType> {
   courseType?: CourseType;
   /** homework or questionnaire `details`, or notification `attachments`, passed to each course's list */
   details?: T extends ContentType.HOMEWORK
-    ? DetailSelector<IHomework>
+    ? DetailSelector<HomeworkBase>
     : T extends ContentType.NOTIFICATION
-      ? DetailSelector<INotification>
+      ? DetailSelector<CourseNotificationBase>
       : T extends ContentType.QUESTIONNAIRE
-        ? DetailSelector<IQuestionnaire>
+        ? DetailSelector<Questionnaire>
         : never;
 }
 
@@ -457,21 +440,19 @@ export interface AllContentsResult<T extends ContentType> {
 }
 
 export type ContentTypeMap = {
-  [ContentType.NOTIFICATION]: Notification;
-  [ContentType.FILE]: File;
+  [ContentType.NOTIFICATION]: CourseNotification;
+  [ContentType.FILE]: CourseFile;
   [ContentType.HOMEWORK]: Homework;
   [ContentType.DISCUSSION]: Discussion;
   [ContentType.QUESTION]: Question;
   [ContentType.QUESTIONNAIRE]: Questionnaire;
 };
 
-interface ICourseContent<T extends ContentType> {
+export interface CourseContent<T extends ContentType = ContentType> {
   [id: string]: ContentTypeMap[T][];
 }
 
-export type CourseContent<T extends ContentType = ContentType> = ICourseContent<T>;
-
-interface IFavoriteItem {
+export interface FavoriteItem {
   id: string;
   type: ContentType;
   title: string;
@@ -489,9 +470,7 @@ interface IFavoriteItem {
   itemId: string;
 }
 
-export type FavoriteItem = IFavoriteItem;
-
-interface ICommentItem {
+export interface CommentItem {
   id: string;
   type: ContentType;
   content: string;
@@ -503,8 +482,6 @@ interface ICommentItem {
   /** for reference */
   itemId: string;
 }
-
-export type CommentItem = ICommentItem;
 
 /** one entry of a course's time and location, read by `parseCourseMeeting` */
 export interface CourseMeeting {
@@ -551,3 +528,30 @@ export enum Language {
   ZH = 'zh',
   EN = 'en',
 }
+
+// The earlier names of some of the types above, for code written against them.
+
+/** @deprecated use `CourseFile` (`File` shadows the DOM's `File`) */
+export type File = CourseFile;
+/** @deprecated use `CourseNotification` (`Notification` shadows the DOM's `Notification`) */
+export type Notification = CourseNotification;
+/** @deprecated use `CourseNotificationBase` */
+export type INotification = CourseNotificationBase;
+/** @deprecated use `CourseNotificationDetail` */
+export type INotificationDetail = CourseNotificationDetail;
+/** @deprecated use `HomeworkStatus` */
+export type IHomeworkStatus = HomeworkStatus;
+/** @deprecated use `HomeworkBase` */
+export type IHomework = HomeworkBase;
+/** @deprecated use `HomeworkDetail` */
+export type IHomeworkDetail = HomeworkDetail;
+/** @deprecated use `ExcellentHomeworkBase` */
+export type IExcellentHomework = ExcellentHomeworkBase;
+/** @deprecated use `HomeworkTA` */
+export type IHomeworkTA = HomeworkTA;
+/** @deprecated use `HomeworkSubmitAttachment` */
+export type IHomeworkSubmitAttachment = HomeworkSubmitAttachment;
+/** @deprecated use `DiscussionBase` */
+export type IDiscussionBase = DiscussionBase;
+/** @deprecated use `Questionnaire` */
+export type IQuestionnaire = Questionnaire;
