@@ -152,6 +152,11 @@ export class Session {
   #pendingLogin?: Promise<void>;
   lang = Language.ZH;
   previewFirstPage: boolean;
+  /**
+   * The device fingerprints of the last SSO login. id.tsinghua.edu.cn asks for them again when another site (WebVPN,
+   * for the registrar) signs in with the same id.tsinghua.edu.cn session.
+   */
+  fingerprints?: { fingerPrint: string; fingerGenPrint: string; fingerGenPrint3: string };
 
   /** `loginWithProvider` signs in through SSO with the `CredentialProvider` */
   constructor(

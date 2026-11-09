@@ -1,7 +1,7 @@
 // Course calendar from the registrar (academic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
-import { addCSRFTokenToUrl } from './request.ts';
+import { $, addCSRFTokenToUrl } from './request.ts';
 import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
@@ -46,6 +46,54 @@ export function splitCalendarRange(startDate: string, endDate: string, days = CA
  */
 const fetchRegistrar = (s: Session, url: string) => s.rawFetch(addCSRFTokenToUrl(url, s.csrfToken));
 
+const FINGERPRINT_FIELDS = ['fingerPrint', 'fingerGenPrint', 'fingerGenPrint3'] as const;
+const isFingerprintField = (name: string): name is (typeof FINGERPRINT_FIELDS)[number] =>
+  (FINGERPRINT_FIELDS as readonly string[]).includes(name);
+
+const registrarAuthError = (extra: unknown): ApiError => ({ reason: FailReason.ERROR_REGISTRAR_AUTH, extra });
+
+/** an id.tsinghua.edu.cn login form (`/do/off/ui/auth/login/check`, `.../checkSingle`) */
+const isIdLoginPage = (res: Response, page: string) =>
+  res.url.startsWith(URLS.ID_PREFIX) || /action="[^"]*\/do\/off\/ui\/auth\/login\//.test(page);
+
+/**
+ * Sign in to the registrar with a Web Learning ticket.
+ *
+ * Off campus the registrar is only reachable through WebVPN (webvpn.tsinghua.edu.cn): the auth URL redirects there,
+ * and WebVPN signs in through id.tsinghua.edu.cn OAuth. As the id.tsinghua.edu.cn session of the Web Learning login is
+ * still there, id.tsinghua.edu.cn answers with a form (`#logined`) that a browser submits right away with its device
+ * fingerprints. Submitting it answers with a page that links (by script) to the OAuth callback, which signs in to WebVPN
+ * and redirects back to the auth URL, so following the link ends on the registrar.
+ */
+async function authenticateRegistrar(s: Session, ticket: string): Promise<void> {
+  let res = await fetchRegistrar(s, URLS.REGISTRAR_AUTH(ticket));
+  let page = await res.text();
+
+  const form = $(page)('form#logined');
+  if (form.length > 0) {
+    const fingerprints = s.fingerprints ?? (await s.provider?.());
+    const data = new FormData();
+    form.find('input[name]').each((_, input) => {
+      const name = input.attribs.name;
+      const known = isFingerprintField(name) ? fingerprints?.[name] : undefined;
+      data.append(name, known ?? input.attribs.value ?? '');
+    });
+    const action = new URL(form.attr('action') ?? '', res.url || URLS.ID_PREFIX).href;
+    const check = await s.rawFetch(action, { method: 'POST', body: data });
+    const link = check.ok ? $(await check.text())('a').attr('href') : undefined;
+    if (!link) {
+      check.body?.cancel().catch(() => {});
+      throw registrarAuthError({ step: 'id.tsinghua.edu.cn', code: check.status });
+    }
+    res = await s.rawFetch(new URL(link, check.url || action).href);
+    page = await res.text();
+  }
+
+  if (!res.ok || isIdLoginPage(res, page)) {
+    throw registrarAuthError({ code: res.status, url: res.url.split('?')[0] });
+  }
+}
+
 async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean): Promise<CalendarEvent[]> {
   const response = await fetchRegistrar(
     s,
@@ -83,7 +131,8 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
  * show partial data and retry only those; after two windows in a row time out, the rest are listed there without a
  * request. If every window fails, this rejects with the last error instead (usually `FailReason.INVALID_RESPONSE`).
  * The result might be empty if the period is too far away from now. Throws a `RangeError` for a date that is not a
- * valid yyyymmdd.
+ * valid yyyymmdd, and rejects with `FailReason.ERROR_REGISTRAR_AUTH` if signing in to the registrar fails (off campus
+ * this goes through WebVPN and needs the id.tsinghua.edu.cn session of the last `login`).
  */
 export async function getCalendar(
   s: Session,
@@ -101,8 +150,7 @@ export async function getCalendar(
   });
   ticket = ticket.substring(1, ticket.length - 1);
 
-  const auth = await fetchRegistrar(s, URLS.REGISTRAR_AUTH(ticket));
-  auth.body?.cancel().catch(() => {});
+  await authenticateRegistrar(s, ticket);
 
   const events: CalendarEvent[] = [];
   const failedRanges: CalendarRange[] = [];
