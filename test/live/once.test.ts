@@ -33,11 +33,13 @@ describe('one-time checks', () => {
     recordResult(wrongPassword.name, 'started');
     // a made-up user, so the failed login doesn't count against the real account
     const helper = new Learn2018Helper();
-    await expect(helper.login('nouser', 'nopass', FINGERPRINT)).rejects.toHaveProperty(
-      'reason',
-      FailReason.BAD_CREDENTIAL,
+    const err = await helper.login('nouser', 'nopass', FINGERPRINT).catch((e: unknown) => e);
+    recordResult(wrongPassword.name, `rejected with ${JSON.stringify(err)}`);
+    expect(err).toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
+    recordPass(
+      wrongPassword,
+      `wrong password rejects with BAD_CREDENTIAL, message ${JSON.stringify((err as any).extra)}`,
     );
-    recordPass(wrongPassword, 'wrong password rejects with BAD_CREDENTIAL');
   });
 
   it.runIf(shouldRun(readMark))(

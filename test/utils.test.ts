@@ -29,4 +29,11 @@ describe('toServerTime', () => {
     expect(toServerTime('soon')).toBe('soon');
     expect(toRequiredServerTime(null)).toBe('');
   });
+
+  it('gives undefined for a zero or out-of-range timestamp instead of 1970 or a throw', () => {
+    expect(toServerTime(0)).toBeUndefined();
+    expect(toServerTime(-1)).toBeUndefined();
+    expect(toServerTime(1e20)).toBeUndefined();
+    expect(toServerTime('99999999999999999999')).toBeUndefined();
+  });
 });

@@ -342,7 +342,8 @@ export class Learn2018Helper {
   /**
    * Submit homework `id` (the `studentHomeworkId`), the way the website's submit page does. `content` is the whole
    * answer as HTML (the website sends its editor's HTML) and replaces the submitted one, so pass the current answer
-   * when only changing the attachment. With no `attachment` the existing one is kept, unless `removeAttachment`.
+   * when only changing the attachment. With no `attachment` the existing one is kept, unless `removeAttachment`: that
+   * only deletes the attachment, and `content` is ignored.
    */
   public async submitHomework(
     id: string,

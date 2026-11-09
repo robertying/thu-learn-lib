@@ -137,7 +137,7 @@ export const LEARN_HOMEWORK_SUBMIT = () => `${LEARN_PREFIX}/b/wlxt/kczy/zy/stude
  * The form the website's submit page sends (`fileUploadProgress` in `/res/js/common/myApp.js`): `fileupload` is the
  * picked file, or the text "undefined" when none is picked (it appends `files[0]` as is); `zynr` is the whole current
  * answer as HTML from its editor, sent every time (also when only the attachment changes); `isDeleted` is "1" when the
- * existing attachment is deleted.
+ * existing attachment is deleted, and then the server ignores `zynr` (learnX has sent it empty for that since 2021).
  */
 export const LEARN_HOMEWORK_SUBMIT_FORM_DATA = (
   id: string,

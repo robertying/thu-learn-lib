@@ -3,7 +3,7 @@
 import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
-import { $ } from './request.ts';
+import { $, discard } from './request.ts';
 import type { ApiError } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
@@ -64,17 +64,34 @@ export async function getRoamingTicket(
     } as ApiError;
   }
 
-  // id.tsinghua.edu.cn answers with a link to the roaming URL (with the ticket), or with the form and an error
+  // id.tsinghua.edu.cn answers with a page whose only link is the roaming URL (with the ticket), or with the login form
+  // again (with its links to the password reset, guides, phone and mail) for a wrong password
   const body = $(page);
-  const redirectUrl = body('a').attr('href');
-  if (!redirectUrl) {
+  const ticket = ticketOf(body('a[href*="ticket="]').attr('href'));
+  if (ticket) return ticket;
+  if (body('#theform, form[action*="/auth/login/check"]').length > 0 && body('#i_pass').length > 0) {
     throw {
       reason: FailReason.BAD_CREDENTIAL,
-      extra: body.root().text().replace(/\s+/g, ' ').trim().slice(0, 200),
+      extra: textOf(body('#msg_note, .alert-danger')) || undefined,
     } as ApiError;
   }
-  return redirectUrl.split('=').slice(-1)[0];
+  // something else, e.g. a second factor, a locked account or maintenance: not a wrong password
+  throw {
+    reason: FailReason.ERROR_FETCH_FROM_ID,
+    extra: textOf(body('body').clone().find('script, style').remove().end()).slice(0, 200),
+  } as ApiError;
 }
+
+const textOf = (el: { text(): string }) => el.text().replace(/\s+/g, ' ').trim();
+
+const ticketOf = (href: string | undefined): string | undefined => {
+  if (!href) return undefined;
+  try {
+    return new URL(href, URLS.ID_PREFIX).searchParams.get('ticket') || undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 /** login is necessary if you do not provide a `CredentialProvider` */
 export async function login(
@@ -108,6 +125,8 @@ export async function login(
   s.fingerprints = { fingerPrint, fingerGenPrint: fingerGenPrint ?? '', fingerGenPrint3: fingerGenPrint3 ?? '' };
 
   const loginResponse = await s.rawFetch(URLS.LEARN_AUTH_ROAM(ticket));
+  // only the status matters
+  discard(loginResponse);
   if (!loginResponse.ok) {
     return Promise.reject({
       reason: FailReason.ERROR_ROAMING,
@@ -131,6 +150,6 @@ export async function login(
 
 /**  logout (to make everyone happy); the CSRF token is cleared, so the next request logs in again */
 export async function logout(s: Session): Promise<void> {
-  await s.rawFetch(URLS.LEARN_LOGOUT(), { method: 'POST' });
+  discard(await s.rawFetch(URLS.LEARN_LOGOUT(), { method: 'POST' }));
   s.csrfToken = '';
 }

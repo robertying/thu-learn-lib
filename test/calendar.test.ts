@@ -92,6 +92,10 @@ describe('getCalendar', () => {
     });
     expect(server.requests).toHaveLength(3);
     expect(server.requests[1].url.searchParams.get('ticket')).toBe('registrar-ticket');
+    // Web Learning's CSRF token stays on learn.tsinghua.edu.cn
+    for (const req of server.requests.filter((r) => r.url.origin === new URL(URLS.REGISTRAR_PREFIX).origin)) {
+      expect(req.url.searchParams.has('_csrf')).toBe(false);
+    }
     const calendarUrl = server.requests[2].url;
     expect(calendarUrl.searchParams.get('m')).toBe('bks_jxrl_all');
     expect(calendarUrl.searchParams.get('p_start_date')).toBe('20250301');

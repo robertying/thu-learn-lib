@@ -113,18 +113,12 @@ export function withTimeout(inner: Fetch, ms: number): TimedFetch {
 }
 
 /** free the connection of a response we won't read */
-const discard = (res: Response) => {
+export const discard = (res: Response) => {
   res.body?.cancel().catch(() => {});
 };
 
 /** returned by a read step when the response turned out to be from an expired session */
 const EXPIRED = Symbol('expired');
-
-/**
- * Whether a 200 body that should have been JSON is an HTML page instead. Web Learning answers some requests of an
- * expired session with a login or redirect page and status 200, not with a 403 or a `login_timeout` redirect.
- */
-const looksLikeHtml = (text: string) => text.trimStart().startsWith('<');
 
 /** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
 const MAX_LOGIN_PAGE_LENGTH = 4096;
@@ -154,6 +148,12 @@ export class Session {
   /** bumped whenever the session changes (login, `csrfToken` set), so late failures from an old session don't log in again */
   #generation = 0;
   #pendingLogin?: Promise<void>;
+  /**
+   * The `BAD_CREDENTIAL` of the last failed `CredentialProvider` login. Automatic logins (an expired session, no CSRF
+   * token yet) reject with it instead of trying the same credentials again, which could lock the account; an explicit
+   * `login`, or a new CSRF token, clears it.
+   */
+  #badCredential?: ApiError;
   lang = Language.ZH;
   previewFirstPage: boolean;
   /**
@@ -183,6 +183,7 @@ export class Session {
   set csrfToken(token: string) {
     this.#csrfToken = token;
     this.#generation += 1;
+    this.#badCredential = undefined;
   }
 
   /**
@@ -201,18 +202,36 @@ export class Session {
 
   /**
    * Log in with the `CredentialProvider`, or wait for the login already in progress (also one with explicit
-   * credentials) instead of starting another.
+   * credentials) instead of starting another. Called by `login()`, so it tries again after a `BAD_CREDENTIAL`.
    */
   relogin(): Promise<void> {
-    return this.#pendingLogin ?? this.runLogin(this.loginWithProvider);
+    this.#badCredential = undefined;
+    return this.#pendingLogin ?? this.runLogin(this.#providerLogin);
   }
+
+  /** `relogin`, unless the last provider login was turned down with `BAD_CREDENTIAL`: then reject with that again */
+  #autoRelogin(): Promise<void> {
+    return this.#badCredential
+      ? Promise.reject(this.#badCredential)
+      : (this.#pendingLogin ?? this.runLogin(this.#providerLogin));
+  }
+
+  #providerLogin = async (): Promise<void> => {
+    try {
+      await this.loginWithProvider();
+    } catch (err) {
+      if ((err as ApiError | undefined)?.reason === FailReason.BAD_CREDENTIAL) this.#badCredential = err as ApiError;
+      throw err;
+    }
+  };
 
   /**
    * Send a request built by `makeUrl` (called again for the retry, so it can pick up a new CSRF token) and read it
    * with `read`, which returns `EXPIRED` for a body that shows the session has expired.
    * When the session has expired, it rejects with `NOT_LOGGED_IN` if there is no `CredentialProvider`; otherwise it
    * logs in again (sharing a login already in progress, or skipping it if another request already renewed the
-   * session) and retries once.
+   * session) and retries once. After a provider login failed with `BAD_CREDENTIAL` it rejects with that instead, until
+   * the next explicit `login`.
    */
   async #send<T>(
     makeUrl: () => string,
@@ -234,7 +253,7 @@ export class Session {
       throw { reason: FailReason.NOT_LOGGED_IN } as ApiError;
     }
     if (this.#generation === generation) {
-      await this.relogin();
+      await this.#autoRelogin();
     }
     const second = await attempt(true);
     if (second === EXPIRED) {
@@ -255,13 +274,13 @@ export class Session {
     return res;
   };
 
-  /** the parsed JSON body; an HTML page with status 200 means the session has expired */
+  /** the parsed JSON body; the login page with status 200 instead means the session has expired */
   static readonly #json = async (res: Response): Promise<any> => {
     const text = await res.text();
     try {
       return JSON.parse(text);
     } catch {
-      if (res.status === 200 && looksLikeHtml(text)) return EXPIRED;
+      if (res.status === 200 && looksLikeLoginPage(text)) return EXPIRED;
       throw {
         reason: res.status === 200 ? FailReason.INVALID_RESPONSE : FailReason.UNEXPECTED_STATUS,
         extra: { code: res.status, text: text.slice(0, 200) },
@@ -278,22 +297,19 @@ export class Session {
 
   #withToken = async (input: Parameters<Fetch>[0]): Promise<() => string> => {
     if (this.#csrfToken === '') {
-      await this.relogin();
+      await this.#autoRelogin();
     }
     const url = urlOf(input);
     return () => addCSRFTokenToUrl(url, this.#csrfToken);
   };
 
-  /** fetch with a login check (see `#send`) */
-  readonly fetch: TimedFetch = (input, init) => this.#send(() => urlOf(input), init, Session.#response);
-
-  /** like `fetch`, but logs in first if there is no CSRF token yet and adds the current token to the URL */
+  /** fetch with a login check (see `#send`); logs in first if there is no CSRF token yet and adds it to the URL */
   readonly fetchWithToken: TimedFetch = async (input, init) =>
     this.#send(await this.#withToken(input), init, Session.#response);
 
   /**
-   * Like `fetchWithToken`, but returns the parsed JSON body. A 200 HTML page instead of JSON counts as an expired
-   * session (log in again and retry once, as for a 403).
+   * Like `fetchWithToken`, but returns the parsed JSON body. The short login page with status 200 instead of JSON
+   * counts as an expired session (log in again and retry once, as for a 403); any other page is `INVALID_RESPONSE`.
    */
   readonly fetchJsonWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<any> =>
     this.#send(await this.#withToken(input), init, Session.#json);
@@ -311,7 +327,7 @@ export class Session {
    */
   async ensureSession(probeUrl: string): Promise<void> {
     if (this.#csrfToken === '') {
-      await this.relogin();
+      await this.#autoRelogin();
       return;
     }
     const json = await this.fetchJsonWithToken(probeUrl);

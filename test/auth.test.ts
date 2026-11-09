@@ -59,9 +59,32 @@ describe('login', () => {
     const helper = server.helper();
     await expect(helper.login(USERNAME, 'wrong', FINGERPRINT)).rejects.toEqual({
       reason: FailReason.BAD_CREDENTIAL,
-      extra: '用户名或密码错误',
+      extra: '您的用户名或密码不正确，请重试！',
     });
     expect(server.loginCount).toBe(0);
+  });
+
+  it('takes the ticket from the roaming link, not from the first link on the page', async () => {
+    const server = new FakeServer().on(
+      'POST',
+      URLS.ID_LOGIN_CHECK(),
+      () =>
+        html(
+          `<html><body><a href="/f/recovery/password/reset">reset</a><a href="${URLS.LEARN_AUTH_ROAM('ticket-1')}&x=y">go</a></body></html>`,
+        ),
+      { public: true },
+    );
+    await server.helper().login(USERNAME, PASSWORD, FINGERPRINT);
+    expect(server.loginCount).toBe(1);
+  });
+
+  it('rejects with ERROR_FETCH_FROM_ID, not BAD_CREDENTIAL, for a page that is neither the ticket nor the login form', async () => {
+    const page = '<html><body><p>请完成二次认证</p><a href="/f/help">help</a><script>var x = 1;</script></body></html>';
+    const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK(), () => html(page), { public: true });
+    await expect(server.helper().login(USERNAME, PASSWORD, FINGERPRINT)).rejects.toEqual({
+      reason: FailReason.ERROR_FETCH_FROM_ID,
+      extra: '请完成二次认证help',
+    });
   });
 
   it('rejects with ERROR_FETCH_FROM_ID when the SSO server fails or is unreachable', async () => {
@@ -343,13 +366,49 @@ describe('expired sessions that are not a 403', () => {
     expect(server.loginCount).toBe(1);
   });
 
-  it('rejects with NOT_LOGGED_IN when the page is still HTML after logging in again', async () => {
+  it('rejects with NOT_LOGGED_IN when the page is still the login page after logging in again', async () => {
     const server = new FakeServer();
-    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => html('<html>login</html>'));
+    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => html('<html><title>登录超时</title></html>'));
     const helper = await server.loggedInHelper();
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
     expect(server.loginCount).toBe(2);
+  });
+
+  it('rejects with INVALID_RESPONSE and does not log in again for another 200 HTML page', async () => {
+    const server = new FakeServer();
+    server.on('GET', URLS.LEARN_SEMESTER_LIST(), () => html('<html><body>系统维护中</body></html>'));
+    const helper = await server.loggedInHelper();
+
+    await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+    expect(server.loginCount).toBe(1);
+  });
+
+  describe('after the provider login is turned down with BAD_CREDENTIAL', () => {
+    it('does not try the same credentials again for later requests', async () => {
+      const { helper, checks } = await turnedDown();
+      await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
+      await expect(helper.ensureSession()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
+      expect(checks()).toBe(2);
+    });
+
+    it('tries again on an explicit login()', async () => {
+      const { server, helper, checks, setPassword } = await turnedDown();
+      setPassword(PASSWORD);
+      await helper.login();
+      expect(checks()).toBe(3);
+      expect(await helper.getSemesterIdList()).toEqual(['2024-2025-1', '2024-2025-2']);
+      expect(server.loginCount).toBe(2);
+    });
+
+    it('logs in again automatically after an explicit login with credentials', async () => {
+      const { server, helper } = await turnedDown();
+      await helper.login(USERNAME, PASSWORD, FINGERPRINT);
+      server.expireSession();
+      await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
+      // the provider still has the old password: one more SSO check for it, then it is remembered again
+      expect(server.count(URLS.ID_LOGIN_CHECK(), 'POST')).toBe(4);
+    });
   });
 
   it('does not log in again for an error page with another status', async () => {
@@ -369,6 +428,21 @@ describe('expired sessions that are not a 403', () => {
     await expect(helper.ensureSession()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
   });
 });
+
+/** a helper whose provider login was turned down with BAD_CREDENTIAL after the password changed */
+const turnedDown = async () => {
+  const server = semesters(new FakeServer());
+  server.on('GET', URLS.LEARN_CURRENT_SEMESTER(), () => json({ message: 'success', result: {} }));
+  let password = PASSWORD;
+  const helper = server.helper({ provider: () => ({ ...credential, password }) });
+  await helper.login();
+  password = 'changed on the website';
+  server.expireSession();
+  await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.BAD_CREDENTIAL);
+  const checks = () => server.count(URLS.ID_LOGIN_CHECK(), 'POST');
+  expect(checks()).toBe(2);
+  return { server, helper, checks, setPassword: (p: string) => (password = p) };
+};
 
 describe('logins never overlap', () => {
   it('runs an explicit login after a provider login in progress', async () => {

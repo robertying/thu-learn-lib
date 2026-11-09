@@ -1,7 +1,7 @@
 // Course calendar from the registrar (academic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
-import { $, addCSRFTokenToUrl } from './request.ts';
+import { $, discard } from './request.ts';
 import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
@@ -42,9 +42,10 @@ export function splitCalendarRange(startDate: string, endDate: string, days = CA
 
 /**
  * Registrar requests skip the Web Learning login check: a 403 or login page from the registrar says nothing about the
- * Web Learning session, and logging in there again wouldn't renew the registrar ticket.
+ * Web Learning session, and logging in there again wouldn't renew the registrar ticket. They don't carry Web Learning's
+ * CSRF token either: the registrar (and WebVPN in front of it off campus) has no use for it.
  */
-const fetchRegistrar = (s: Session, url: string) => s.rawFetch(addCSRFTokenToUrl(url, s.csrfToken));
+const fetchRegistrar = (s: Session, url: string) => s.rawFetch(url);
 
 const FINGERPRINT_FIELDS = ['fingerPrint', 'fingerGenPrint', 'fingerGenPrint3'] as const;
 const isFingerprintField = (name: string): name is (typeof FINGERPRINT_FIELDS)[number] =>
@@ -92,7 +93,7 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
     const check = await s.rawFetch(action, { method: 'POST', body: data });
     const link = check.ok ? $(await readText(check))('a').attr('href') : undefined;
     if (!link) {
-      check.body?.cancel().catch(() => {});
+      discard(check);
       throw registrarAuthError({ step: 'id.tsinghua.edu.cn', code: check.status });
     }
     res = await s.rawFetch(new URL(link, check.url || action).href);
@@ -111,7 +112,7 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
   );
 
   if (!response.ok) {
-    response.body?.cancel().catch(() => {});
+    discard(response);
     return Promise.reject({
       reason: FailReason.INVALID_RESPONSE,
       extra: { code: response.status, text: response.statusText },

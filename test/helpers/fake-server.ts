@@ -4,6 +4,16 @@ import type { Fetch, HelperConfig } from '../../src/index.ts';
 import { Learn2018Helper } from '../../src/index.ts';
 import * as URLS from '../../src/urls.ts';
 
+/**
+ * What id.tsinghua.edu.cn answers for a wrong password (shortened): the login form again with the message, and links
+ * to the password reset, guides, phone and mail (the first one with an empty href).
+ */
+export const WRONG_PASSWORD_PAGE =
+  '<html><body><a href="">中文</a><a href="/res/pdf/SMRZ_guide_cn.pdf">guide</a>' +
+  '<a href="/f/recovery/password/reset">忘记密码</a><a href="mailto:its@tsinghua.edu.cn">its</a>' +
+  '<form id="theform" action="/do/off/ui/auth/login/check"><input id="i_user"/><input id="i_pass"/></form>' +
+  '<div id="msg_note">您的用户名或密码不正确，请重试！</div><script>$("#msg_note").html("验证码")</script></body></html>';
+
 export interface Request {
   method: string;
   url: URL;
@@ -96,7 +106,7 @@ export class FakeServer {
         const decrypted = pass.startsWith('04') ? sm2.doDecrypt(pass.slice(2), this.#keys.privateKey) : '';
         if (user !== USERNAME || decrypted !== PASSWORD) {
           this.#ssoInProgress -= 1;
-          return html('<html><body><div class="error">用户名或密码错误</div></body></html>');
+          return html(WRONG_PASSWORD_PAGE);
         }
         return html(
           `<html><body><a href="${URLS.LEARN_AUTH_ROAM(`ticket-${this.#loginCount + 1}`)}">go</a></body></html>`,

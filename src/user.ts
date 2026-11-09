@@ -1,7 +1,7 @@
 // User info and website language.
 
 import type { Session } from './request.ts';
-import { $ } from './request.ts';
+import { $, discard } from './request.ts';
 import type { ApiError, Language, UserInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
@@ -34,7 +34,7 @@ export async function setLanguage(s: Session, lang: Language): Promise<void> {
     method: 'POST',
   });
   // free the connection; only the status matters
-  response.body?.cancel().catch(() => {});
+  discard(response);
   if (!response.ok) {
     throw {
       reason: FailReason.OPERATION_FAILED,

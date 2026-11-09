@@ -45,17 +45,19 @@ const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 /**
  * A server time as an ISO 8601 string in Beijing time with its offset, e.g. `2026-11-07T18:28:00+08:00`. The server
  * sends either a Unix timestamp (a number or a string of digits; milliseconds, or seconds for a 10-digit value such as
- * a favorite's pin time) or a Beijing wall-clock time without a zone (`2026-11-07 18:28`, `2026-11-07 18:28:00`). `undefined` for a missing or empty value; a string in any other shape
+ * a favorite's pin time) or a Beijing wall-clock time without a zone (`2026-11-07 18:28`, `2026-11-07 18:28:00`). `undefined` for a missing or empty value or a timestamp of 0; a string in any other shape
  * is returned as it is, so nothing the server sent is lost.
  */
 export function toServerTime(value: unknown): string | undefined {
   if (value === null || value === undefined || value === '') return undefined;
   if (typeof value === 'number' || (typeof value === 'string' && /^\d{10,}$/.test(value))) {
     const number = Number(value);
-    if (!Number.isFinite(number)) return undefined;
+    // 0 (or less) is the server's "no time", e.g. a homework without a late submission deadline
+    if (!Number.isFinite(number) || number <= 0) return undefined;
     // seconds until the year 5138, milliseconds after 1973
-    const ms = number < 1e11 ? number * 1000 : number;
-    return new Date(ms + BEIJING_OFFSET_MS).toISOString().replace(/(\.\d{3})?Z$/, '+08:00');
+    const date = new Date((number < 1e11 ? number * 1000 : number) + BEIJING_OFFSET_MS);
+    if (Number.isNaN(date.getTime())) return undefined;
+    return date.toISOString().replace(/(\.\d{3})?Z$/, '+08:00');
   }
   if (typeof value !== 'string') return undefined;
   const wallClock = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(:\d{2})?(?:\.\d+)?$/.exec(value.trim());

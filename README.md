@@ -152,19 +152,24 @@ The live tests are read-only by default: requests that change something on the s
 
 ## Changelog
 
-- Unreleased
-  - (_BREAKING CHANGE_) Every time field is a `ServerTime`: an ISO 8601 string in Beijing time with its offset (`2026-11-07T18:28:00+08:00`), which `new Date()` reads as the right moment in any time zone. The server's millisecond timestamps (homework `deadline`, `submitTime`, `lateSubmissionDeadline`, teacher homework and questionnaire times) and zone-less Beijing strings (notice, file, grade, discussion, favorite and comment times) are converted; `FileCategory.creationTime` is a `ServerTime` instead of a `Date`. Semester and calendar dates stay date-only, and calendar `startTime` / `endTime` stay `HH:mm`
+- v6.0.0
+  - (_BREAKING CHANGE_) Every time field is a `ServerTime`: an ISO 8601 string in Beijing time with its offset (`2026-11-07T18:28:00+08:00`), which `new Date()` reads as the right moment in any time zone. The server's millisecond timestamps (homework `deadline`, `submitTime`, `lateSubmissionDeadline`, teacher homework and questionnaire times) and zone-less Beijing strings (notice, file, grade, discussion, favorite and comment times) are converted (a timestamp of 0, the server's "none", gives `undefined`); `FileCategory.creationTime` is a `ServerTime` instead of a `Date`. Semester and calendar dates stay date-only, and calendar `startTime` / `endTime` stay `HH:mm`
   - (_BREAKING CHANGE_) `Homework.excellentHomeworkList` is `[]` when a homework has no excellent homework, and `undefined` only when the course's excellent homework list couldn't be fetched
-- v5.2.0
+  - (_BREAKING CHANGE_) `Homework.favoriteTime` (always `undefined`) is removed; use `FavoriteItem.addedTime` from `getFavorites`
+  - (_BREAKING CHANGE_) `getCourseList(..., { timeAndLocation: true })` leaves `timeAndLocation` out for a course whose request failed, instead of `[]`
+  - (_BREAKING CHANGE_) Grade code -63 is `HomeworkGradeLevel.P` (was `PASS`, the same as -60)
+  - `addToFavorites`, `removeFromFavorites` and `setComment` succeed on `result: 'success'` alone, so they no longer reject with `OPERATION_FAILED` when the website is in English
   - `getHomeworkDetail`: a homework page with fewer attachment blocks no longer throws, and an empty description JSON falls back to the page's description instead of erasing it
   - Answered questions and teacher homework with an empty body no longer throw
   - `getCalendar` parses the registrar's JSONP as JSON instead of running it as code, and a registrar 403 no longer triggers a Web Learning re-login
-  - (_BREAKING CHANGE_) `getCourseList(..., { timeAndLocation: true })` leaves `timeAndLocation` out for a course whose request failed, instead of `[]`
-  - (_BREAKING CHANGE_) Grade code -63 is `HomeworkGradeLevel.P` (was `PASS`, the same as -60)
   - Teacher files read `markedImportant` from a string `sfqd` too
   - `setLanguage` rejects with `OPERATION_FAILED` when the server refuses, instead of changing the language anyway
   - `getFileList` fetches the file list and categories in parallel
   - CI also tests on Node 22
+  - A wrong password is recognised by the SSO login form coming back; other pages without the ticket link (a second factor, a locked account, maintenance) reject with `ERROR_FETCH_FROM_ID` instead of `BAD_CREDENTIAL`, and the ticket is read from the roaming link rather than from the first link on the page
+  - After a `CredentialProvider` login is turned down with `BAD_CREDENTIAL`, automatic re-logins (an expired session, `ensureSession`) reject with it without asking id.tsinghua.edu.cn again, until the next explicit `login`
+  - A 200 HTML page where JSON was expected counts as an expired session only when it is the login page; any other page rejects with `INVALID_RESPONSE` without a re-login
+  - Registrar requests (`getCalendar`) no longer carry the Web Learning CSRF token
 - v5.1.0
   - Treat a 200 HTML page where JSON was expected as an expired session: log in again and retry once, like a 403
   - `ensureSession` checks the probe's body (the current semester) instead of only its status
