@@ -118,7 +118,8 @@ export class FakeServer {
         html(
           [
             '<html><head>',
-            `<script src="/f/wlxt/common/languagejs?lang=${this.lang}"></script>`,
+            // as the real homepage sends it (zh_CN seen; en_US assumed)
+            `<script src="/f/wlxt/common/languagejs?lang=${this.lang === 'en' ? 'en_US' : 'zh_CN'}&v=845"></script>`,
             '</head><body>',
             `<a href="/f/wlxt/index/course/student/course?wlkcid=x&_csrf=${this.csrfToken}">course</a>`,
             this.homepageBody,
