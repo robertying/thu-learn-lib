@@ -339,6 +339,11 @@ export class Learn2018Helper {
     return courses.sortCourses(this.#session, courseIDs);
   }
 
+  /**
+   * Submit homework `id` (the `studentHomeworkId`), the way the website's submit page does. `content` is the whole
+   * answer as HTML (the website sends its editor's HTML) and replaces the submitted one, so pass the current answer
+   * when only changing the attachment. With no `attachment` the existing one is kept, unless `removeAttachment`.
+   */
   public async submitHomework(
     id: string,
     content = '',

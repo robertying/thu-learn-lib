@@ -20,8 +20,6 @@ Other dependencies (`js-base64`, `sm-crypto`, `node-fetch-native`) are on their 
 The live tests (`test/live/`) cover the request layer and on-demand details; run `pnpm test:live` and fix whatever it
 finds. Still open:
 
-- A wrong password answers the SSO check with a page that has no ticket link (`BAD_CREDENTIAL`), not an error status
-  (one-time check `wrong-password` in `test/live/once.test.ts`).
 - Grade code -63 maps to `HomeworkGradeLevel.P` (it used to map to `PASS`, like -60); confirm with a P grade. The
   account checked in 2026-11 (graded homework in 4 semesters) only had -100, -99 and -98 besides numeric grades.
 - The homework lists send `jzsj`, `kssj`, `scsj` and `bjjzsj` as millisecond timestamps (numbers), but `pysj` as a
