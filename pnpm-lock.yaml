@@ -167,25 +167,22 @@ importers:
   .:
     dependencies:
       cheerio:
-        specifier: 1.2.0
+        specifier: ^1.2.0
         version: 1.2.0
       entities:
         specifier: ^9.0.0
         version: 9.0.0
       fetch-cookie:
-        specifier: 3.2.0
+        specifier: ^3.2.0
         version: 3.2.0
       js-base64:
         specifier: ^3.9.3
         version: 3.9.6
-      node-fetch-native:
-        specifier: ^1.6.7
-        version: 1.6.7
       sm-crypto:
         specifier: ^0.5.7
         version: 0.5.8
       tough-cookie:
-        specifier: 6.1.0
+        specifier: ^6.1.0
         version: 6.1.0
     devDependencies:
       '@types/node':
@@ -991,9 +988,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  node-fetch-native@1.6.7:
-    resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
-
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
 
@@ -1708,8 +1702,6 @@ snapshots:
       source-map-js: 1.2.2
 
   nanoid@3.3.20: {}
-
-  node-fetch-native@1.6.7: {}
 
   nth-check@2.1.1:
     dependencies:

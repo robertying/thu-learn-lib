@@ -1,6 +1,3 @@
-import type * as NodeFetchNative from 'node-fetch-native';
-import { vi } from 'vitest';
-
 import { urlOf } from '../../src/utils.ts';
 
 /**
@@ -28,9 +25,5 @@ const guarded = <F extends (input: any, init?: any) => Promise<Response>>(inner:
     return inner(input, init);
   }) as F;
 
-vi.mock('node-fetch-native', async (importOriginal) => {
-  const original = await importOriginal<typeof NodeFetchNative>();
-  return { ...original, fetch: guarded(original.fetch), default: guarded(original.fetch) };
-});
-
+// The library looks up globalThis.fetch on every request, so this covers it too.
 globalThis.fetch = guarded(globalThis.fetch);

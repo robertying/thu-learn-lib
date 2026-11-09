@@ -51,9 +51,7 @@ jobs:
           pnpm format --check
           pnpm test
 
-      # `prepublishOnly` builds lib/. Uses npm trusted publishing (OIDC) once it's set up for the package on
-      # npmjs.com. NPM_TOKEN is only needed for the very first publish, before
-      # a trusted publisher can be attached; delete the secret afterwards.
+      # `prepublishOnly` builds lib/. Uses npm trusted publishing (OIDC), so no token.
       # Skipped when this version is already on npm (e.g. published by hand).
       - name: Publish to npm
         run: |
@@ -64,8 +62,6 @@ jobs:
           else
             npm publish --provenance --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag

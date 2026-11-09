@@ -1,5 +1,4 @@
 import fetchCookie from 'fetch-cookie';
-import { fetch } from 'node-fetch-native';
 import { CookieJar } from 'tough-cookie';
 
 import type { ApiError, CredentialProvider, Fetch, HelperConfig } from './types.ts';
@@ -20,8 +19,9 @@ export const addCSRFTokenToUrl = (url: string, token: string): string => {
   return newUrl.toString();
 };
 
-function makeFetch(jar?: CookieJar): typeof fetch {
-  return fetchCookie(fetch, jar);
+function makeFetch(jar?: CookieJar): Fetch {
+  // The global fetch is looked up on each call, so a polyfill installed after this module loads is used too
+  return fetchCookie((input, init) => globalThis.fetch(input, init), jar);
 }
 
 /**

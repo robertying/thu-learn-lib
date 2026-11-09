@@ -1,6 +1,10 @@
 # Changelog
 
 - Unreleased
+  - Uses the global `fetch` (Node 22 and later, React Native, browsers) instead of `node-fetch-native`, which only passed it through. It is looked up on each request, so a `fetch` polyfill installed after the library loads is used too
+  - `cheerio`, `fetch-cookie` and `tough-cookie` take caret ranges instead of exact versions, so apps can share one copy
+
+- Unreleased
   - Notice and homework attachment links are resolved against Web Learning (`learnUrl`) instead of prefixed to it, and an attachment whose link points to another site comes back as `undefined`, so `downloadUrl` (which apps fetch with the session's cookies) is always on learn.tsinghua.edu.cn
 
 - v6.1.0
