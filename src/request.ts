@@ -206,7 +206,7 @@ export class Session {
    */
   relogin(): Promise<void> {
     this.#badCredential = undefined;
-    return this.#pendingLogin ?? this.runLogin(this.#providerLogin);
+    return this.#autoRelogin();
   }
 
   /** `relogin`, unless the last provider login was turned down with `BAD_CREDENTIAL`: then reject with that again */

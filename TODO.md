@@ -1,6 +1,6 @@
 # TODO
 
-## Dependency upgrades (blocked until the live tests can run)
+## Dependency upgrades
 
 Several runtime dependencies are pinned to old versions on purpose: upgrading them broke the library before, and the
 offline tests can't show whether the real server still works. Upgrade them one at a time, each with a full
@@ -20,19 +20,19 @@ Other dependencies (`js-base64`, `sm-crypto`, `node-fetch-native`) are on their 
 The live tests (`test/live/`) cover the request layer and on-demand details; run `pnpm test:live` and fix whatever it
 finds. Still open:
 
-- Grade code -63 maps to `HomeworkGradeLevel.P` (it used to map to `PASS`, like -60); confirm with a P grade. The
-  account checked in 2026-11 (graded homework in 4 semesters) only had -100, -99 and -98 besides numeric grades.
+- Grade code -63 maps to `HomeworkGradeLevel.P` (-60 is `PASS`); confirm with a P grade. The account checked in
+  2026-11 (graded homework in 4 semesters) only had -100, -99 and -98 besides numeric grades.
 
-Checked in 2026-11 (reads only):
+Checked in 2026-11:
 
 - The homework lists (unsubmitted, submitted, graded) have no favorite time: their `scsj` is the submit time (`null`
-  until submitted) next to `sfsc` (`'是'` / `'否'`), so `Homework.favoriteTime` is gone. The one-time `favorite`
-  check (adds one homework to favorites and removes it) confirmed it: favoriting changes only `sfsc` (`'否'` →
-  `'是'`) in the homework row, and `getFavorites` lists the item with `addedTime` as a date string.
+  until submitted) next to `sfsc` (`'是'` / `'否'`). The one-time `favorite` check (adds one homework to favorites
+  and removes it) confirmed it: favoriting changes only `sfsc` (`'否'` → `'是'`) in the homework row, and
+  `getFavorites` lists the item with `addedTime` as a date string.
 - Adding and removing favorites (and setting comments) answer `result: 'success'` with a message in the website's
-  language ("Added successfully." in English); success no longer depends on a message ending in 成功.
+  language ("Added successfully." in English), so only `result` is checked.
 - `getFileListByCategory` (student) rows are 15-column arrays; `f[11]` (favorited) is `'是'` / `'否'` like the other
-  lists, not a boolean, and `isFavorite` now compares it with `'是'`.
+  lists, not a boolean.
 
 ## Registrar (`getCalendar`)
 

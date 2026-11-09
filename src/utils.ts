@@ -45,8 +45,9 @@ const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 /**
  * A server time as an ISO 8601 string in Beijing time with its offset, e.g. `2026-11-07T18:28:00+08:00`. The server
  * sends either a Unix timestamp (a number or a string of digits; milliseconds, or seconds for a 10-digit value such as
- * a favorite's pin time) or a Beijing wall-clock time without a zone (`2026-11-07 18:28`, `2026-11-07 18:28:00`). `undefined` for a missing or empty value or a timestamp of 0; a string in any other shape
- * is returned as it is, so nothing the server sent is lost.
+ * a favorite's pin time) or a Beijing wall-clock time without a zone (`2026-11-07 18:28`, `2026-11-07 18:28:00`).
+ * `undefined` for a missing or empty value, or a timestamp that is 0, negative or out of range; a string in any other
+ * shape is returned as it is, so nothing the server sent is lost.
  */
 export function toServerTime(value: unknown): string | undefined {
   if (value === null || value === undefined || value === '') return undefined;

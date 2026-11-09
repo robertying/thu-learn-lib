@@ -128,9 +128,10 @@ export class Learn2018Helper {
 
   /**
    * Get calendar items during the specified period (in yyyymmdd format, both inclusive).
-   * Ranges longer than 28 days are fetched in windows and merged; windows that fail even after a retry are listed in
-   * `failedRanges`. Rejects only when every window fails (usually with `FailReason.INVALID_RESPONSE`), or with a
-   * `RangeError` for a date that is not a valid yyyymmdd.
+   * Ranges longer than 28 days are fetched in windows and merged; windows that still fail are listed in `failedRanges`
+   * (a timed-out window is not retried). Rejects when every window fails (usually with `FailReason.INVALID_RESPONSE`),
+   * with `FailReason.ERROR_REGISTRAR_AUTH` when signing in to the registrar fails, or with a `RangeError` for a date
+   * that is not a valid yyyymmdd.
    */
   public async getCalendar(startDate: string, endDate: string, options?: CalendarOptions): Promise<CalendarResult> {
     return calendar.getCalendar(this.#session, startDate, endDate, options);

@@ -1,7 +1,6 @@
 import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
-import type { Fetch } from '../../src/index.ts';
 import { FailReason, Learn2018Helper } from '../../src/index.ts';
 import { FINGERPRINT, PASSWORD, USERNAME, config, credential } from './config.ts';
 
@@ -89,35 +88,6 @@ describe('expired sessions', () => {
 
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
     await expect(helper.getUserInfo()).rejects.toHaveProperty('reason', FailReason.NOT_LOGGED_IN);
-  });
-
-  it('records how the server answers an expired session', async () => {
-    const seen: { url: string; status: number; finalUrl: string; type: string | null; start: string }[] = [];
-    const jar = new CookieJar();
-    const helper = new Learn2018Helper({ cookieJar: jar });
-    await helper.login(USERNAME, PASSWORD, FINGERPRINT);
-    const token = helper.getCSRFToken();
-    await helper.logout();
-
-    const { fetch } = await import('node-fetch-native');
-    const { default: fetchCookie } = await import('fetch-cookie');
-    const raw = fetchCookie(fetch, jar) as unknown as Fetch;
-    for (const url of [
-      'https://learn.tsinghua.edu.cn/b/wlxt/kc/v_wlkc_xs_xktjb_coassb/queryxnxq',
-      'https://learn.tsinghua.edu.cn/f/wlxt/index/course/teacher/',
-    ]) {
-      const res = await raw(`${url}?_csrf=${token}`);
-      const text = await res.text();
-      seen.push({
-        url,
-        status: res.status,
-        finalUrl: res.url,
-        type: res.headers.get('content-type'),
-        start: text.slice(0, 300),
-      });
-    }
-    console.info(JSON.stringify(seen, null, 2));
-    expect(seen).toHaveLength(2);
   });
 });
 

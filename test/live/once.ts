@@ -3,10 +3,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 /**
- * Tests that leave a trace on the account (a failed login, items marked read) run only when named in `LIVE_ONCE`
- * (comma-separated), e.g. `LIVE_ONCE=wrong-password pnpm test:live test/live/once.test.ts`. Each covers some source
- * files; after it passes, `test/live/.once.json` (not checked in) keeps a hash of them, and later runs say when the
- * test is due again because that code changed.
+ * Tests that leave a trace on the account (a failed login, items marked read, a favorite added and removed) run only
+ * when named in `LIVE_ONCE` (comma-separated), e.g. `LIVE_ONCE=wrong-password pnpm test:live test/live/once.test.ts`.
+ * Each covers some source files; after it passes, `test/live/.once.json` (not checked in) keeps a hash of them, and
+ * later runs say when the test is due again because that code changed.
  */
 const LEDGER = 'test/live/.once.json';
 const DAY = 24 * 60 * 60 * 1000;

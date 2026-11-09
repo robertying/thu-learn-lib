@@ -510,7 +510,10 @@ export interface CalendarRange {
 export interface CalendarResult {
   /** events of every window that succeeded, in date order */
   events: CalendarEvent[];
-  /** windows that failed even after a retry; empty when the whole range was fetched */
+  /**
+   * windows that failed (after a retry, unless they timed out) or were skipped after repeated timeouts; empty when the
+   * whole range was fetched
+   */
   failedRanges: CalendarRange[];
 }
 

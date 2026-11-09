@@ -1,4 +1,4 @@
-// Course calendar from the registrar (academic.tsinghua.edu.cn).
+// Course calendar from the registrar (zhjw.cic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
 import { $, discard } from './request.ts';
@@ -7,7 +7,10 @@ import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { JSONP_EXTRACTOR_NAME, extractJSONPResult } from './utils.ts';
 
-/** The registrar often fails for ranges longer than about a month, so longer ranges are fetched in windows of this many days. */
+/**
+ * The registrar often fails for ranges longer than about a month, so longer ranges are fetched in windows of this many
+ * days.
+ */
 export const CALENDAR_WINDOW_DAYS = 28;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -40,13 +43,6 @@ export function splitCalendarRange(startDate: string, endDate: string, days = CA
   return ranges;
 }
 
-/**
- * Registrar requests skip the Web Learning login check: a 403 or login page from the registrar says nothing about the
- * Web Learning session, and logging in there again wouldn't renew the registrar ticket. They don't carry Web Learning's
- * CSRF token either: the registrar (and WebVPN in front of it off campus) has no use for it.
- */
-const fetchRegistrar = (s: Session, url: string) => s.rawFetch(url);
-
 const FINGERPRINT_FIELDS = ['fingerPrint', 'fingerGenPrint', 'fingerGenPrint3'] as const;
 const isFingerprintField = (name: string): name is (typeof FINGERPRINT_FIELDS)[number] =>
   (FINGERPRINT_FIELDS as readonly string[]).includes(name);
@@ -70,6 +66,10 @@ const readText = async (res: Response): Promise<string> => {
 /**
  * Sign in to the registrar with a Web Learning ticket.
  *
+ * Registrar requests use `rawFetch`, without the Web Learning login check: a 403 or login page from the registrar says
+ * nothing about the Web Learning session, and logging in there again wouldn't renew the registrar ticket. They don't
+ * carry Web Learning's CSRF token either: the registrar (and WebVPN in front of it off campus) has no use for it.
+ *
  * Off campus the registrar is only reachable through WebVPN (webvpn.tsinghua.edu.cn): the auth URL redirects there,
  * and WebVPN signs in through id.tsinghua.edu.cn OAuth. As the id.tsinghua.edu.cn session of the Web Learning login is
  * still there, id.tsinghua.edu.cn answers with a form (`#logined`) that a browser submits right away with its device
@@ -77,7 +77,7 @@ const readText = async (res: Response): Promise<string> => {
  * and redirects back to the auth URL, so following the link ends on the registrar.
  */
 async function authenticateRegistrar(s: Session, ticket: string): Promise<void> {
-  let res = await fetchRegistrar(s, URLS.REGISTRAR_AUTH(ticket));
+  let res = await s.rawFetch(URLS.REGISTRAR_AUTH(ticket));
   let page = await readText(res);
 
   const form = $(page)('form#logined');
@@ -106,8 +106,7 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
 }
 
 async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean): Promise<CalendarEvent[]> {
-  const response = await fetchRegistrar(
-    s,
+  const response = await s.rawFetch(
     URLS.REGISTRAR_CALENDAR(range.startDate, range.endDate, graduate, JSONP_EXTRACTOR_NAME),
   );
 
