@@ -152,6 +152,9 @@ The live tests are read-only by default: requests that change something on the s
 
 ## Changelog
 
+- Unreleased
+  - (_BREAKING CHANGE_) Every time field is a `ServerTime`: an ISO 8601 string in Beijing time with its offset (`2026-11-07T18:28:00+08:00`), which `new Date()` reads as the right moment in any time zone. The server's millisecond timestamps (homework `deadline`, `submitTime`, `lateSubmissionDeadline`, teacher homework and questionnaire times) and zone-less Beijing strings (notice, file, grade, discussion, favorite and comment times) are converted; `FileCategory.creationTime` is a `ServerTime` instead of a `Date`. Semester and calendar dates stay date-only, and calendar `startTime` / `endTime` stay `HH:mm`
+  - (_BREAKING CHANGE_) `Homework.excellentHomeworkList` is `[]` when a homework has no excellent homework, and `undefined` only when the course's excellent homework list couldn't be fetched
 - v5.2.0
   - `getHomeworkDetail`: a homework page with fewer attachment blocks no longer throws, and an empty description JSON falls back to the page's description instead of erasing it
   - Answered questions and teacher homework with an empty body no longer throw

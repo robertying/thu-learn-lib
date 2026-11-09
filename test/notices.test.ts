@@ -30,7 +30,7 @@ const setup = () =>
       success({ aaData: courseIdOf(req) === 'c1' ? [notice('n1'), notice('n2', { fjmc: 'slides.pdf' })] : [] }),
     )
     .on('POST', URLS.LEARN_NOTIFICATION_LIST(CourseType.STUDENT, true), () =>
-      success({ aaData: [notice('n3', { sfyd: '否', sfqd: 0, jzsj: '2025-01-01', sfsc: '是', bznr: 'note' })] }),
+      success({ aaData: [notice('n3', { sfyd: '否', sfqd: 0, jzsj: '2025-01-01 00:00', sfsc: '是', bznr: 'note' })] }),
     )
     .on('GET', URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT), (req) =>
       html(detailPage(`file-${req.url.searchParams.get('id')}`)),
@@ -51,7 +51,7 @@ describe('getNotificationList', () => {
       publisher: 'Teacher',
       hasRead: true,
       markedImportant: true,
-      publishTime: '2025-03-01 10:00',
+      publishTime: '2025-03-01T10:00:00+08:00',
       expireTime: undefined,
       isFavorite: false,
       comment: undefined,
@@ -59,7 +59,7 @@ describe('getNotificationList', () => {
     expect(notices[2]).toMatchObject({
       hasRead: false,
       markedImportant: false,
-      expireTime: '2025-01-01',
+      expireTime: '2025-01-01T00:00:00+08:00',
       isFavorite: true,
       comment: 'note',
     });

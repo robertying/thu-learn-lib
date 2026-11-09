@@ -7,7 +7,7 @@ import { $, YES } from './request.ts';
 import type { INotification, Notification, NotificationListOptions, RemoteFile } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, isSelected, trimAndDefine } from './utils.ts';
+import { decodeHTML, isSelected, toRequiredServerTime, toServerTime, trimAndDefine } from './utils.ts';
 
 /**
  * Get all notifications （课程公告） of the specified course: current and expired lists.
@@ -60,8 +60,8 @@ async function getNotificationListKind(
       publisher: n.fbrxm,
       hasRead: n.sfyd === YES,
       markedImportant: Number(n.sfqd) === 1, // n.sfqd could be string '1' (teacher mode) or number 1 (student mode)
-      publishTime: n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr,
-      expireTime: n.jzsj ?? undefined,
+      publishTime: toRequiredServerTime(n.fbsj && typeof n.fbsj === 'string' ? n.fbsj : n.fbsjStr),
+      expireTime: toServerTime(n.jzsj),
       isFavorite: n.sfsc === YES,
       comment: n.bznr ?? undefined,
       attachmentName: typeof attachmentName === 'string' && attachmentName ? attachmentName : undefined,

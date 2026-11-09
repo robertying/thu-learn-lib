@@ -5,7 +5,7 @@ import { YES } from './request.ts';
 import type { ApiError, Questionnaire, QuestionnaireDetail, QuestionnaireListOptions } from './types.ts';
 import { FailReason, QuestionnaireType } from './types.ts';
 import * as URLS from './urls.ts';
-import { QNR_TYPE_MAP, decodeHTML, isSelected } from './utils.ts';
+import { QNR_TYPE_MAP, decodeHTML, isSelected, toRequiredServerTime, toServerTime } from './utils.ts';
 
 /**
  * Get all questionnaires （课程问卷/QNR） of the specified course: ongoing and ended lists.
@@ -45,12 +45,12 @@ async function getQuestionnaireListAtUrl(s: Session, courseID: string, url: stri
       id: e.wjid,
       type,
       title: decodeHTML(e.wjbt),
-      startTime: e.kssj,
-      endTime: e.jssj,
-      uploadTime: e.scsj,
+      startTime: toRequiredServerTime(e.kssj),
+      endTime: toRequiredServerTime(e.jssj),
+      uploadTime: toRequiredServerTime(e.scsj),
       uploaderId: e.scr,
       uploaderName: e.scrxm,
-      submitTime: e.tjsj ? e.tjsj : undefined,
+      submitTime: toServerTime(e.tjsj),
       isFavorite: e.sfsc === YES,
       comment: e.bznr ?? undefined,
       url: URLS.LEARN_QNR_SUBMIT_PAGE(e.wlkcid, e.wjid, type),

@@ -151,6 +151,18 @@ describe('helper data retrieval', () => {
     expect(Object.keys(contents).toSorted()).toEqual(ids.toSorted());
   });
 
+  it('gives every time as ISO 8601 with an offset', async () => {
+    if (!courseTester) return;
+    const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/;
+    const times = [
+      ...(await h.getHomeworkList(courseTester)).flatMap((hw) => [hw.deadline, hw.submitTime, hw.gradeTime]),
+      ...(await h.getNotificationList(courseTester)).flatMap((n) => [n.publishTime, n.expireTime]),
+      ...(await h.getFileList(courseTester)).flatMap((f) => [f.uploadTime, f.publishTime]),
+      ...(await h.getDiscussionList(courseTester)).flatMap((d) => [d.publishTime, d.lastReplyTime]),
+    ].filter((t) => t !== undefined);
+    for (const t of times) expect(t).toMatch(iso);
+  });
+
   it('maps every grade code the server sends to a grade level', async () => {
     if (!courseTester) return;
     const homework = await h.getHomeworkList(courseTester);

@@ -5,7 +5,7 @@ import { YES } from './request.ts';
 import type { File, FileCategory } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, formatFileSize } from './utils.ts';
+import { decodeHTML, formatFileSize, toRequiredServerTime } from './utils.ts';
 
 /** Get all files （课程文件） of the specified course; `category` is left out if the categories can't be fetched. */
 export async function getFileList(
@@ -48,7 +48,7 @@ const toNumber = (value: unknown): number => Number(value ?? 0) || 0;
 function parseFile(s: Session, f: any, courseType: CourseType): File {
   const title = decodeHTML(f.bt);
   const fileId = f.wjid;
-  const uploadTime = f.scsj;
+  const uploadTime = toRequiredServerTime(f.scsj);
   const downloadUrl = URLS.LEARN_FILE_DOWNLOAD(fileId, courseType);
   const previewUrl = URLS.LEARN_FILE_PREVIEW(ContentType.FILE, fileId, courseType, s.previewFirstPage);
   return {
@@ -98,7 +98,7 @@ export async function getFileCategoryList(
       ({
         id: c.kjflid,
         title: decodeHTML(c.bt),
-        creationTime: c.czsj,
+        creationTime: toRequiredServerTime(c.czsj),
       }) satisfies FileCategory,
   );
 }
@@ -138,8 +138,8 @@ export async function getFileListByCategory(
         description: decodeHTML(f[5]),
         rawSize,
         size,
-        uploadTime: f[6],
-        publishTime: f[10],
+        uploadTime: toRequiredServerTime(f[6]),
+        publishTime: toRequiredServerTime(f[10]),
         downloadUrl,
         previewUrl,
         isNew: isSet(f[8]),

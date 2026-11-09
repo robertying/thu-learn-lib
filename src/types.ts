@@ -1,5 +1,12 @@
 import type { CookieJar } from 'tough-cookie';
 
+/**
+ * A time as an ISO 8601 string in Beijing time with its offset, e.g. `2026-11-07T18:28:00+08:00`: `new Date(t)` and
+ * `dayjs(t)` read it as the right moment in any time zone. (A string the server sent in another shape is passed on as
+ * it is.)
+ */
+export type ServerTime = string;
+
 export type Fetch = typeof globalThis.fetch;
 export type Credential = {
   username?: string;
@@ -120,9 +127,9 @@ export interface INotification {
   hasRead: boolean;
   url: string;
   markedImportant: boolean;
-  publishTime: string;
+  publishTime: ServerTime;
   publisher: string;
-  expireTime?: string;
+  expireTime?: ServerTime;
   isFavorite: boolean;
   comment?: string;
   /** name of the attachment, if the notice has one; fetch it with `getNotificationAttachment` */
@@ -138,7 +145,7 @@ export type Notification = INotification & INotificationDetail;
 interface IFileCategory {
   id: string;
   title: string;
-  creationTime: Date;
+  creationTime: ServerTime;
 }
 
 export type FileCategory = IFileCategory;
@@ -156,8 +163,8 @@ interface IFile {
   size: string;
   title: string;
   description: string;
-  uploadTime: string;
-  publishTime: string;
+  uploadTime: ServerTime;
+  publishTime: ServerTime;
   downloadUrl: string;
   /** preview is not supported on all types of files, check before use */
   previewUrl: string;
@@ -221,22 +228,23 @@ export interface IHomework extends IHomeworkStatus {
   studentHomeworkId: string;
   baseId: string;
   title: string;
-  deadline: string;
-  lateSubmissionDeadline?: string;
+  deadline: ServerTime;
+  lateSubmissionDeadline?: ServerTime;
   url: string;
   completionType: HomeworkCompletionType;
   submissionType: HomeworkSubmissionType;
   submitUrl: string;
-  submitTime?: string;
+  submitTime?: ServerTime;
   isLateSubmission: boolean;
   grade?: number;
   /** some homework has levels but not grades, like A/B/.../F */
   gradeLevel?: HomeworkGradeLevel;
-  gradeTime?: string;
+  gradeTime?: ServerTime;
   graderName?: string;
   gradeContent?: string;
   isFavorite: boolean;
   comment?: string;
+  /** `[]` when there is none; `undefined` when the course's excellent homework list couldn't be fetched */
   excellentHomeworkList?: ExcellentHomework[];
 }
 
@@ -287,10 +295,10 @@ export interface IHomeworkTA {
   title: string;
   description: string;
   publisherId: string;
-  publishTime: string;
-  startTime: string;
-  deadline: string;
-  lateSubmissionDeadline?: string;
+  publishTime: ServerTime;
+  startTime: ServerTime;
+  deadline: ServerTime;
+  lateSubmissionDeadline?: ServerTime;
   url: string;
   completionType: HomeworkCompletionType;
   submissionType: HomeworkSubmissionType;
@@ -310,9 +318,9 @@ export interface IDiscussionBase {
   id: string;
   title: string;
   publisherName: string;
-  publishTime: string;
+  publishTime: ServerTime;
   lastReplierName: string;
-  lastReplyTime: string;
+  lastReplyTime: ServerTime;
   visitCount: number;
   replyCount: number;
   isFavorite: boolean;
@@ -363,12 +371,12 @@ export interface IQuestionnaire {
   id: string;
   type: QuestionnaireType;
   title: string;
-  startTime: string;
-  endTime: string;
-  uploadTime: string;
+  startTime: ServerTime;
+  endTime: ServerTime;
+  uploadTime: ServerTime;
   uploaderId: string;
   uploaderName: string;
-  submitTime?: string;
+  submitTime?: ServerTime;
   isFavorite: boolean;
   comment?: string;
   url: string;
@@ -448,16 +456,16 @@ interface IFavoriteItem {
   id: string;
   type: ContentType;
   title: string;
-  time: string;
+  time: ServerTime;
   state: string;
   /** extra message. For homework, this will be deadline (plus score if graded). It's too flexible and hard to parse so we leave it as is. */
   extra?: string;
   semesterId: string;
   courseId: string;
   pinned: boolean;
-  pinnedTime?: string;
+  pinnedTime?: ServerTime;
   comment?: string;
-  addedTime: string;
+  addedTime: ServerTime;
   /** for reference */
   itemId: string;
 }
@@ -472,7 +480,7 @@ interface ICommentItem {
   title: string;
   semesterId: string;
   courseId: string;
-  commentTime: string;
+  commentTime: ServerTime;
   /** for reference */
   itemId: string;
 }

@@ -5,7 +5,7 @@ import { YES } from './request.ts';
 import type { CommentItem, FavoriteItem } from './types.ts';
 import { ContentType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { CONTENT_TYPE_MAP_REVERSE, decodeHTML } from './utils.ts';
+import { CONTENT_TYPE_MAP_REVERSE, decodeHTML, toRequiredServerTime, toServerTime } from './utils.ts';
 
 /**
  * Add an item to favorites. (收藏)
@@ -58,15 +58,17 @@ export async function getFavorites(s: Session, courseID?: string, type?: Content
         id: e.ywid,
         type: itemType,
         title: decodeHTML(e.ywbt),
-        time: itemType === ContentType.DISCUSSION || itemType === ContentType.QUESTION ? e.tlsj : e.ywsj,
+        time: toRequiredServerTime(
+          itemType === ContentType.DISCUSSION || itemType === ContentType.QUESTION ? e.tlsj : e.ywsj,
+        ),
         state: e.ywzt,
         extra: e.ywbz ?? undefined,
         semesterId: e.xnxq,
         courseId: e.wlkcid,
         pinned: e.sfzd === YES,
-        pinnedTime: e.zdsj === null ? undefined : e.zdsj, // Note: this field is originally unix timestamp instead of string
+        pinnedTime: toServerTime(e.zdsj),
         comment: e.bznr ?? undefined,
-        addedTime: e.scsj,
+        addedTime: toRequiredServerTime(e.scsj),
         itemId: e.id,
       } satisfies FavoriteItem;
     })
@@ -150,7 +152,7 @@ export async function getComments(s: Session, courseID?: string, type?: ContentT
         title: decodeHTML(e.ywbt),
         semesterId: e.xnxq,
         courseId: e.wlkcid,
-        commentTime: e.cjsj,
+        commentTime: toRequiredServerTime(e.cjsj),
         itemId: e.id,
       } satisfies CommentItem;
     })

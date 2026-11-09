@@ -20,7 +20,7 @@ import type {
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { GRADE_LEVEL_MAP, decodeHTML, isSelected, trimAndDefine } from './utils.ts';
+import { GRADE_LEVEL_MAP, decodeHTML, isSelected, toRequiredServerTime, toServerTime, trimAndDefine } from './utils.ts';
 
 /**
  * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.
@@ -63,10 +63,10 @@ export async function getHomeworkList(
           title: decodeHTML(d.bt),
           description: decodeHTML(Base64.decode(d.nr ?? '')),
           publisherId: d.fbr,
-          publishTime: d.fbsj,
-          startTime: d.kssj,
-          deadline: d.jzsj,
-          lateSubmissionDeadline: d.bjjzsj ?? undefined,
+          publishTime: toRequiredServerTime(d.fbsj),
+          startTime: toRequiredServerTime(d.kssj),
+          deadline: toRequiredServerTime(d.jzsj),
+          lateSubmissionDeadline: toServerTime(d.bjjzsj),
           url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
           completionType: d.zywcfs,
           submissionType: d.zytjfs,
@@ -80,12 +80,15 @@ export async function getHomeworkList(
       Promise.all(
         URLS.LEARN_HOMEWORK_LIST_SOURCE.map((source) => getHomeworkListAtUrl(s, courseID, source.url, source.status)),
       ),
-      // Don't block the whole process if excellent homework list cannot be fetched
-      getExcellentHomeworkListByHomework(s, courseID).catch((): { [id: string]: ExcellentHomework[] } => ({})),
+      // a failed excellent homework list doesn't fail the homework list: its items get `excellentHomeworkList: undefined`
+      getExcellentHomeworkListByHomework(s, courseID).catch(() => undefined),
     ]);
     return Promise.all(
       lists.flat().map(async (h) => {
-        const homework: Homework = { ...h, excellentHomeworkList: excellentHomeworkListByHomework[h.baseId] };
+        const homework: Homework = {
+          ...h,
+          excellentHomeworkList: excellentHomeworkListByHomework && (excellentHomeworkListByHomework[h.baseId] ?? []),
+        };
         return isSelected(options.details, homework) ? { ...homework, ...(await getHomeworkDetail(s, h)) } : homework;
       }),
     );
@@ -119,18 +122,18 @@ async function getHomeworkListAtUrl(
         baseId: h.zyid,
         title: decodeHTML(h.bt),
         url: URLS.LEARN_HOMEWORK_PAGE(h.wlkcid, h.xszyid),
-        deadline: h.jzsj,
-        lateSubmissionDeadline: h.bjjzsj ? h.bjjzsj : undefined,
+        deadline: toRequiredServerTime(h.jzsj),
+        lateSubmissionDeadline: toServerTime(h.bjjzsj),
         isLateSubmission: h.sfbj === YES,
         completionType: h.zywcfs,
         submissionType: h.zytjfs,
         submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
-        submitTime: h.scsj === null ? undefined : h.scsj,
+        submitTime: toServerTime(h.scsj),
         grade: h.cj === null ? undefined : h.cj,
         gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
         graderName: trimAndDefine(h.jsm),
         gradeContent: trimAndDefine(h.pynr),
-        gradeTime: h.pysj === null ? undefined : h.pysj,
+        gradeTime: toServerTime(h.pysj),
         isFavorite: h.sfsc === YES,
         comment: h.bznr ?? undefined,
         ...status,

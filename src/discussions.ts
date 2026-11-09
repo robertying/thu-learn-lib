@@ -7,7 +7,7 @@ import { YES } from './request.ts';
 import type { Discussion, IDiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML } from './utils.ts';
+import { decodeHTML, toRequiredServerTime } from './utils.ts';
 
 /** Get all discussions （课程讨论） of the specified course. */
 export async function getDiscussionList(
@@ -69,8 +69,8 @@ function parseDiscussionBase(d: any): IDiscussionBase {
     id: d.id,
     title: decodeHTML(d.bt),
     publisherName: d.fbrxm,
-    publishTime: d.fbsj,
-    lastReplyTime: d.zhhfsj,
+    publishTime: toRequiredServerTime(d.fbsj),
+    lastReplyTime: toRequiredServerTime(d.zhhfsj),
     lastReplierName: d.zhhfrxm,
     visitCount: d.djs ?? 0, // teacher cannot fetch this
     replyCount: d.hfcs,
