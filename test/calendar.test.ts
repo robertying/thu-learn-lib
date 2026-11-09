@@ -5,13 +5,19 @@ import { FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
 import { JSONP_EXTRACTOR_NAME } from '../src/utils.ts';
 import type { Request } from './helpers/fake-server.ts';
-import { FakeServer, html } from './helpers/fake-server.ts';
+import { FINGERPRINT, FakeServer, field, html } from './helpers/fake-server.ts';
 
 const setup = (calendar: (req: Request) => Response | Promise<Response>) =>
   new FakeServer()
     .on('POST', URLS.REGISTRAR_TICKET(), () => html('"registrar-ticket"'))
     .on('GET', URLS.REGISTRAR_AUTH(''), () => html(''))
     .on('GET', URLS.REGISTRAR_CALENDAR('', ''), calendar);
+
+/** a response that ended at `url` after following redirects */
+const at = (res: Response, url: string) => {
+  Object.defineProperty(res, 'url', { value: url });
+  return res;
+};
 
 const jsonp = (items: unknown[]) => html(`${JSONP_EXTRACTOR_NAME}(${JSON.stringify(items)})`);
 
@@ -217,5 +223,113 @@ describe('getCalendar', () => {
       '20250621',
       '20250719',
     ]);
+  });
+
+  describe('off campus, through WebVPN', () => {
+    const ID_FORM = `${URLS.ID_PREFIX}/do/off/ui/auth/login/form/webvpn/0`;
+    const ID_CHECK_SINGLE = `${URLS.ID_PREFIX}/do/off/ui/auth/login/checkSingle`;
+    const OAUTH_CALLBACK = 'https://oauth.tsinghua.edu.cn/thu-oauth/callback';
+
+    /** what id.tsinghua.edu.cn shows WebVPN's OAuth login when its session from the Web Learning login is still there */
+    const loginedForm = () =>
+      at(
+        html(`<html><head><title>Title</title></head><body>
+<form action="/do/off/ui/auth/login/checkSingle" method="POST" id="logined">
+  <input type="hidden" name="i_rememberme" value="on"/>
+  <input type="hidden" name="fingerPrint" id="fingerPrint"/>
+  <input type="hidden" name="fingerGenPrint" id="fingerGenPrint"/>
+</form>
+<script>$("#logined").submit();</script></body></html>`),
+        ID_FORM,
+      );
+
+    const offCampus = (auth: () => Response = loginedForm) => {
+      let vpnSignedIn = false;
+      const server = setup(() => (vpnSignedIn ? jsonp([]) : loginedForm()));
+      server
+        .on('GET', URLS.REGISTRAR_AUTH(''), () =>
+          vpnSignedIn ? at(html('<html></html>'), URLS.REGISTRAR_PREFIX) : auth(),
+        )
+        .on(
+          'POST',
+          ID_CHECK_SINGLE,
+          (req) =>
+            field(req, 'fingerPrint') === FINGERPRINT && field(req, 'i_rememberme') === 'on'
+              ? html(`<html><body>登录成功。<a href="${OAUTH_CALLBACK}?sig=s">直接跳转</a></body></html>`)
+              : html('<html><body><form id="theform" action="/do/off/ui/auth/login/check"></form></body></html>'),
+          { public: true },
+        )
+        // the callback signs in to WebVPN, which redirects back to the auth URL and on to the registrar
+        .on(
+          'GET',
+          OAUTH_CALLBACK,
+          () => {
+            vpnSignedIn = true;
+            return at(html('<html></html>'), 'https://webvpn.tsinghua.edu.cn/http/zhjw/?url=/');
+          },
+          { public: true },
+        );
+      return server;
+    };
+
+    it('submits the id.tsinghua.edu.cn form with the login fingerprint and follows the link to the registrar', async () => {
+      const server = offCampus();
+      const helper = await server.loggedInHelper();
+      expect(await helper.getCalendar('20250301', '20250328')).toEqual({ events: [], failedRanges: [] });
+
+      expect(server.requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+        `POST ${URLS.REGISTRAR_TICKET()}`,
+        `GET ${new URL(URLS.REGISTRAR_AUTH('')).origin}/j_acegi_login.do`,
+        `POST ${ID_CHECK_SINGLE}`,
+        `GET ${OAUTH_CALLBACK}`,
+        `GET ${new URL(URLS.REGISTRAR_CALENDAR('', '')).origin}/jxmh_out.do`,
+      ]);
+      const check = server.requests[2];
+      expect(field(check, 'fingerPrint')).toBe(FINGERPRINT);
+      expect(field(check, 'i_rememberme')).toBe('on');
+
+      // WebVPN stays signed in, so the next call goes straight to the registrar
+      server.reset();
+      await helper.getCalendar('20250301', '20250328');
+      expect(server.count(ID_CHECK_SINGLE)).toBe(0);
+    });
+
+    it('rejects with ERROR_REGISTRAR_AUTH without fetching the calendar when id.tsinghua.edu.cn wants the password', async () => {
+      const server = offCampus(() =>
+        at(html('<html><body><form id="theform" action="/do/off/ui/auth/login/check"></form></body></html>'), ID_FORM),
+      );
+      const helper = await server.loggedInHelper();
+      await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+        'reason',
+        FailReason.ERROR_REGISTRAR_AUTH,
+      );
+      expect(calendarRequests(server)).toHaveLength(0);
+    });
+
+    it('rejects with ERROR_REGISTRAR_AUTH when the id.tsinghua.edu.cn form is refused', async () => {
+      const server = offCampus();
+      // a session restored without `login` and without a provider has no fingerprint to send
+      const helper = server.helper();
+      helper.setCSRFToken((await server.loggedInHelper()).getCSRFToken());
+      server.reset();
+      await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+        'reason',
+        FailReason.ERROR_REGISTRAR_AUTH,
+      );
+      expect(server.count(ID_CHECK_SINGLE)).toBe(1);
+      expect(server.count(OAUTH_CALLBACK)).toBe(0);
+      expect(calendarRequests(server)).toHaveLength(0);
+    });
+  });
+
+  it('rejects with ERROR_REGISTRAR_AUTH when the auth step fails', async () => {
+    const server = setup(() => jsonp([]));
+    server.on('GET', URLS.REGISTRAR_AUTH(''), () => new Response('', { status: 500 }));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getCalendar('20250301', '20250328')).rejects.toHaveProperty(
+      'reason',
+      FailReason.ERROR_REGISTRAR_AUTH,
+    );
+    expect(calendarRequests(server)).toHaveLength(0);
   });
 });

@@ -105,6 +105,7 @@ export async function login(
 
   // check response from id.tsinghua.edu.cn
   const ticket = await getRoamingTicket(s, username, password, fingerPrint, fingerGenPrint, fingerGenPrint3);
+  s.fingerprints = { fingerPrint, fingerGenPrint: fingerGenPrint ?? '', fingerGenPrint3: fingerGenPrint3 ?? '' };
 
   const loginResponse = await s.rawFetch(URLS.LEARN_AUTH_ROAM(ticket));
   if (!loginResponse.ok) {

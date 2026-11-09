@@ -32,6 +32,7 @@ export enum FailReason {
   OPERATION_FAILED = 'operation failed',
   ERROR_SETTING_COOKIES = 'could not set cookies',
   REQUEST_TIMEOUT = 'request timed out',
+  ERROR_REGISTRAR_AUTH = 'could not sign in to the registrar (zhjw.cic.tsinghua.edu.cn)',
 }
 
 export interface ApiError {
