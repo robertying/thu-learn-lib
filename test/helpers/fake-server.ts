@@ -36,6 +36,10 @@ export const json = (value: unknown) =>
 export const html = (text: string) => new Response(text, { headers: { 'Content-Type': 'text/html' } });
 export const success = (object: unknown) => json({ result: 'success', msg: '', object });
 
+/** serve a semester list (with a null entry, as the server sends) on `server` */
+export const withSemesterList = (server: FakeServer) =>
+  server.on('GET', URLS.LEARN_SEMESTER_LIST, () => json(['2024-2025-1', null, '2024-2025-2']));
+
 /** a string field of a form body ('' if missing) */
 export const field = (req: Request, name: string): string => {
   const value = req.form?.get(name);
