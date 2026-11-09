@@ -1,6 +1,8 @@
 # Changelog
 
 - Unreleased
+  - `CalendarEvent` has `start` and `end`: its date and times as `ServerTime`s, so callers don't rebuild Beijing times from `date` + `startTime`. The formats of `date`, `startTime`, `endTime` and `SemesterInfo.startDate` / `endDate` are documented
+  - `getFileList`'s `favorites` option also takes favorites you already have (`FavoriteItem[]`), so one `getFavorites(undefined, ContentType.FILE)` can fill `isFavorite` for every course without a request per course
   - Every `Learn2018Helper` method (and each course in `getAllContents` errors) rejects with `INVALID_RESPONSE` instead of a bare `TypeError` when the server answers in a shape the parser doesn't expect (a missing field, a `null` row), so errors are always `{ reason, extra }`
   - A homework attachment's `name` is the link's whole text (it was empty when the name was wrapped in another element)
   - Roaming and registrar tickets and favorite ids are URL-encoded in the URLs they go into

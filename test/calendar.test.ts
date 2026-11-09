@@ -85,6 +85,8 @@ describe('getCalendar', () => {
           startTime: '08:00',
           endTime: '09:35',
           date: '2025-03-03',
+          start: '2025-03-03T08:00:00+08:00',
+          end: '2025-03-03T09:35:00+08:00',
           courseName: 'Calculus',
         },
       ],

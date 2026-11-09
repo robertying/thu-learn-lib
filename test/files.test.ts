@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { FavoriteItem } from '../src/index.ts';
 import { ContentType, CourseType, FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
 import { FakeServer, courseIdOf, json, success } from './helpers/fake-server.ts';
@@ -28,6 +29,19 @@ const studentFile = {
   wjlx: 'pdf',
 };
 
+const favorite = (id: string, type: ContentType): FavoriteItem => ({
+  id,
+  type,
+  title: '',
+  time: '',
+  state: '',
+  semesterId: '',
+  courseId: 'c1',
+  pinned: false,
+  addedTime: '',
+  itemId: id,
+});
+
 describe('getFileList', () => {
   it('fills isFavorite from the course file favorites when asked', async () => {
     const server = new FakeServer()
@@ -53,6 +67,25 @@ describe('getFileList', () => {
     // without the option, no favorites request and no flag
     expect((await helper.getFileList('c1')).map((f) => f.isFavorite)).toEqual([undefined, undefined]);
     expect(server.count(URLS.LEARN_FAVORITE_LIST(ContentType.FILE), 'POST')).toBe(1);
+  });
+
+  it('fills isFavorite from favorites passed in, without a request', async () => {
+    const server = new FakeServer()
+      .on('GET', URLS.LEARN_FILE_LIST('c1', CourseType.STUDENT), () =>
+        success([studentFile, { ...studentFile, kjxxid: 'k2' }]),
+      )
+      .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.STUDENT), categories);
+    const helper = await server.loggedInHelper();
+
+    // a notice favorite with a file's id doesn't count
+    const files = await helper.getFileList('c1', CourseType.STUDENT, {
+      favorites: [favorite('k2', ContentType.FILE), favorite('k1', ContentType.NOTIFICATION)],
+    });
+    expect(files.map((f) => [f.id, f.isFavorite])).toEqual([
+      ['k1', false],
+      ['k2', true],
+    ]);
+    expect(server.count(URLS.LEARN_FAVORITE_LIST(ContentType.FILE), 'POST')).toBe(0);
   });
 
   it('rejects when the favorites asked for fail', async () => {
