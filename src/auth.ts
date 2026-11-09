@@ -123,7 +123,8 @@ export async function login(
     });
   }
   s.csrfToken = tokenMatches[0][1];
-  const langRegex = /<script src="\/f\/wlxt\/common\/languagejs\?lang=(zh|en)"><\/script>/g;
+  // the homepage loads e.g. `/f/wlxt/common/languagejs?lang=zh_CN&v=845`
+  const langRegex = /\/f\/wlxt\/common\/languagejs\?lang=(zh|en)/g;
   const langMatches = [...courseListPageSource.matchAll(langRegex)];
   if (langMatches.length !== 0) s.lang = langMatches[0][1] === 'en' ? Language.EN : Language.ZH;
 }
