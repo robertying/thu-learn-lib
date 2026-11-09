@@ -36,6 +36,8 @@ const favoriteTypes: OnceTest = {
   maxPerDay: 2,
 };
 
+const fileFavoriteField: OnceTest = { name: 'file-favorite-field', covers: ['src/files.ts'], maxPerDay: 2 };
+
 const submission: OnceTest = {
   name: 'submission',
   covers: ['src/homework.ts', 'src/urls.ts', 'src/request.ts'],
@@ -334,6 +336,62 @@ describe('one-time checks', () => {
       expect(left).toBe(0);
       if (findings.some((f) => f.startsWith('notice add:')) && findings.some((f) => f.startsWith('file add')))
         recordPass(favoriteTypes, findings.join('; '));
+    },
+  );
+
+  it.runIf(ALLOW_WRITES && shouldRun(fileFavoriteField))(
+    'records whether the student file list says a file is favorited (adds one file favorite and removes it)',
+    { retry: 0, timeout: 120_000 },
+    async () => {
+      recordAttempt(fileFavoriteField.name);
+      const cookieJar = new CookieJar();
+      const h = new Learn2018Helper({ ...config, cookieJar });
+      await h.login();
+      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
+      /** the raw rows of a course's student file list, by `kjxxid` */
+      const rawRows = async (courseID: string) => {
+        const u = new URL(URLS.LEARN_FILE_LIST(courseID, CourseType.STUDENT));
+        u.searchParams.set('_csrf', h.getCSRFToken());
+        const json = await (await raw(u.href)).json();
+        return new Map<string, Record<string, unknown>>(
+          ((json.object ?? []) as Record<string, unknown>[]).map((r) => [r.kjxxid as string, r]),
+        );
+      };
+
+      const favorites = await h.getFavorites(undefined, ContentType.FILE);
+      let target: { courseID: string; id: string } | undefined;
+      for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
+        const file = (await h.getFileList(c.id)).find((f) => !favorites.some((x) => x.id === f.id));
+        if (file) {
+          target = { courseID: c.id, id: file.id };
+          break;
+        }
+      }
+      if (!target) {
+        recordResult(fileFavoriteField.name, 'no file to try');
+        return;
+      }
+
+      const findings: string[] = [];
+      const before = (await rawRows(target.courseID)).get(target.id)!;
+      findings.push(`row keys: ${Object.keys(before).toSorted().join(', ')}`);
+      try {
+        await h.addToFavorites(ContentType.FILE, target.id);
+        const after = (await rawRows(target.courseID)).get(target.id)!;
+        const changed = changedKeys(before, after);
+        findings.push(
+          `keys changed by favoriting: ${changed.join(', ') || 'none'}`,
+          ...changed.map((k) => `${k} ${JSON.stringify(before[k])} -> ${JSON.stringify(after[k])}`),
+        );
+      } finally {
+        await h.removeFromFavorites(target.id);
+      }
+      const left = (await h.getFavorites(undefined, ContentType.FILE)).some((f) => f.id === target.id);
+      findings.push(`removed: ${!left}`);
+      await h.logout();
+      recordResult(fileFavoriteField.name, findings.join('; '));
+      expect(left).toBe(false);
+      recordPass(fileFavoriteField, findings.join('; '));
     },
   );
 
