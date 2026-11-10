@@ -15,7 +15,7 @@ What the live tests (`test/live/`) found out about Web Learning and the registra
   it pages only when asked (`iDisplayStart` / `iDisplayLength`).
 - The one-time `file-favorite-field` check (2026-11-09): favoriting a file changes no key of its student file-list row
   (`bt, fileSize, isNew, kjflid, kjxxid, llcs, ms, rownum_, scsj, sfqd, sxsj, sxsjStr, wjdx, wjid, wjlx, wlkcid, xzcs`),
-  so `getFileList` can't say a file is favorited by itself; `getFileList(..., { favorites: true })` fills it from `getFavorites(courseID, ContentType.FILE)`.
+  so `getFileList` can't say a file is favorited by itself; `getFileList(..., { favorites: true })` fills it from `getFavorites({ courseID, type: ContentType.FILE })`.
 - `read-mark` (2026-11-09): starting a file download does not mark it seen (`isNew` stays).
 - `file-seen` run 1 (2026-11-09, 6 new files): the preview check `GET b/kc/wj_wjb/student/beforePlay` (answers
   `{mk, playUrl, sfgk, type}`), the download check `GET b/wlxt/kj/wlkc_kjxxb/student/downloadFileBefore` (answers
