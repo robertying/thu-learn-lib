@@ -3,7 +3,7 @@
 import { Base64 } from 'js-base64';
 
 import type { Session } from './request.ts';
-import type { Discussion, DiscussionBase, Question } from './types.ts';
+import type { CourseTypeOptions, Discussion, DiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { decodeHTML, favoriteFields, expectSuccess, toRequiredServerTime } from './utils.ts';
@@ -11,7 +11,7 @@ import { decodeHTML, favoriteFields, expectSuccess, toRequiredServerTime } from 
 export async function getDiscussionList(
   s: Session,
   courseID: string,
-  courseType: CourseType = CourseType.STUDENT,
+  { courseType = CourseType.STUDENT }: CourseTypeOptions = {},
 ): Promise<Discussion[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_DISCUSSION_LIST(courseID, courseType));
   expectSuccess(json, FailReason.INVALID_RESPONSE);
@@ -31,7 +31,7 @@ export async function getDiscussionList(
 export async function getAnsweredQuestionList(
   s: Session,
   courseID: string,
-  courseType: CourseType = CourseType.STUDENT,
+  { courseType = CourseType.STUDENT }: CourseTypeOptions = {},
 ): Promise<Question[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_QUESTION_LIST_ANSWERED(courseID, courseType));
   expectSuccess(json, FailReason.INVALID_RESPONSE);

@@ -93,7 +93,7 @@ describe('getNotificationList', () => {
     const server = setup();
     const helper = await server.loggedInHelper();
     const seen: string[] = [];
-    await helper.getNotificationList('c1', CourseType.STUDENT, {
+    await helper.getNotificationList('c1', {
       attachments: (n) => {
         seen.push(n.id);
         return false;
@@ -106,7 +106,7 @@ describe('getNotificationList', () => {
   it('fetches the detail page only for notices with an attachment', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
-    const notices = await helper.getNotificationList('c1', CourseType.STUDENT, { attachments: 'all' });
+    const notices = await helper.getNotificationList('c1', { attachments: 'all' });
 
     expect(notices[1].attachment).toEqual({
       name: 'slides.pdf',
@@ -123,17 +123,13 @@ describe('getNotificationList', () => {
 
   it('follows previewFirstPage for preview URLs', async () => {
     const server = setup();
-    const helper = await server.loggedInHelper({ generatePreviewUrlForFirstPage: false });
+    const helper = await server.loggedInHelper({ previewFirstPage: false });
     expect(helper.previewFirstPage).toBe(false);
     const all = { attachments: 'all' } as const;
-    expect((await helper.getNotificationList('c1', CourseType.STUDENT, all))[1].attachment?.previewUrl).toContain(
-      'pageType=all',
-    );
+    expect((await helper.getNotificationList('c1', all))[1].attachment?.previewUrl).toContain('pageType=all');
 
     helper.previewFirstPage = true;
-    expect((await helper.getNotificationList('c1', CourseType.STUDENT, all))[1].attachment?.previewUrl).toContain(
-      'pageType=first',
-    );
+    expect((await helper.getNotificationList('c1', all))[1].attachment?.previewUrl).toContain('pageType=first');
   });
 
   it('rejects with INVALID_RESPONSE when a list fails', async () => {

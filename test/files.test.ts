@@ -59,7 +59,7 @@ describe('getFileList', () => {
       });
     const helper = await server.loggedInHelper();
 
-    const files = await helper.getFileList('c1', CourseType.STUDENT, { favorites: true });
+    const files = await helper.getFileList('c1', { favorites: true });
     expect(files.map((f) => [f.id, f.isFavorite])).toEqual([
       ['k1', false],
       ['k2', true],
@@ -78,7 +78,7 @@ describe('getFileList', () => {
     const helper = await server.loggedInHelper();
 
     // a notice favorite with a file's id doesn't count
-    const files = await helper.getFileList('c1', CourseType.STUDENT, {
+    const files = await helper.getFileList('c1', {
       favorites: [favorite('k2', ContentType.FILE), favorite('k1', ContentType.NOTIFICATION)],
     });
     expect(files.map((f) => [f.id, f.isFavorite])).toEqual([
@@ -94,7 +94,7 @@ describe('getFileList', () => {
       .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.STUDENT), categories)
       .on('POST', URLS.LEARN_FAVORITE_LIST(ContentType.FILE), () => json({ result: 'error' }));
     const helper = await server.loggedInHelper();
-    await expect(helper.getFileList('c1', CourseType.STUDENT, { favorites: true })).rejects.toHaveProperty(
+    await expect(helper.getFileList('c1', { favorites: true })).rejects.toHaveProperty(
       'reason',
       FailReason.INVALID_RESPONSE,
     );
@@ -180,7 +180,7 @@ describe('getFileList', () => {
       )
       .on('GET', URLS.LEARN_FILE_CATEGORY_LIST('c1', CourseType.TEACHER), categories);
     const helper = await server.loggedInHelper();
-    const [file] = await helper.getFileList('c1', CourseType.TEACHER);
+    const [file] = await helper.getFileList('c1', { courseType: CourseType.TEACHER });
     expect(file).toMatchObject({ id: 'k1', visitCount: 9, markedImportant: true });
     expect(file.downloadUrl).toBe(URLS.LEARN_FILE_DOWNLOAD('w1', CourseType.TEACHER));
   });
@@ -229,11 +229,12 @@ describe('getFileListByCategory', () => {
       publishTime: '2025-01-02T09:30:00+08:00',
       isNew: true,
       markedImportant: false,
-      visitCount: 0,
       fileType: 'zip',
       isFavorite: true,
       comment: 'my note',
     });
+    expect(file).not.toHaveProperty('visitCount');
+    expect(file).not.toHaveProperty('downloadCount');
   });
 
   it("reads an unfavorited file's '否' as false", async () => {
@@ -251,7 +252,7 @@ describe('getFileListByCategory', () => {
       success({ aaData: [studentFile] }),
     );
     const helper = await server.loggedInHelper();
-    const [file] = await helper.getFileListByCategory('c1', 'cat1', CourseType.TEACHER);
+    const [file] = await helper.getFileListByCategory('c1', 'cat1', { courseType: CourseType.TEACHER });
     expect(file.id).toBe('k1');
     expect(JSON.parse(server.requests[0].form!.get('aoData') as string)).toEqual([
       { name: 'wlkcid', value: 'c1' },

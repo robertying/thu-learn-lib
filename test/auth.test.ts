@@ -59,17 +59,8 @@ describe('login', () => {
     await expect(helper.login({ username: USERNAME, password: PASSWORD })).rejects.toEqual({
       reason: FailReason.NO_CREDENTIAL,
     });
-    await expect(helper.getRoamingTicket({ ...credential, password: '' })).rejects.toEqual({
-      reason: FailReason.NO_CREDENTIAL,
-    });
     expect(asked).toBe(0);
     expect(server.requests).toEqual([]);
-  });
-
-  it('gets a roaming ticket without logging in to Web Learning', async () => {
-    const server = new FakeServer();
-    expect(await server.helper().getRoamingTicket(credential)).toBe('ticket-1');
-    expect(server.loginCount).toBe(0);
   });
 
   it('rejects with NO_CREDENTIAL when the provider returns no fingerprint', async () => {

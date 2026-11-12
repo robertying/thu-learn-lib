@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import {
   CLASS_PERIOD_TIMES,
-  ContentType,
   CourseType,
   Language,
   Learn2018Helper,
@@ -103,16 +102,16 @@ describe('helper data retrieval', () => {
 
   it.skipIf(!courseTATester)('gets the files and homework of a teacher course', async () => {
     const id = courseTATester!;
-    expectItems(await h.getFileList(id, CourseType.TEACHER), ['id', 'title', 'downloadUrl']);
-    expectItems(await h.getHomeworkList(id, CourseType.TEACHER), ['id', 'title', 'url', 'deadline']);
+    expectItems(await h.getFileList(id, { courseType: CourseType.TEACHER }), ['id', 'title', 'downloadUrl']);
+    expectItems(await h.getHomeworkList(id, { courseType: CourseType.TEACHER }), ['id', 'title', 'url', 'deadline']);
   });
 
   // the library has teacher URLs for these too; this checks they work against the real server
   it.skipIf(!courseTATester)('gets the discussions, notifications and questions of a teacher course', async () => {
     const id = courseTATester!;
-    expectItems(await h.getDiscussionList(id, CourseType.TEACHER), ['id', 'title', 'url']);
-    expectItems(await h.getNotificationList(id, CourseType.TEACHER), ['id', 'title', 'url']);
-    expectItems(await h.getAnsweredQuestionList(id, CourseType.TEACHER), ['id', 'title', 'url']);
+    expectItems(await h.getDiscussionList(id, { courseType: CourseType.TEACHER }), ['id', 'title', 'url']);
+    expectItems(await h.getNotificationList(id, { courseType: CourseType.TEACHER }), ['id', 'title', 'url']);
+    expectItems(await h.getAnsweredQuestionList(id, { courseType: CourseType.TEACHER }), ['id', 'title', 'url']);
   });
 
   it.skipIf(!courseTester)('lists the files of the first file category of a student course', async ({ skip }) => {
@@ -125,10 +124,10 @@ describe('helper data retrieval', () => {
   });
 
   it.skipIf(!courseTATester)('lists the files of the first file category of a teacher course', async ({ skip }) => {
-    const categories = await h.getFileCategoryList(courseTATester!, CourseType.TEACHER);
+    const categories = await h.getFileCategoryList(courseTATester!, { courseType: CourseType.TEACHER });
     expectItems(categories, ['id', 'title']);
     skip(categories.length === 0, 'the course has no file categories');
-    const files = await h.getFileListByCategory(courseTATester!, categories[0].id, CourseType.TEACHER);
+    const files = await h.getFileListByCategory(courseTATester!, categories[0].id, { courseType: CourseType.TEACHER });
     expectItems(files, ['id', 'title', 'downloadUrl']);
   });
 
@@ -145,7 +144,7 @@ describe('helper data retrieval', () => {
 
   it.skipIf(!courseTester)('gets the same homework details from the list option and on demand', async () => {
     const plain = await h.getHomeworkList(courseTester!);
-    const detailed = await h.getHomeworkList(courseTester!, undefined, { details: 'all' });
+    const detailed = await h.getHomeworkList(courseTester!, { details: 'all' });
     expect(detailed.map((hw) => hw.id)).toEqual(plain.map((hw) => hw.id));
     for (const [i, hw] of plain.entries()) {
       const detail = await h.getHomeworkDetail(hw);
@@ -183,7 +182,7 @@ describe('helper data retrieval', () => {
       });
       await helper.login();
       try {
-        await helper.getHomeworkList(courseTester!, undefined, { details: 'all' });
+        await helper.getHomeworkList(courseTester!, { details: 'all' });
       } finally {
         await helper.logout();
       }
@@ -194,7 +193,7 @@ describe('helper data retrieval', () => {
   );
 
   it.skipIf(!courseTester)('gets an attachment for every notice that names one', async () => {
-    const notices = await h.getNotificationList(courseTester!, CourseType.STUDENT, { attachments: 'all' });
+    const notices = await h.getNotificationList(courseTester!, { attachments: 'all' });
     for (const n of notices) {
       if (n.attachmentName) expect(n.attachment?.id).toBeTruthy();
       else expect(n.attachment).toBeUndefined();
@@ -204,14 +203,6 @@ describe('helper data retrieval', () => {
   it('gets course time and location on demand', async () => {
     const courses = await h.getCourseList(semesterTester, { timeAndLocation: true });
     for (const c of courses) expect(Array.isArray(c.timeAndLocation)).toBe(true);
-  });
-
-  it('gets contents of several courses with errors per course', async () => {
-    const courses = await h.getCourseList(semesterTester);
-    const ids = courses.slice(0, 3).map((c) => c.id);
-    const { contents, errors } = await h.getAllContents(ids, ContentType.NOTIFICATION);
-    expect(errors).toEqual({});
-    expect(Object.keys(contents).toSorted()).toEqual(ids.toSorted());
   });
 
   it.skipIf(!courseTester)('gives every time as ISO 8601 with an offset', async () => {

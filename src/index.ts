@@ -1,6 +1,5 @@
 import * as auth from './auth.ts';
 import * as calendar from './calendar.ts';
-import * as contents from './contents.ts';
 import * as courses from './courses.ts';
 import * as discussions from './discussions.ts';
 import * as favorites from './favorites.ts';
@@ -10,13 +9,12 @@ import * as notices from './notices.ts';
 import * as questionnaires from './questionnaires.ts';
 import { Session } from './request.ts';
 import type {
-  AllContentsOptions,
   Credential,
-  AllContentsResult,
   CalendarOptions,
   CalendarResult,
   CommentItem,
   ContentType,
+  CourseTypeOptions,
   CourseFile,
   CourseInfo,
   CourseListOptions,
@@ -42,6 +40,7 @@ import type {
   QuestionnaireListOptions,
   RemoteFile,
   SemesterInfo,
+  TeacherHomeworkListOptions,
   UserInfo,
 } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
@@ -63,7 +62,7 @@ export class Learn2018Helper {
     this.#session = new Session(config, () => auth.loginWithProvider(this.#session));
   }
 
-  /** whether preview URLs open the first page only (`HelperConfig.generatePreviewUrlForFirstPage`) */
+  /** whether preview URLs open the first page only (`HelperConfig.previewFirstPage`) */
   public get previewFirstPage(): boolean {
     return this.#session.previewFirstPage;
   }
@@ -80,16 +79,6 @@ export class Learn2018Helper {
   /** manually set CSRF token (useful when you want to reuse previous token) */
   public setCSRFToken(csrfToken: string): void {
     this.#session.csrfToken = csrfToken;
-  }
-
-  /**
-   * Sign in to id.tsinghua.edu.cn and return the Web Learning roaming ticket, without logging in to Web Learning.
-   * Rejects with `NO_CREDENTIAL` unless `credential` has a username, a password and a fingerprint. If using
-   * alternative cookie management systems, be sure to clear id.tsinghua.edu.cn cookies before calling this function.
-   */
-  public async getRoamingTicket(credential: Credential): Promise<string> {
-    if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
-    return parsed(auth.getRoamingTicket(this.#session, credential));
   }
 
   /**
@@ -113,14 +102,14 @@ export class Learn2018Helper {
     return parsed(this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER));
   }
 
-  /**  logout (to make everyone happy) */
+  /** Log out of Web Learning; the CSRF token is cleared, so the next request logs in again. */
   public async logout(): Promise<void> {
     return parsed(auth.logout(this.#session));
   }
 
-  /** get user's name and department */
-  public async getUserInfo(courseType: CourseType = CourseType.STUDENT): Promise<UserInfo> {
-    return parsed(user.getUserInfo(this.#session, courseType));
+  /** Get the user's name and department from the homepage (one request). */
+  public async getUserInfo(options?: CourseTypeOptions): Promise<UserInfo> {
+    return parsed(user.getUserInfo(this.#session, options));
   }
 
   /**
@@ -158,38 +147,20 @@ export class Learn2018Helper {
   }
 
   /**
-   * Get certain type of content of all specified courses.
-   * It wraps around the `getXXX` list functions; a course that fails is reported in `errors` instead of failing
-   * the rest. `options.details` is passed on as homework or questionnaire `details` or notification `attachments`, and
-   * `options.favorites` as the file list's `favorites`.
-   */
-  public async getAllContents<T extends ContentType>(
-    courseIDs: string[],
-    type: T,
-    options?: AllContentsOptions<T>,
-  ): Promise<AllContentsResult<T>> {
-    return parsed(contents.getAllContents(this.#session, courseIDs, type, options));
-  }
-
-  /**
    * Get all notifications （课程公告） of the specified course.
    * Attachments are only fetched (one request per notice) for the notices `options.attachments` selects;
    * use `getNotificationAttachment` for the others.
    */
-  public async getNotificationList(
-    courseID: string,
-    courseType: CourseType = CourseType.STUDENT,
-    options?: NotificationListOptions,
-  ): Promise<CourseNotification[]> {
-    return parsed(notices.getNotificationList(this.#session, courseID, courseType, options));
+  public async getNotificationList(courseID: string, options?: NotificationListOptions): Promise<CourseNotification[]> {
+    return parsed(notices.getNotificationList(this.#session, courseID, options));
   }
 
   /** Get the attachment of a notice (one request), `undefined` if it has none. */
   public async getNotificationAttachment(
     notification: Pick<CourseNotification, 'url' | 'attachmentName'>,
-    courseType: CourseType = CourseType.STUDENT,
+    options?: CourseTypeOptions,
   ): Promise<RemoteFile | undefined> {
-    return parsed(notices.getNotificationAttachment(this.#session, notification, courseType));
+    return parsed(notices.getNotificationAttachment(this.#session, notification, options));
   }
 
   /**
@@ -204,32 +175,25 @@ export class Learn2018Helper {
    * Get all files （课程文件） of the specified course. With `options.favorites` (student only), `isFavorite` is filled from
    * the course's file favorites, one more request sent in parallel; the list rejects if it fails.
    */
-  public async getFileList(
-    courseID: string,
-    courseType: CourseType = CourseType.STUDENT,
-    options: FileListOptions = {},
-  ): Promise<CourseFile[]> {
-    return parsed(files.getFileList(this.#session, courseID, courseType, options));
+  public async getFileList(courseID: string, options?: FileListOptions): Promise<CourseFile[]> {
+    return parsed(files.getFileList(this.#session, courseID, options));
   }
 
   /** Get file categories of the specified course. */
-  public async getFileCategoryList(
-    courseID: string,
-    courseType: CourseType = CourseType.STUDENT,
-  ): Promise<FileCategory[]> {
-    return parsed(files.getFileCategoryList(this.#session, courseID, courseType));
+  public async getFileCategoryList(courseID: string, options?: CourseTypeOptions): Promise<FileCategory[]> {
+    return parsed(files.getFileCategoryList(this.#session, courseID, options));
   }
 
   /**
-   * Get all files of the specified category of the specified course.
-   * Note: this cannot get correct `visitCount` and `downloadCount` for student
+   * Get all files of the specified category of the specified course, without `category`. The student list has
+   * `isFavorite` and `comment` but no `visitCount` or `downloadCount`.
    */
   public async getFileListByCategory(
     courseID: string,
     categoryId: string,
-    courseType: CourseType = CourseType.STUDENT,
+    options?: CourseTypeOptions,
   ): Promise<CourseFile[]> {
-    return parsed(files.getFileListByCategory(this.#session, courseID, categoryId, courseType));
+    return parsed(files.getFileListByCategory(this.#session, courseID, categoryId, options));
   }
 
   /**
@@ -237,20 +201,15 @@ export class Learn2018Helper {
    * Details (page + description, two requests per homework) are only fetched for the homework `options.details`
    * selects; use `getHomeworkDetail` for the others.
    */
+  public async getHomeworkList(courseID: string, options?: HomeworkListOptions): Promise<Homework[]>;
+  public async getHomeworkList(courseID: string, options: TeacherHomeworkListOptions): Promise<HomeworkTA[]>;
   public async getHomeworkList(
     courseID: string,
-    courseType?: CourseType.STUDENT,
-    options?: HomeworkListOptions,
-  ): Promise<Homework[]>;
-  public async getHomeworkList(courseID: string, courseType: CourseType.TEACHER): Promise<HomeworkTA[]>;
-  public async getHomeworkList(
-    courseID: string,
-    courseType: CourseType = CourseType.STUDENT,
-    options?: HomeworkListOptions,
+    options?: HomeworkListOptions | TeacherHomeworkListOptions,
   ): Promise<Homework[] | HomeworkTA[]> {
-    return courseType === CourseType.TEACHER
-      ? parsed(homework.getHomeworkList(this.#session, courseID, CourseType.TEACHER))
-      : parsed(homework.getHomeworkList(this.#session, courseID, CourseType.STUDENT, options));
+    return options?.courseType === CourseType.TEACHER
+      ? parsed(homework.getHomeworkList(this.#session, courseID, options))
+      : parsed(homework.getHomeworkList(this.#session, courseID, options));
   }
 
   /** Get the detail (page content, attachments and description) of one homework. */
@@ -264,19 +223,16 @@ export class Learn2018Helper {
   }
 
   /** Get all discussions （课程讨论） of the specified course. */
-  public async getDiscussionList(courseID: string, courseType: CourseType = CourseType.STUDENT): Promise<Discussion[]> {
-    return parsed(discussions.getDiscussionList(this.#session, courseID, courseType));
+  public async getDiscussionList(courseID: string, options?: CourseTypeOptions): Promise<Discussion[]> {
+    return parsed(discussions.getDiscussionList(this.#session, courseID, options));
   }
 
   /**
    * Get the answered questions （课程答疑） of the specified course.
    * The student version supports only answered questions, while the teacher version supports all questions.
    */
-  public async getAnsweredQuestionList(
-    courseID: string,
-    courseType: CourseType = CourseType.STUDENT,
-  ): Promise<Question[]> {
-    return parsed(discussions.getAnsweredQuestionList(this.#session, courseID, courseType));
+  public async getAnsweredQuestionList(courseID: string, options?: CourseTypeOptions): Promise<Question[]> {
+    return parsed(discussions.getAnsweredQuestionList(this.#session, courseID, options));
   }
 
   /**

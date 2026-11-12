@@ -491,7 +491,7 @@ describe('one-time checks', () => {
         for (const f of await h.getFileList(c.id)) {
           const key = f.isNew ? 'new' : 'seen';
           ages[key].push(Math.floor((Date.now() - new Date(f.uploadTime).getTime()) / DAY_MS));
-          if (f.visitCount > 0) visited[key]++;
+          if ((f.visitCount ?? 0) > 0) visited[key]++;
           if (f.isNew) newFiles.push({ courseID: c.id, id: f.id, fileId: f.fileId, downloadUrl: f.downloadUrl });
         }
       }

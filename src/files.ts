@@ -1,26 +1,22 @@
 // Course files (课程文件) and file categories.
 
 import type { Session } from './request.ts';
-import type { CourseFile, FileCategory, FileListOptions } from './types.ts';
+import type { CourseFile, CourseTypeOptions, FileCategory, FileListOptions } from './types.ts';
 import { getFavorites } from './favorites.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { YES, decodeHTML, expectSuccess, formatFileSize, isSet, toNumber, toRequiredServerTime } from './utils.ts';
 
 /** Get all files （课程文件） of the specified course; `category` is left out if the categories can't be fetched. */
-export async function getFileList(
-  s: Session,
-  courseID: string,
-  courseType: CourseType = CourseType.STUDENT,
-  options: FileListOptions = {},
-): Promise<CourseFile[]> {
+export async function getFileList(s: Session, courseID: string, options: FileListOptions = {}): Promise<CourseFile[]> {
+  const { courseType = CourseType.STUDENT } = options;
   // the file list has no favorite flag; the course's file favorites are fetched next to it
   const withFavorites = options.favorites === true && courseType === CourseType.STUDENT;
   const given = Array.isArray(options.favorites) && courseType === CourseType.STUDENT ? options.favorites : undefined;
   // categories only fill `category`; don't fail the whole list when they can't be fetched
   const [json, categoryList, favorites] = await Promise.all([
     s.fetchJsonWithToken(URLS.LEARN_FILE_LIST(courseID, courseType)),
-    getFileCategoryList(s, courseID, courseType).catch((): FileCategory[] => []),
+    getFileCategoryList(s, courseID, { courseType }).catch((): FileCategory[] => []),
     withFavorites ? getFavorites(s, { courseID, type: ContentType.FILE }) : given,
   ]);
   expectSuccess(json, FailReason.INVALID_RESPONSE);
@@ -78,7 +74,7 @@ function parseFile(s: Session, f: any, courseType: CourseType): CourseFile {
 export async function getFileCategoryList(
   s: Session,
   courseID: string,
-  courseType: CourseType = CourseType.STUDENT,
+  { courseType = CourseType.STUDENT }: CourseTypeOptions = {},
 ): Promise<FileCategory[]> {
   const json = await s.fetchJsonWithToken(URLS.LEARN_FILE_CATEGORY_LIST(courseID, courseType));
   expectSuccess(json, FailReason.INVALID_RESPONSE);
@@ -99,7 +95,7 @@ export async function getFileListByCategory(
   s: Session,
   courseID: string,
   categoryId: string,
-  courseType: CourseType = CourseType.STUDENT,
+  { courseType = CourseType.STUDENT }: CourseTypeOptions = {},
 ): Promise<CourseFile[]> {
   return courseType === CourseType.STUDENT
     ? getStudentFileListByCategory(s, courseID, categoryId)
@@ -148,9 +144,6 @@ async function getStudentFileListByCategory(s: Session, courseID: string, catego
       previewUrl,
       isNew: isSet(f[COLUMN.IS_NEW]),
       markedImportant: isSet(f[COLUMN.MARKED_IMPORTANT]),
-      // not in this list
-      visitCount: 0,
-      downloadCount: 0,
       fileType: f[COLUMN.FILE_TYPE],
       remoteFile: {
         id: fileId,
