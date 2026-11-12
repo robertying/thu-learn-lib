@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { FailReason } from '../src/index.ts';
 import {
+  $,
   JSONP_EXTRACTOR_NAME,
   apiError,
   decodeHTML,
@@ -10,8 +11,9 @@ import {
   formatFileSize,
   looksLikeLoginPage,
   toRequiredServerTime,
+  optionalHtml,
+  optionalText,
   toServerTime,
-  trimAndDefine,
   urlOf,
 } from '../src/utils.ts';
 
@@ -96,16 +98,38 @@ describe('decodeHTML', () => {
   });
 });
 
-describe('trimAndDefine', () => {
-  it('trims and decodes the text', () => {
-    expect(trimAndDefine('  <p>a &amp; b</p>\n')).toBe('<p>a & b</p>');
+describe('optionalText', () => {
+  it('trims and decodes a JSON field, including HTML the server sent escaped', () => {
+    expect(optionalText('  a &amp; b\n')).toBe('a & b');
+    expect(optionalText('&lt;p&gt;x&lt;/p&gt;')).toBe('<p>x</p>');
   });
 
   it('gives undefined for a missing or blank text', () => {
-    expect(trimAndDefine(undefined)).toBeUndefined();
-    expect(trimAndDefine(null)).toBeUndefined();
-    expect(trimAndDefine('')).toBeUndefined();
-    expect(trimAndDefine(' \n\t ')).toBeUndefined();
+    expect(optionalText(undefined)).toBeUndefined();
+    expect(optionalText(null)).toBeUndefined();
+    expect(optionalText('')).toBeUndefined();
+    expect(optionalText(' \n\t ')).toBeUndefined();
+  });
+});
+
+describe('optionalHtml', () => {
+  it('trims markup without decoding it again', () => {
+    expect(optionalHtml('  <p>use &lt;div&gt; &amp; more</p>\n')).toBe('<p>use &lt;div&gt; &amp; more</p>');
+  });
+
+  it('gives undefined for missing or blank markup', () => {
+    expect(optionalHtml(undefined)).toBeUndefined();
+    expect(optionalHtml(null)).toBeUndefined();
+    expect(optionalHtml(' \n ')).toBeUndefined();
+  });
+});
+
+describe('$', () => {
+  it('parses HTML, so void tags stay empty and .html() keeps characters as they are', () => {
+    const page = $('<div id="d"><p>a&nbsp;&lt;b&gt; 中文</p><br><input name="x"><span id="s">after</span></div>');
+    expect(page('#s').parent().attr('id')).toBe('d');
+    expect(page('#d').html()).toBe('<p>a&nbsp;&lt;b&gt; 中文</p><br><input name="x"><span id="s">after</span>');
+    expect(page('p').text()).toBe('a\u00a0<b> 中文');
   });
 });
 

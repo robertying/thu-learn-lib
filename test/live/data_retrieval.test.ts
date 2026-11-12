@@ -9,6 +9,8 @@ import {
   parseCourseMeeting,
   semesterWeek,
 } from '../../src/index.ts';
+import * as URLS from '../../src/urls.ts';
+import { urlOf } from '../../src/utils.ts';
 import { config } from './config.ts';
 import { addDays, sameDate, toYyyymmdd } from './dates.ts';
 
@@ -161,6 +163,35 @@ describe('helper data retrieval', () => {
       await h.getExcellentHomeworkDetail(excellent);
     }
   });
+
+  it.skipIf(!courseTester)(
+    'gets the description JSON with its HTML escaped, which the library decodes',
+    async ({ skip }) => {
+      // the raw `msg` of each description answer, read through a fetch of this helper's own
+      const messages: string[] = [];
+      const base = config();
+      const helper = new Learn2018Helper({
+        ...base,
+        fetch: async (input, init) => {
+          const res = await base.fetch(input, init);
+          if (urlOf(input).startsWith(URLS.LEARN_HOMEWORK_DETAIL)) {
+            const msg: unknown = (await res.clone().json()).msg;
+            if (typeof msg === 'string' && msg.trim()) messages.push(msg);
+          }
+          return res;
+        },
+      });
+      await helper.login();
+      try {
+        await helper.getHomeworkList(courseTester!, undefined, { details: 'all' });
+      } finally {
+        await helper.logout();
+      }
+      skip(messages.length === 0, 'no homework of the course has a description');
+      // escaped HTML (`&lt;p&gt;`) has no raw tag; raw HTML would be decoded once too often
+      for (const msg of messages) expect(/<[a-z!/]/i.test(msg), 'a description JSON with a raw tag').toBe(false);
+    },
+  );
 
   it.skipIf(!courseTester)('gets an attachment for every notice that names one', async () => {
     const notices = await h.getNotificationList(courseTester!, CourseType.STUDENT, { attachments: 'all' });
