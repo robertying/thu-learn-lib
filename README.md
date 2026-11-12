@@ -3,7 +3,7 @@
 [![Check](https://github.com/robertying/thu-learn-lib/actions/workflows/check.yml/badge.svg)](https://github.com/robertying/thu-learn-lib/actions/workflows/check.yml)
 [![npm version](https://img.shields.io/npm/v/@robertying/thu-learn-lib)](https://www.npmjs.com/package/@robertying/thu-learn-lib)
 
-This is a JavaScript library aimed to provide a program-friendly interface of [web Learning of Tsinghua University](https://learn.tsinghua.edu.cn).
+A TypeScript client for [Web Learning of Tsinghua University](https://learn.tsinghua.edu.cn) (网络学堂) and the registrar's course calendar.
 
 This is [robertying](https://github.com/robertying)'s fork of [Harry-Chen/thu-learn-lib](https://github.com/Harry-Chen/thu-learn-lib), maintained for [learnX](https://github.com/robertying/learnX) and published as `@robertying/thu-learn-lib`.
 
@@ -140,7 +140,7 @@ import { ApiError } from '@robertying/thu-learn-lib';
 // get course calendar in a period (yyyymmdd, inclusive)
 // ranges over 28 days are fetched in windows; windows that still fail are in failedRanges
 try {
-  const { events, failedRanges } = await helper.getCalendar('20191001', '20191201', { graduate: false });
+  const { events, failedRanges } = await helper.getCalendar('20260914', '20261115', { graduate: false });
 } catch (e) {
   // every window failed, or signing in to the registrar failed
   const error = e as ApiError;
