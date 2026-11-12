@@ -87,6 +87,11 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
 
   const form = $(page)('form#logined');
   if (form.length > 0) {
+    const action = new URL(form.attr('action') ?? '', res.url || URLS.ID_PREFIX).href;
+    // The form carries the login's device fingerprints: only id.tsinghua.edu.cn over https gets them.
+    if (new URL(action).origin !== URLS.ID_PREFIX) {
+      throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { step: ID_STEP, url: action.split('?')[0] });
+    }
     const fingerprints = s.fingerprints ?? (await s.provider?.());
     const data = new FormData();
     form.find('input[name]').each((_, input) => {
@@ -94,7 +99,6 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
       const known = isFingerprintField(name) ? fingerprints?.[name] : undefined;
       data.append(name, known ?? input.attribs.value ?? '');
     });
-    const action = new URL(form.attr('action') ?? '', res.url || URLS.ID_PREFIX).href;
     const check = await s.rawFetch(action, { method: 'POST', body: data });
     const link = check.ok ? $(await readText(check))('a').attr('href') : undefined;
     if (!link) {

@@ -310,6 +310,29 @@ describe('getCalendar', () => {
       expect(server.count(ID_CHECK_SINGLE)).toBe(0);
     });
 
+    it("doesn't send the fingerprints to a form action off id.tsinghua.edu.cn", async () => {
+      for (const action of [
+        'https://evil.example/steal',
+        'http://id.tsinghua.edu.cn/do/off/ui/auth/login/checkSingle',
+      ]) {
+        const server = offCampus(() =>
+          at(
+            html(`<html><body><form action="${action}" method="POST" id="logined">
+  <input type="hidden" name="fingerPrint" id="fingerPrint"/>
+</form></body></html>`),
+            ID_FORM,
+          ),
+        );
+        const helper = await server.loggedInHelper();
+        await expect(helper.getCalendar('20250301', '20250328')).rejects.toMatchObject({
+          reason: FailReason.ERROR_REGISTRAR_AUTH,
+        });
+        // (It signs in again and retries once, like any registrar failure.)
+        expect(server.requests.filter((r) => r.path === action)).toEqual([]);
+        expect(server.count(`${URLS.ID_PREFIX}/do/off/ui/auth/login/checkSingle`)).toBe(0);
+      }
+    });
+
     it('signs in again on later calls when the registrar page has no text (GBK in React Native)', async () => {
       const server = offCampus();
       const signedIn = () => server.count(OAUTH_CALLBACK) > 0;
