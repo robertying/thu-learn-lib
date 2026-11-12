@@ -7,6 +7,7 @@ import { FailReason, Learn2018Helper, isConnectionError } from '../../src/index.
 import { urlOf } from '../../src/utils.ts';
 import { config, credential } from './config.ts';
 import { addDays, toYyyymmdd } from './dates.ts';
+import { cookieJarConfig } from '../../src/cookies.ts';
 
 /** a fetch with cookies that sends requests for `host` to a name that can't resolve, so they really fail */
 const unreachable = (host: string, cookieJar = new CookieJar()): Fetch => {
@@ -32,7 +33,7 @@ const withoutCookiesOf = (cookieJar: CookieJar, domain: string) => {
 const counting = (cookieJar = new CookieJar()) => {
   const counter = { logins: 0 };
   const helper = new Learn2018Helper({
-    cookieJar,
+    ...cookieJarConfig(cookieJar),
     provider: () => {
       counter.logins += 1;
       return credential;
@@ -43,7 +44,7 @@ const counting = (cookieJar = new CookieJar()) => {
 
 describe('helper authentication', () => {
   it('logs in and out with the right credentials', async () => {
-    const helper = new Learn2018Helper();
+    const helper = new Learn2018Helper(cookieJarConfig());
     await helper.login(credential);
     await helper.logout();
   });
@@ -51,26 +52,26 @@ describe('helper authentication', () => {
   // the wrong password test is in once.test.ts
 
   it('rejects with NO_CREDENTIAL without credentials or a provider', async () => {
-    const helper = new Learn2018Helper();
+    const helper = new Learn2018Helper(cookieJarConfig());
     await expect(helper.login()).rejects.toHaveProperty('reason', FailReason.NO_CREDENTIAL);
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.NO_CREDENTIAL);
   });
 
   it('gets data after an explicit login', async () => {
-    const helper = new Learn2018Helper();
+    const helper = new Learn2018Helper(cookieJarConfig());
     await helper.login(credential);
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
   });
 
   it('gets data with a CredentialProvider and no explicit login', async () => {
-    const helper = new Learn2018Helper(config);
+    const helper = new Learn2018Helper(config());
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
   });
 
   it('logs in again after logout with a CredentialProvider', async () => {
-    const helper = new Learn2018Helper(config);
+    const helper = new Learn2018Helper(config());
     const semesters = await helper.getSemesterIdList();
     expect(Array.isArray(semesters)).toEqual(true);
     await helper.logout();
@@ -86,7 +87,7 @@ describe('expired sessions', () => {
     const token = helper.getCSRFToken();
 
     // log the same session out with a second helper on the same cookies
-    const other = new Learn2018Helper({ cookieJar });
+    const other = new Learn2018Helper(cookieJarConfig(cookieJar));
     other.setCSRFToken(token);
     await other.logout();
 
@@ -101,7 +102,7 @@ describe('expired sessions', () => {
   });
 
   it('rejects with NOT_LOGGED_IN without a provider, for JSON and HTML requests', async () => {
-    const helper = new Learn2018Helper();
+    const helper = new Learn2018Helper(cookieJarConfig());
     await helper.login(credential);
     const token = helper.getCSRFToken();
     await helper.logout();

@@ -11,7 +11,10 @@ This project is licensed under MIT License. See [CHANGELOG.md](CHANGELOG.md) for
 
 ## Compatibility
 
-The library is ESM-only and uses the global `fetch` with [fetch-cookie](https://github.com/valeriangalliat/fetch-cookie) for cookie and redirect support. It runs in Node and in React Native; you can also pass your own `fetch` in `HelperConfig`.
+The library is ESM-only and sends requests with the global `fetch`, or the one you pass in `HelperConfig`. That `fetch` must keep cookies:
+
+- React Native's does. Pass `clearLoginCookies` too, which forgets the id.tsinghua.edu.cn cookies in the system's store before each SSO login (see below).
+- Node's doesn't: spread `cookieJarConfig()` from `@robertying/thu-learn-lib/cookies` into the config. It gives a `fetch` with a [tough-cookie](https://github.com/salesforce/tough-cookie) jar ([fetch-cookie](https://github.com/valeriangalliat/fetch-cookie)) and its `clearLoginCookies`. It's a separate entry point, so React Native apps don't bundle either package.
 
 Browsers block these cross-origin requests (CORS), so run the library in Node.js or React Native.
 
@@ -27,17 +30,23 @@ pnpm add @robertying/thu-learn-lib
 
 ```typescript
 import { Learn2018Helper } from '@robertying/thu-learn-lib';
+import { cookieJarConfig } from '@robertying/thu-learn-lib/cookies'; // Node only
 
 // There are three ways of logging in:
 
 // 1. provide a cookie jar with existing cookies (see `tough-cookie`)
-const helper = new Learn2018Helper({ cookieJar });
-// 2. provide nothing, and call login with your credentials
-const helper = new Learn2018Helper();
+const helper = new Learn2018Helper(cookieJarConfig(cookieJar));
+// 2. provide only cookies, and call login with your credentials
+const helper = new Learn2018Helper(cookieJarConfig());
 // 3. provide a CredentialProvider function, which can be async
 const helper = new Learn2018Helper({
+  ...cookieJarConfig(),
   provider: () => ({ username, password, fingerPrint }),
 });
+
+// In React Native, pass `fetch` (or nothing) and a `clearLoginCookies` that empties the
+// id.tsinghua.edu.cn cookies in the system's store; it runs before every SSO login, also the
+// ones the helper starts by itself for an expired session.
 
 // `fingerPrint` (and optionally `fingerGenPrint`, `fingerGenPrint3`) is the device fingerprint that
 // id.tsinghua.edu.cn asks for; login fails with `NO_CREDENTIAL` without it.
@@ -57,7 +66,7 @@ try {
 helper.setCSRFToken(savedToken);
 await helper.ensureSession();
 
-// To reuse cookies elsewhere (e.g. for file download), pass your own cookie jar in the config.
+// To reuse cookies elsewhere (e.g. for file download), keep the `cookieJar` that cookieJarConfig returns.
 
 // Logout if you want, but the cookie jar will not be cleared.
 await helper.logout();

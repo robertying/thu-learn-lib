@@ -18,6 +18,7 @@ import { FINGERPRINT, config } from './config.ts';
 import { DAY_MS } from './dates.ts';
 import { ALLOW_WRITES } from './guard.ts';
 import { type OnceTest, recordAttempt, recordPass, recordResult, shouldRun } from './once.ts';
+import { cookieJarConfig } from '../../src/cookies.ts';
 
 // Run these alone, before the other live tests: those fetch notice details too, which may mark notices read.
 
@@ -138,7 +139,7 @@ describe('one-time checks', () => {
     recordAttempt(wrongPassword.name);
     recordResult(wrongPassword.name, 'started');
     // a made-up user, so the failed login doesn't count against the real account
-    const helper = new Learn2018Helper();
+    const helper = new Learn2018Helper(cookieJarConfig());
     const err = await helper
       .login({ username: 'nouser', password: 'nopass', fingerPrint: FINGERPRINT })
       .catch((e: unknown) => e);
@@ -156,7 +157,7 @@ describe('one-time checks', () => {
     async () => {
       recordAttempt(readMark.name);
       const cookieJar = new CookieJar();
-      const h = new Learn2018Helper({ ...config, cookieJar });
+      const h = new Learn2018Helper(config(cookieJar));
       await h.login();
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
       const withToken = (url: string) => {
@@ -219,7 +220,7 @@ describe('one-time checks', () => {
     async () => {
       recordAttempt(favorite.name);
       const cookieJar = new CookieJar();
-      const h = new Learn2018Helper({ ...config, cookieJar });
+      const h = new Learn2018Helper(config(cookieJar));
       await h.login();
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
       /** the raw homework rows of a course in every student list, by `xszyid` */
@@ -300,7 +301,7 @@ describe('one-time checks', () => {
     async () => {
       recordAttempt(favoriteTypes.name);
       const cookieJar = new CookieJar();
-      const h = new Learn2018Helper({ ...config, cookieJar });
+      const h = new Learn2018Helper(config(cookieJar));
       await h.login();
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
       const findings: string[] = [];
@@ -411,7 +412,7 @@ describe('one-time checks', () => {
     async () => {
       recordAttempt(fileFavoriteField.name);
       const cookieJar = new CookieJar();
-      const h = new Learn2018Helper({ ...config, cookieJar });
+      const h = new Learn2018Helper(config(cookieJar));
       await h.login();
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
       /** the raw rows of a course's student file list, by `kjxxid` */
@@ -467,7 +468,7 @@ describe('one-time checks', () => {
     async () => {
       recordAttempt(fileSeen.name);
       const cookieJar = new CookieJar();
-      const h = new Learn2018Helper({ ...config, cookieJar });
+      const h = new Learn2018Helper(config(cookieJar));
       await h.login();
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
       const withToken = (url: string) => {
@@ -563,7 +564,7 @@ describe('one-time checks', () => {
     async () => {
       recordAttempt(submission.name);
       const cookieJar = new CookieJar();
-      const h = new Learn2018Helper({ ...config, cookieJar });
+      const h = new Learn2018Helper(config(cookieJar));
       await h.login();
       // what an app with its own HTTP client does with getHomeworkSubmitRequest: same cookies, its own fetch
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;

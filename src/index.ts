@@ -58,7 +58,7 @@ export * from './types.ts';
 export class Learn2018Helper {
   readonly #session: Session;
 
-  /** you can provide a CookieJar and / or CredentialProvider in the configuration */
+  /** see `HelperConfig`: in Node, spread `cookieJarConfig()` from `@robertying/thu-learn-lib/cookies` into it */
   constructor(config?: HelperConfig) {
     this.#session = new Session(config, () => auth.loginWithProvider(this.#session));
   }
@@ -190,6 +190,14 @@ export class Learn2018Helper {
     courseType: CourseType = CourseType.STUDENT,
   ): Promise<RemoteFile | undefined> {
     return parsed(notices.getNotificationAttachment(this.#session, notification, courseType));
+  }
+
+  /**
+   * Mark a notice read on the server (one request), as opening it on the website does. Rejects with
+   * `UNEXPECTED_STATUS` when the server can't show it.
+   */
+  public async markNotificationRead(notification: Pick<CourseNotification, 'url'>): Promise<void> {
+    return parsed(notices.markNotificationRead(this.#session, notification));
   }
 
   /**

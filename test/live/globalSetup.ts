@@ -8,7 +8,7 @@ import { config } from './config.ts';
  */
 export default async function setup(project: TestProject) {
   const provide = project.provide.bind(project);
-  const h = new Learn2018Helper(config);
+  const h = new Learn2018Helper(config());
 
   await h.login();
 

@@ -16,15 +16,12 @@ export type CompleteCredential = Credential & { username: string; password: stri
 export const isComplete = (credential: Credential | undefined): credential is CompleteCredential =>
   !!credential?.username && !!credential.password && !!credential.fingerPrint;
 
-/**
- * If using alternative cookie management systems,
- * be sure to clear id.tsinghua.edu.cn cookies before calling this function
- */
+/** sign in to id.tsinghua.edu.cn and get the ticket for Web Learning, after `HelperConfig.clearLoginCookies` */
 export async function getRoamingTicket(s: Session, credential: CompleteCredential): Promise<string> {
   const { username, password, fingerPrint, fingerGenPrint = '', fingerGenPrint3 = '' } = credential;
   // start from the login form without an id.tsinghua.edu.cn session: one left in the cookies may be another user's
   try {
-    await s.cookieJar.setCookie('JSESSIONID=; path=/; HttpOnly', URLS.ID_PREFIX);
+    await s.clearLoginCookies?.();
   } catch (err) {
     throw apiError(FailReason.ERROR_SETTING_COOKIES, err);
   }

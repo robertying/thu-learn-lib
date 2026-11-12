@@ -188,3 +188,44 @@ describe('getNotificationAttachment', () => {
     expect(server.loginCount).toBe(1);
   });
 });
+
+describe('markNotificationRead', () => {
+  const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
+
+  it('loads the notice page once, with the CSRF token', async () => {
+    const server = setup();
+    const helper = await server.loggedInHelper();
+
+    await helper.markNotificationRead({ url });
+
+    expect(server.requests).toHaveLength(1);
+    expect(server.requests[0].url.searchParams.get('_csrf')).toBe(helper.getCSRFToken());
+  });
+
+  it.each(['status', 'redirect', 'html'] as const)(
+    'logs in again and loads it once more when the session has expired (%s)',
+    async (expiry) => {
+      const server = setup();
+      const helper = await server.loggedInHelper();
+      server.expiry = expiry;
+      server.expireSession();
+
+      await helper.markNotificationRead({ url });
+
+      expect(server.loginCount).toBe(2);
+      expect(server.count(URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT))).toBe(2);
+    },
+  );
+
+  it('rejects with UNEXPECTED_STATUS when the server fails the page', async () => {
+    const server = new FakeServer().on(
+      'GET',
+      URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT),
+      () => new Response('error', { status: 500 }),
+    );
+    const helper = await server.loggedInHelper();
+
+    await expect(helper.markNotificationRead({ url })).rejects.toHaveProperty('reason', FailReason.UNEXPECTED_STATUS);
+    expect(server.loginCount).toBe(1);
+  });
+});
