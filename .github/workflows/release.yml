@@ -29,7 +29,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 26
+          node-version-file: .node-version
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
@@ -49,7 +49,7 @@ jobs:
           pnpm typecheck
           pnpm lint --deny-warnings
           pnpm format --check
-          pnpm test
+          pnpm test:coverage
 
       # `prepublishOnly` builds lib/. Uses npm trusted publishing (OIDC), so no token.
       # Skipped when this version is already on npm (e.g. published by hand).

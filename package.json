@@ -55,9 +55,9 @@
     "@types/node": "26.6.6",
     "@types/sm-crypto": "0.3.4",
     "@vitest/coverage-v8": "5.1.0",
-    "dotenv": "18.0.9",
-    "oxfmt": "0.77.0",
-    "oxlint": "1.92.0",
+    "dotenv": "18.0.10",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
     "oxlint-tsgolint": "7.0.2006",
     "typescript": "7.0.2",
     "vitest": "5.1.0"
@@ -65,5 +65,5 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@12.18.0"
+  "packageManager": "pnpm@12.19.0+sha512.87327b6619853205834e4be59ba3a231e303d9f5e435912ede3312b7539b79af890942f6513b05a4690745666888045c09b33fc420c2cd2d3bd95c01ba21dbeb"
 }

@@ -17,9 +17,9 @@ Linting uses type-aware [oxlint](https://oxc.rs/docs/guide/usage/linter) and for
 
 ## Testing
 
-`pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes. `pnpm test:coverage` runs them with a coverage report (V8) for `src`.
+`pnpm test` runs the offline tests. They give the helper a fake `fetch` (`test/helpers/fake-server.ts`) that serves hand-written responses shaped like Web Learning's, simulates SSO login and session expiry, and records every request so tests can also check how many requests an API makes. `pnpm test:coverage` runs them with a coverage report (V8) for `src` and fails below the thresholds in `vitest.config.ts`; CI runs it.
 
-`pnpm test:live` runs the tests against the real server. It needs your own credentials and a device fingerprint: copy `test/live/template.env` to `test/live/.env` and fill it in. The live tests also check what the offline tests can only assume, such as how the server answers an expired session; [TODO.md](TODO.md) lists what is still unconfirmed.
+`pnpm test:live` runs the tests against the real server. It needs your own credentials and a device fingerprint: copy `test/live/template.env` to `test/live/.env` and fill it in. The script sets `OPENSSL_CONF=test/live/openssl.cnf`, which the server's TLS needs; set it too when running them from an editor. The live tests also check what the offline tests can only assume, such as how the server answers an expired session; [TODO.md](TODO.md) lists what is still unconfirmed.
 
 The live tests are read-only by default: requests that change something on the server (submitting homework, favorites, comments, course order) are refused unless `LIVE_ALLOW_WRITES=1`. Checks that leave a trace on the account (a failed login, items marked read, a favorite added and removed again; that one also needs `LIVE_ALLOW_WRITES=1`) are in `test/live/once.test.ts` and run only when named in `LIVE_ONCE`, e.g. `LIVE_ONCE=read-mark pnpm test:live test/live/once.test.ts`; run them alone, before the other live tests. Other runs warn when the code one covers has changed since it last passed.
 

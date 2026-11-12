@@ -6,3 +6,4 @@ node_modules
 lib
 test/live/.once.json
 coverage
+.vscode

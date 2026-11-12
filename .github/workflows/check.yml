@@ -30,7 +30,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 26
+          node-version-file: .node-version
           package-manager-cache: false
 
       - name: Install dependencies
@@ -52,7 +52,7 @@ jobs:
 
       - name: Test
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: pnpm test
+        run: pnpm test:coverage
 
       - name: Build
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -61,7 +61,7 @@ jobs:
           npm pack --dry-run
 
   node22:
-    # The oldest Node in `engines`; the job above covers the current one
+    # The oldest Node in `engines`; the job above covers the one in .node-version
     name: Test (Node 22)
     runs-on: ubuntu-latest
     timeout-minutes: 10

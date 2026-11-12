@@ -1,7 +1,0 @@
-{
-  "vitest.nodeEnv": {
-    "OPENSSL_CONF": "./test/live/openssl.cnf"
-  },
-  "editor.defaultFormatter": "oxc.oxc-vscode",
-  "oxc.typeAware": true
-}
