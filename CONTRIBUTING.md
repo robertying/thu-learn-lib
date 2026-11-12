@@ -25,4 +25,4 @@ The live tests are read-only by default: requests that change something on the s
 
 ## Releasing
 
-Add the release to [CHANGELOG.md](CHANGELOG.md) and bump `version` in `package.json`, merge, then push a matching tag (for example `git tag v6.0.0 && git push origin v6.0.0`). The Release workflow checks, builds, publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release.
+Add the release to [CHANGELOG.md](CHANGELOG.md) and bump `version` in `package.json`, merge, then push a matching tag (`git tag v<version> && git push origin v<version>`). The Release workflow checks, builds, publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release.
