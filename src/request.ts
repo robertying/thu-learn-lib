@@ -281,15 +281,11 @@ export class Session {
     }
   };
 
-  /** the text body; a short login / redirect page with status 200 means the session has expired */
-  static readonly #text = async (res: Response, retry: boolean): Promise<string | typeof EXPIRED> => {
-    await Session.#response(res, retry);
-    const text = await res.text();
-    return res.status === 200 && looksLikeLoginPage(text) ? EXPIRED : text;
-  };
-
-  /** like `#text`, but any status other than 200 rejects with `UNEXPECTED_STATUS`, also before a re-login */
-  static readonly #page = async (res: Response): Promise<string | typeof EXPIRED> => {
+  /**
+   * The text body (an HTML page); a short login / redirect page means the session has expired. Any status other than
+   * 200 rejects with `UNEXPECTED_STATUS`, so an error page is never read as the page asked for.
+   */
+  static readonly #text = async (res: Response): Promise<string | typeof EXPIRED> => {
     if (res.status !== 200) {
       discard(res);
       throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status, text: res.statusText });
@@ -318,15 +314,12 @@ export class Session {
     this.#send(await this.#withToken(input), init, Session.#json);
 
   /**
-   * Like `fetchWithToken`, but returns the text body (an HTML page). A short login or redirect page with status 200
-   * counts as an expired session (log in again and retry once, as for a 403).
+   * Like `fetchWithToken`, but returns the text body (an HTML page). A short login or redirect page counts as an
+   * expired session (log in again and retry once, as for a 403); any other status than 200 rejects with
+   * `UNEXPECTED_STATUS`.
    */
   readonly fetchTextWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<string> =>
     this.#send(await this.#withToken(input), init, Session.#text);
-
-  /** Like `fetchTextWithToken`, but a status other than 200 rejects with `UNEXPECTED_STATUS` instead of being read. */
-  readonly fetchPageWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<string> =>
-    this.#send(await this.#withToken(input), init, Session.#page);
 
   /**
    * Make sure the session works: if there is a CSRF token, fetch the current semester (`probeUrl`) and log in only if

@@ -33,7 +33,8 @@ export const credential = { username: USERNAME, password: PASSWORD, fingerPrint:
 
 export const json = (value: unknown) =>
   new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
-export const html = (text: string) => new Response(text, { headers: { 'Content-Type': 'text/html' } });
+export const html = (text: string, status = 200) =>
+  new Response(text, { status, headers: { 'Content-Type': 'text/html' } });
 export const success = (object: unknown) => json({ result: 'success', msg: '', object });
 
 /** serve a semester list (with a null entry, as the server sends) on `server` */

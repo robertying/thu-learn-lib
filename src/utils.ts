@@ -1,12 +1,19 @@
 // cheerio's main entry also exports its fetch/stream loaders, which import undici and node:stream and break React Native
-// bundlers. `cheerio/slim` is only htmlparser2, which is what `{ xml: true }` parses with anyway.
+// bundlers. `cheerio/slim` parses with htmlparser2 only.
 import * as cheerio from 'cheerio/slim';
 import { decodeHTML as _decodeHTML } from 'entities';
 
 import type { ApiError, DetailSelector, Fetch } from './types.ts';
 import { FailReason } from './types.ts';
 
-const CHEERIO_CONFIG: cheerio.CheerioOptions = { xml: true };
+/**
+ * htmlparser2 in HTML mode, so void tags (`<br>`, `<input>`) don't swallow what follows them, and `.html()` writes
+ * characters as they are (only `&`, `<`, `>`, quotes and `&nbsp;` as entities) instead of `&#x4e2d;`. XML mode would
+ * nest everything after a `<br>` inside it and close it with `</br>`, which browsers read as a second line break.
+ */
+const CHEERIO_CONFIG: cheerio.CheerioOptions = {
+  xml: { xmlMode: false, decodeEntities: true, encodeEntities: 'utf8' },
+};
 
 /**
  * The error every API rejects with: a plain `{ reason, extra }` object (not an `Error`), so callers can compare
@@ -30,8 +37,8 @@ export function expectSuccess(json: any, reason: FailReason): void {
   if (json?.result !== 'success') throw apiError(reason, json);
 }
 
-/** a DOM element as cheerio's selections hold it (domhandler's `Element`, taken from cheerio's types so it always matches) */
-export type Element = ReturnType<ReturnType<cheerio.CheerioAPI['root']>['children']>[number];
+/** elements selected on a loaded page */
+export type Selection = ReturnType<cheerio.CheerioAPI>;
 
 /** load an HTML page or fragment for querying */
 export const $ = (html: Parameters<typeof cheerio.load>[0]): cheerio.CheerioAPI => cheerio.load(html, CHEERIO_CONFIG);
@@ -98,13 +105,21 @@ export function toServerTime(value: unknown): string | undefined {
 /** `toServerTime` for a time every item has; '' when the server left it out */
 export const toRequiredServerTime = (value: unknown): string => toServerTime(value) ?? '';
 
-export function trimAndDefine(text: string | undefined | null): string | undefined {
-  if (text === undefined || text === null) {
-    return undefined;
-  }
-  const trimmed = text.trim();
-  return trimmed === '' ? undefined : decodeHTML(trimmed);
+/**
+ * A string field of a JSON answer, entity-decoded (the server escapes them: `&amp;`, and for HTML fields such as a
+ * homework description, `&lt;p&gt;`); `undefined` when missing or blank. Not for `.html()` of a parsed page, which
+ * is markup already (`optionalHtml`).
+ */
+export function optionalText(text: string | undefined | null): string | undefined {
+  const trimmed = text?.trim();
+  return trimmed ? decodeHTML(trimmed) : undefined;
 }
+
+/**
+ * The markup of a parsed page's element (`.html()`), trimmed; `undefined` when missing or blank. Not decoded again:
+ * that would turn text the page escaped, such as `&lt;div&gt;`, into markup.
+ */
+export const optionalHtml = (html: string | undefined | null): string | undefined => html?.trim() || undefined;
 
 export const JSONP_EXTRACTOR_NAME = 'thu_learn_lib_jsonp_extractor';
 

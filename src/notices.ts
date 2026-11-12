@@ -17,7 +17,6 @@ import {
   isSet,
   toRequiredServerTime,
   toServerTime,
-  trimAndDefine,
 } from './utils.ts';
 
 /**
@@ -82,7 +81,7 @@ export async function markNotificationRead(
   s: Session,
   notification: Pick<CourseNotificationBase, 'url'>,
 ): Promise<void> {
-  await s.fetchPageWithToken(notification.url);
+  await s.fetchTextWithToken(notification.url);
 }
 
 /**
@@ -103,7 +102,7 @@ export async function getNotificationAttachment(
     href: path,
     idParam: 'wjid',
     name: notification.attachmentName,
-    size: trimAndDefine(result('div#attachment > div.fl > span[class^="color"]').first().text()) ?? '',
+    size: result('div#attachment > div.fl > span[class^="color"]').first().text().trim(),
     type: ContentType.NOTIFICATION,
     courseType,
   });

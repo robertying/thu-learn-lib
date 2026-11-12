@@ -31,10 +31,11 @@ import {
   isSelected,
   looksLikeLoginPage,
   toRequiredServerTime,
+  optionalHtml,
+  optionalText,
   toServerTime,
-  trimAndDefine,
 } from './utils.ts';
-import type { Element } from './utils.ts';
+import type { Selection } from './utils.ts';
 
 /** the student homework lists, by submission status */
 export const HOMEWORK_LIST_SOURCES: readonly { url: string; status: HomeworkStatus }[] = [
@@ -82,7 +83,7 @@ async function getTeacherHomeworkList(s: Session, courseID: string): Promise<Hom
         id: d.zyid,
         index: d.wz,
         title: decodeHTML(d.bt),
-        description: decodeHTML(Base64.decode(d.nr ?? '')),
+        description: Base64.decode(d.nr ?? ''),
         publisherId: d.fbr,
         publishTime: toRequiredServerTime(d.fbsj),
         startTime: toRequiredServerTime(d.kssj),
@@ -146,8 +147,8 @@ async function getHomeworkListAtUrl(
         // a grade level comes as a negative grade; then `grade` is left out
         grade: h.cj == null || GRADE_LEVEL_MAP.has(h.cj) ? undefined : h.cj,
         gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
-        graderName: trimAndDefine(h.jsm),
-        gradeContent: trimAndDefine(h.pynr),
+        graderName: optionalText(h.jsm),
+        gradeContent: optionalText(h.pynr),
         gradeTime: toServerTime(h.pysj),
         ...favoriteFields(h),
         ...status,
@@ -193,18 +194,19 @@ async function getExcellentHomeworkListByHomework(
 }
 
 async function parseHomeworkAtUrl(s: Session, url: string): Promise<HomeworkDetail> {
-  const result = $(await s.fetchTextWithToken(url));
-
-  const fileDivs = result('div.list.fujian.clearfix');
+  const page = $(await s.fetchTextWithToken(url));
+  const contents = page('div.list.calendar.clearfix > div.fl.right > div.c55');
+  const files = page('div.list.fujian.clearfix');
+  const file = (i: number) => parseHomeworkFile(s, files.eq(i));
 
   return {
-    description: trimAndDefine(result('div.list.calendar.clearfix > div.fl.right > div.c55').slice(0, 1).html()),
-    answerContent: trimAndDefine(result('div.list.calendar.clearfix > div.fl.right > div.c55').slice(1, 2).html()),
-    submittedContent: trimAndDefine($(result('div.boxbox').slice(1, 2).toArray())('div.right').slice(2, 3).html()),
-    attachment: parseHomeworkFile(s, fileDivs[0]),
-    answerAttachment: parseHomeworkFile(s, fileDivs[1]),
-    submittedAttachment: parseHomeworkFile(s, fileDivs[2]),
-    gradeAttachment: parseHomeworkFile(s, fileDivs[3]),
+    description: optionalHtml(contents.eq(0).html()),
+    answerContent: optionalHtml(contents.eq(1).html()),
+    submittedContent: optionalHtml(page('div.boxbox').eq(1).find('div.right').eq(2).html()),
+    attachment: file(0),
+    answerAttachment: file(1),
+    submittedAttachment: file(2),
+    gradeAttachment: file(3),
   };
 }
 
@@ -231,23 +233,21 @@ async function getHomeworkDescription(s: Session, baseId: string): Promise<Homew
   });
   expectSuccess(json, FailReason.INVALID_RESPONSE);
   return {
-    description: trimAndDefine(json.msg),
+    description: optionalText(json.msg),
   };
 }
 
 /** the attachment in one `div.list.fujian` block; `undefined` if the block is missing or has no link */
-function parseHomeworkFile(s: Session, fileDiv: Element | undefined): RemoteFile | undefined {
-  if (!fileDiv) return undefined;
-  const block = $(fileDiv);
-  const title = block('.ftitle').children('a').first();
-  const link = title.length > 0 ? title : block('.fl').children('a').first();
+function parseHomeworkFile(s: Session, block: Selection): RemoteFile | undefined {
+  const title = block.find('.ftitle').children('a').first();
+  const link = title.length > 0 ? title : block.find('.fl').children('a').first();
   const href = link.attr('href');
   if (!href) return undefined;
   return attachmentOf(s, {
     href,
     idParam: 'fileId',
     name: link.text().trim(),
-    size: trimAndDefine(block('.fl > span[class^="color"]').first().text()) ?? '',
+    size: block.find('.fl > span[class^="color"]').first().text().trim(),
     type: ContentType.HOMEWORK,
     courseType: CourseType.STUDENT,
   });

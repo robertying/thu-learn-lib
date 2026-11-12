@@ -166,6 +166,19 @@ describe('getNotificationAttachment', () => {
     expect(await helper.getNotificationAttachment({ url, attachmentName: 'a.pdf' })).toBeUndefined();
   });
 
+  it('rejects with UNEXPECTED_STATUS when the detail page is an error page', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT), () =>
+      html('<html>error</html>', 500),
+    );
+    const helper = await server.loggedInHelper();
+    const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
+
+    await expect(helper.getNotificationAttachment({ url, attachmentName: 'a.pdf' })).rejects.toHaveProperty(
+      'reason',
+      FailReason.UNEXPECTED_STATUS,
+    );
+  });
+
   it('logs in again when the detail page is the short login page of an expired session', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();

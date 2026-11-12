@@ -215,6 +215,39 @@ describe('getHomeworkList (student)', () => {
     expect(detail.gradeAttachment).toBeUndefined();
   });
 
+  it('returns page content as the page has it: void tags kept empty, escaped text kept escaped', async () => {
+    const server = setup()
+      .on('GET', URLS.LEARN_HOMEWORK_PAGE('', ''), () =>
+        html(`<html><body>
+<div class="list calendar clearfix"><div class="fl right"><div class="c55"><p>Use &lt;div&gt; &amp; 表格</p><br><img src="/a.png"><p>next</p></div></div></div>
+<div class="list calendar clearfix"><div class="fl right"><div class="c55">line 1<br>line 2</div></div></div>
+</body></html>`),
+      )
+      .on('POST', URLS.LEARN_HOMEWORK_DETAIL, () => json({ result: 'success', msg: '' }));
+    const helper = await server.loggedInHelper();
+    const [h1] = await helper.getHomeworkList('c1');
+    const detail = await helper.getHomeworkDetail(h1);
+    expect(detail.description).toBe('<p>Use &lt;div&gt; &amp; 表格</p><br><img src="/a.png"><p>next</p>');
+    expect(detail.answerContent).toBe('line 1<br>line 2');
+  });
+
+  it('decodes the description JSON, which the server sends with its HTML escaped', async () => {
+    const server = setup().on('POST', URLS.LEARN_HOMEWORK_DETAIL, () =>
+      json({ result: 'success', msg: '&lt;p&gt;a &amp;amp; b&lt;/p&gt;' }),
+    );
+    const helper = await server.loggedInHelper();
+    const [h1] = await helper.getHomeworkList('c1');
+    expect((await helper.getHomeworkDetail(h1)).description).toBe('<p>a &amp; b</p>');
+  });
+
+  it('rejects with UNEXPECTED_STATUS when the page is an error page, instead of an empty detail', async () => {
+    const server = setup().on('GET', URLS.LEARN_HOMEWORK_PAGE('', ''), () => html('<html>error</html>', 500));
+    const helper = await server.loggedInHelper();
+    const [h1] = await helper.getHomeworkList('c1');
+    await expect(helper.getHomeworkDetail(h1)).rejects.toHaveProperty('reason', FailReason.UNEXPECTED_STATUS);
+    expect(server.loginCount).toBe(1);
+  });
+
   it('reads the attachment name from the whole link text, and the link in .fl when there is no .ftitle', async () => {
     const server = setup().on('GET', URLS.LEARN_HOMEWORK_PAGE('', ''), () =>
       html(`<html><body>
