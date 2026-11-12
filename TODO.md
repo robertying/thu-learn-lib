@@ -2,10 +2,8 @@
 
 ## Check against the real server
 
-- Not run yet: the notice half of `read-mark` (the 2026-11-09 run had no unread notice to try). learnX wants to know
+- Not run yet: the notice half of `read-mark` (the 2026-11-09 and 2026-11-12 runs had no unread notice to try). learnX wants to know
   whether opening a notice's detail page marks it read, so reads made offline can be replayed.
-- Not known yet: whether a whole `downloadFile` marks a file seen without `downloadFileBefore` first (`file-seen` run 2
-  sent both). learnX sends both, like the website.
 - Not run yet: the `submission` one-time check (`LIVE_ONCE=submission LIVE_ALLOW_WRITES=1 SUBMIT_HOMEWORK=… pnpm
   test:live test/live/once.test.ts`, only with the account owner's OK).
 - `FailReason.NETWORK_ERROR` in React Native (`Network request failed`, airplane mode) can't be checked from Node;

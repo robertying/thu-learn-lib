@@ -26,6 +26,9 @@ What the live tests (`test/live/`) found out about Web Learning and the registra
   `beforePlay` answers (`f/wlxt/kc/wj_wjb/student/beforePlay`) doesn't, and the file list page
   `f/wlxt/kj/wlkc_kjxxb/student/beforePageList` answers HTTP 500. `isNew` is per student, not by upload age: new
   files were 0-4 days old, seen ones 1-70 days.
+- `read-mark` (2026-11-12): `downloadFile` alone, without `downloadFileBefore` first and cancelled after the headers,
+  marked the file seen. On 2026-11-09 the same step didn't; a small file may have arrived whole before the cancel, so
+  `downloadFileBefore` doesn't look required.
 - A course the account can't open (not enrolled, or an id that doesn't exist; 2026-11-09, read-only) never answers
   403: the file list answers 200 `result: 'error'`, `msg: '您没有访问此功能的权限！'` (`INVALID_RESPONSE`); the notice
   list answers `result: 'success'`, `msg: '没有权限'`, `object: null` (an empty list); the discussion list answers an

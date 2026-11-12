@@ -626,15 +626,9 @@ export interface CourseMeeting {
 export interface CalendarEvent {
   location: string;
   status: string;
-  /** Beijing wall-clock time, `HH:mm` */
-  startTime: string;
-  /** Beijing wall-clock time, `HH:mm` */
-  endTime: string;
-  /** Beijing date, `YYYY-MM-DD` */
-  date: string;
-  /** `date` and `startTime` as one `ServerTime`; `undefined` if the registrar sent them in another shape */
+  /** the start, e.g. `2026-09-14T08:00:00+08:00`; `undefined` if the registrar sent its date or time in another shape */
   start?: ServerTime;
-  /** `date` and `endTime` as one `ServerTime`; `undefined` if the registrar sent them in another shape */
+  /** the end; `undefined` if the registrar sent its date or time in another shape */
   end?: ServerTime;
   courseName: string;
 }

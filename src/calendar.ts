@@ -163,9 +163,6 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
   return result.map<CalendarEvent>((i) => ({
     location: i.dd,
     status: i.fl,
-    startTime: i.kssj,
-    endTime: i.jssj,
-    date: i.nq,
     start: beijingTime(i.nq, i.kssj),
     end: beijingTime(i.nq, i.jssj),
     courseName: i.nr,

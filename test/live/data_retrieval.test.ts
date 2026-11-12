@@ -267,15 +267,19 @@ describe('helper data retrieval', () => {
     );
     // holidays (National Day falls in week 3 of the fall term) have no classes, so only days the calendar has
     // classes on count; a moved class or two courses in one slot can still miss
-    const onTeachingDays = expected.filter((x) => events.some((e) => sameDate(e.date, x.date)));
+    const onTeachingDays = expected.filter((x) =>
+      events.some((e) => !!e.start && sameDate(e.start.slice(0, 10), x.date)),
+    );
     // a class on the calendar at that date, within the period (it may use only part of it)
     const found = onTeachingDays.filter((x) =>
       events.some(
         (e) =>
           normalize(e.courseName) === x.course &&
-          sameDate(e.date, x.date) &&
-          e.startTime >= x.start &&
-          e.endTime <= x.end,
+          !!e.start &&
+          !!e.end &&
+          sameDate(e.start.slice(0, 10), x.date) &&
+          e.start.slice(11, 16) >= x.start &&
+          e.end.slice(11, 16) <= x.end,
       ),
     );
     console.info(

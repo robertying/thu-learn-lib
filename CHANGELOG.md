@@ -16,6 +16,7 @@
   - Corrected docs: `CourseFile.isFavorite`, `comment` and `category`, `FavoriteItem.itemId` and `CommentItem.itemId`, `logout`
   - Drops the `js-base64` dependency: base64 content is decoded with `atob`, which Node and React Native's Hermes both have
   - Ids that go into URLs (course, file, notice, homework, category, questionnaire, discussion) are URL-encoded, like ticket and favorite ids already were
+  - (_BREAKING CHANGE_) `CalendarEvent` drops `date`, `startTime` and `endTime`: `start` and `end` (`ServerTime`s) carry the same date and times. Migration: `event.date` → `event.start?.slice(0, 10)`, `event.startTime` → `event.start?.slice(11, 16)`
 
 - v7.0.0
   - (_BREAKING CHANGE_) Enums are `as const` objects with a type of the same name: `CourseType.STUDENT` still works as a value and as a type, and the values are the same strings and numbers. The source now runs under Node's type stripping, and `erasableSyntaxOnly` is on. Migration: none for code that uses the members; code that iterated an enum with `Object.values` gets the same values; numeric enums (`HomeworkCompletionType`, `HomeworkSubmissionType`) no longer have reverse mappings (`HomeworkSubmissionType[2]`)
