@@ -4,7 +4,13 @@ import { Base64 } from 'js-base64';
 
 import { attachmentOf } from './attachments.ts';
 import type { Session } from './request.ts';
-import type { CourseNotification, CourseNotificationBase, NotificationListOptions, RemoteFile } from './types.ts';
+import type {
+  CourseNotification,
+  CourseNotificationBase,
+  CourseTypeOptions,
+  NotificationListOptions,
+  RemoteFile,
+} from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import {
@@ -26,9 +32,9 @@ import {
 export async function getNotificationList(
   s: Session,
   courseID: string,
-  courseType: CourseType = CourseType.STUDENT,
   options: NotificationListOptions = {},
 ): Promise<CourseNotification[]> {
+  const { courseType = CourseType.STUDENT } = options;
   const lists = await Promise.all([
     getNotificationListKind(s, courseID, courseType, false),
     getNotificationListKind(s, courseID, courseType, true),
@@ -36,7 +42,7 @@ export async function getNotificationList(
   return Promise.all(
     lists.flat().map(async (n): Promise<CourseNotification> => {
       if (!n.attachmentName || !isSelected(options.attachments, n)) return n;
-      return { ...n, attachment: await getNotificationAttachment(s, n, courseType) };
+      return { ...n, attachment: await getNotificationAttachment(s, n, { courseType }) };
     }),
   );
 }
@@ -91,7 +97,7 @@ export async function markNotificationRead(
 export async function getNotificationAttachment(
   s: Session,
   notification: Pick<CourseNotificationBase, 'url' | 'attachmentName'>,
-  courseType: CourseType = CourseType.STUDENT,
+  { courseType = CourseType.STUDENT }: CourseTypeOptions = {},
 ): Promise<RemoteFile | undefined> {
   if (!notification.attachmentName) return undefined;
   const result = $(await s.fetchTextWithToken(notification.url));

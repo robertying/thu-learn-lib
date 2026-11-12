@@ -76,15 +76,15 @@ await helper.logout();
 
 ### Courses and content
 
-We currently support both student and teacher (or TA) version of web learning. To keep backwards compatibility, the **default behavior of all APIs is to use the student version**. The following APIs take an optional `courseType`; pass `CourseType.TEACHER` to access the teacher version. You **should use them when you are the teacher / TA** of one course, for you will get nothing from the student version in that case.
+We currently support both student and teacher (or TA) version of web learning. The **default behavior of all APIs is to use the student version**. The following APIs take an optional `courseType` in their options; pass `{ courseType: CourseType.TEACHER }` to access the teacher version. You **should use them when you are the teacher / TA** of one course, for you will get nothing from the student version in that case.
 
 We do not maintain a global type in `Learn2018Helper` class, for there can be the situation that one can be a student and teacher of the same course simultaneously, on which by using different `CourseType` you can get different results.
 
 - `getCourseList(semesterID, { courseType, lang, timeAndLocation })`
-- `getNotificationList(courseID, courseType, options)`, `getHomeworkList(courseID, courseType, options)`
-- `getFileList/getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, courseType)` (`getFileList(courseID, courseType, { favorites: true })` also fills `isFavorite`, with one more request), `getFileListByCategory(courseID, categoryID, courseType)`
-- `getNotificationAttachment(notification, courseType)`, `getUserInfo(courseType)`
-- `getAllContents(courseIDs, type, { courseType, details, favorites })`
+- `getNotificationList(courseID, { courseType, attachments })`, `getHomeworkList(courseID, { courseType, details })`
+- `getFileList(courseID, { courseType, favorites })` (`favorites: true` also fills `isFavorite`, with one more request)
+- `getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, { courseType })`, `getFileListByCategory(courseID, categoryID, { courseType })`
+- `getNotificationAttachment(notification, { courseType })`, `getUserInfo({ courseType })`
 
 Note that the teacher version hasn't been checked against the real server, and fetching homework information from it is **partially implemented**.
 
@@ -118,18 +118,9 @@ The lists give `CourseNotification`, `CourseFile`, `Homework`, `Discussion`, `Qu
 Details cost extra requests per item, so they are opt-in; fetch the rest on demand.
 
 ```typescript
-import { ContentType } from '@robertying/thu-learn-lib';
-
-const withDetails = await helper.getHomeworkList(course.id, undefined, { details: (h) => !h.submitted });
+const withDetails = await helper.getHomeworkList(course.id, { details: (h) => !h.submitted });
 const detail = await helper.getHomeworkDetail(homework[0]);
 const attachment = await helper.getNotificationAttachment(notifications[0]);
-
-// get one type of content from many courses; a course that fails is in `errors` instead of failing the rest
-const { contents, errors } = await helper.getAllContents(
-  courses.map((c) => c.id),
-  ContentType.HOMEWORK,
-  { details: 'none' },
-);
 ```
 
 ### Calendar

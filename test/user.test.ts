@@ -62,7 +62,7 @@ describe('getUserInfo and setLanguage', () => {
     // the homepage route is public in the fake server; serve it through an authenticated one
     server.on('GET', URLS.LEARN_HOMEPAGE(CourseType.TEACHER), () => html('<a class="user-log">李四</a>'.padEnd(5000)));
 
-    expect(await helper.getUserInfo(CourseType.TEACHER)).toEqual({ name: '李四', department: '' });
+    expect(await helper.getUserInfo({ courseType: CourseType.TEACHER })).toEqual({ name: '李四', department: '' });
     expect(server.loginCount).toBe(2);
   });
 });

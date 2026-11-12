@@ -81,7 +81,7 @@ describe('getHomeworkList (student)', () => {
   it('parses the three status lists with page and detail content', async () => {
     const server = setup();
     const helper = await server.loggedInHelper();
-    const list = await helper.getHomeworkList('c1', CourseType.STUDENT, { details: 'all' });
+    const list = await helper.getHomeworkList('c1', { details: 'all' });
 
     expect(list.map((h) => [h.id, h.submitted, h.graded])).toEqual([
       ['s-h1', false, false],
@@ -156,7 +156,7 @@ describe('getHomeworkList (student)', () => {
     const server = setup();
     const helper = await server.loggedInHelper();
     // the course type can be left out when passing options
-    await helper.getHomeworkList('c1', undefined, { details: 'all' });
+    await helper.getHomeworkList('c1', { details: 'all' });
 
     expect(server.count(URLS.LEARN_HOMEWORK_PAGE('', ''))).toBe(3);
     expect(server.count(URLS.LEARN_HOMEWORK_DETAIL)).toBe(3);
@@ -168,7 +168,7 @@ describe('getHomeworkList (student)', () => {
     const server = setup();
     const helper = await server.loggedInHelper();
     const seen: string[] = [];
-    const list = await helper.getHomeworkList('c1', CourseType.STUDENT, {
+    const list = await helper.getHomeworkList('c1', {
       details: (h) => {
         seen.push(h.id);
         return h.submitTime !== undefined && !h.graded;
@@ -264,14 +264,22 @@ describe('getHomeworkList (student)', () => {
     });
   });
 
-  it('maps grade levels (leaving out the negative grade), with -63 as P and -60 as pass', async () => {
+  it('maps grade levels (leaving out the negative grade), with -63 as P and -60 as pass, from numbers or strings', async () => {
     const server = new FakeServer();
     for (const source of HOMEWORK_LIST_SOURCES) {
       server.on('POST', source.url, () =>
         success({
           aaData:
             source.url === URLS.LEARN_HOMEWORK_LIST_GRADED
-              ? [homework('p', { cj: -63 }), homework('q', { cj: -60 }), homework('n', { cj: 95 })]
+              ? [
+                  homework('p', { cj: -63 }),
+                  homework('q', { cj: -60 }),
+                  homework('n', { cj: 95 }),
+                  homework('s', { cj: '-99' }),
+                  homework('t', { cj: '87.5' }),
+                  homework('u', { cj: '' }),
+                  homework('v', { cj: 'x' }),
+                ]
               : [],
         }),
       );
@@ -283,7 +291,20 @@ describe('getHomeworkList (student)', () => {
       [undefined, HomeworkGradeLevel.P],
       [undefined, HomeworkGradeLevel.PASS],
       [95, undefined],
+      [undefined, HomeworkGradeLevel.A_PLUS],
+      [87.5, undefined],
+      [undefined, undefined],
+      [undefined, undefined],
     ]);
+  });
+
+  it('leaves out the author of an excellent homework whose list row names none', async () => {
+    const server = setup().on('POST', URLS.LEARN_HOMEWORK_LIST_EXCELLENT, () =>
+      success({ aaData: [{ xszyid: 'x1', zyid: 'h3', wlkcid: 'c1', bt: 'Best', zywcfs: 1, sfzm: '是' }] }),
+    );
+    const helper = await server.loggedInHelper();
+    const list = await helper.getHomeworkList('c1');
+    expect(list[2].excellentHomeworkList?.[0].author).toEqual({ id: undefined, name: undefined, anonymous: true });
   });
 
   it('gives [] to homework without excellent homework, so a failed list (undefined) stands out', async () => {
@@ -317,7 +338,7 @@ describe('getHomeworkList (teacher)', () => {
       success({ aaData: [{ zyid: 'h1', bt: 'HW 1', nr: null }] }),
     );
     const helper = await server.loggedInHelper();
-    const [h] = await helper.getHomeworkList('c1', CourseType.TEACHER);
+    const [h] = await helper.getHomeworkList('c1', { courseType: CourseType.TEACHER });
     expect(h.description).toBe('');
   });
 
@@ -345,7 +366,7 @@ describe('getHomeworkList (teacher)', () => {
       }),
     );
     const helper = await server.loggedInHelper();
-    const list = await helper.getHomeworkList('c1', CourseType.TEACHER);
+    const list = await helper.getHomeworkList('c1', { courseType: CourseType.TEACHER });
     expect(list).toEqual([
       {
         id: 'h1',

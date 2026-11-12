@@ -17,6 +17,7 @@ import type {
   HomeworkSubmitRequest,
   HomeworkTA,
   RemoteFile,
+  TeacherHomeworkListOptions,
 } from './types.ts';
 import { ContentType, CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
@@ -33,6 +34,7 @@ import {
   toRequiredServerTime,
   optionalHtml,
   optionalText,
+  toNumber,
   toServerTime,
 } from './utils.ts';
 import type { Selection } from './utils.ts';
@@ -48,22 +50,20 @@ export const HOMEWORK_LIST_SOURCES: readonly { url: string; status: HomeworkStat
  * Get all homeworks （课程作业） of the specified course: 3 status lists and the excellent homework list.
  * Details (page + description) only for the homework `options.details` selects.
  */
+export function getHomeworkList(s: Session, courseID: string, options?: HomeworkListOptions): Promise<Homework[]>;
+
 export function getHomeworkList(
   s: Session,
   courseID: string,
-  courseType?: CourseType.STUDENT,
-  options?: HomeworkListOptions,
-): Promise<Homework[]>;
-
-export function getHomeworkList(s: Session, courseID: string, courseType: CourseType.TEACHER): Promise<HomeworkTA[]>;
+  options: TeacherHomeworkListOptions,
+): Promise<HomeworkTA[]>;
 
 export async function getHomeworkList(
   s: Session,
   courseID: string,
-  courseType: CourseType = CourseType.STUDENT,
-  options: HomeworkListOptions = {},
+  options: HomeworkListOptions | TeacherHomeworkListOptions = {},
 ): Promise<Homework[] | HomeworkTA[]> {
-  return courseType === CourseType.TEACHER
+  return options.courseType === CourseType.TEACHER
     ? getTeacherHomeworkList(s, courseID)
     : getStudentHomeworkList(s, courseID, options);
 }
@@ -81,7 +81,7 @@ async function getTeacherHomeworkList(s: Session, courseID: string): Promise<Hom
     (d) =>
       ({
         id: d.zyid,
-        index: d.wz,
+        index: toNumber(d.wz),
         title: decodeHTML(d.bt),
         description: Base64.decode(d.nr ?? ''),
         publisherId: d.fbr,
@@ -92,9 +92,9 @@ async function getTeacherHomeworkList(s: Session, courseID: string): Promise<Hom
         url: URLS.LEARN_HOMEWORK_DETAIL_TEACHER(courseID, d.zyid),
         completionType: d.zywcfs,
         submissionType: d.zytjfs,
-        gradedCount: d.ypys,
-        submittedCount: d.yjs,
-        unsubmittedCount: d.wjs,
+        gradedCount: toNumber(d.ypys),
+        submittedCount: toNumber(d.yjs),
+        unsubmittedCount: toNumber(d.wjs),
       }) satisfies HomeworkTA,
   );
 }
@@ -130,30 +130,30 @@ async function getHomeworkListAtUrl(
 
   const result = (json.object?.aaData ?? []) as any[];
 
-  return result.map(
-    (h) =>
-      ({
-        id: h.xszyid,
-        baseId: h.zyid,
-        title: decodeHTML(h.bt),
-        url: URLS.LEARN_HOMEWORK_PAGE(h.wlkcid, h.xszyid),
-        deadline: toRequiredServerTime(h.jzsj),
-        lateSubmissionDeadline: toServerTime(h.bjjzsj),
-        isLateSubmission: h.sfbj === YES,
-        completionType: h.zywcfs,
-        submissionType: h.zytjfs,
-        submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
-        submitTime: toServerTime(h.scsj),
-        // a grade level comes as a negative grade; then `grade` is left out
-        grade: h.cj == null || GRADE_LEVEL_MAP.has(h.cj) ? undefined : h.cj,
-        gradeLevel: GRADE_LEVEL_MAP.get(h.cj),
-        graderName: optionalText(h.jsm),
-        gradeContent: optionalText(h.pynr),
-        gradeTime: toServerTime(h.pysj),
-        ...favoriteFields(h),
-        ...status,
-      }) satisfies HomeworkBase,
-  );
+  return result.map((h) => {
+    // a grade level comes as a negative grade (a number or a string); then `grade` is left out
+    const grade = h.cj == null || h.cj === '' || !Number.isFinite(Number(h.cj)) ? undefined : Number(h.cj);
+    return {
+      id: h.xszyid,
+      baseId: h.zyid,
+      title: decodeHTML(h.bt),
+      url: URLS.LEARN_HOMEWORK_PAGE(h.wlkcid, h.xszyid),
+      deadline: toRequiredServerTime(h.jzsj),
+      lateSubmissionDeadline: toServerTime(h.bjjzsj),
+      isLateSubmission: h.sfbj === YES,
+      completionType: h.zywcfs,
+      submissionType: h.zytjfs,
+      submitUrl: URLS.LEARN_HOMEWORK_SUBMIT_PAGE(h.wlkcid, h.xszyid),
+      submitTime: toServerTime(h.scsj),
+      grade: grade === undefined || GRADE_LEVEL_MAP.has(grade) ? undefined : grade,
+      gradeLevel: grade === undefined ? undefined : GRADE_LEVEL_MAP.get(grade),
+      graderName: optionalText(h.jsm),
+      gradeContent: optionalText(h.pynr),
+      gradeTime: toServerTime(h.pysj),
+      ...favoriteFields(h),
+      ...status,
+    } satisfies HomeworkBase;
+  });
 }
 
 async function getExcellentHomeworkListByHomework(
@@ -178,8 +178,8 @@ async function getExcellentHomeworkListByHomework(
           url: URLS.LEARN_HOMEWORK_EXCELLENT_PAGE(h.wlkcid, h.xszyid),
           completionType: h.zywcfs,
           author: {
-            id: h.cy?.split(' ')?.[0],
-            name: h.cy?.split(' ')?.[1],
+            id: optionalText(h.cy?.split(' ')[0]),
+            name: optionalText(h.cy?.split(' ')[1]),
             anonymous: h.sfzm === YES,
           },
         }) satisfies ExcellentHomeworkBase,

@@ -155,7 +155,7 @@ export class Session {
 
   constructor(config: HelperConfig | undefined, loginWithProvider: () => Promise<void>) {
     this.loginWithProvider = loginWithProvider;
-    this.previewFirstPage = config?.generatePreviewUrlForFirstPage ?? true;
+    this.previewFirstPage = config?.previewFirstPage ?? true;
     this.provider = config?.provider;
     this.clearLoginCookies = config?.clearLoginCookies;
     this.rawFetch = limitConcurrency(

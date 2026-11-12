@@ -27,7 +27,8 @@ export type HelperConfig = {
    * a web view signed in) isn't answered with a ticket. Rejecting fails the login with `ERROR_SETTING_COOKIES`
    */
   clearLoginCookies?: () => void | Promise<void>;
-  generatePreviewUrlForFirstPage?: boolean;
+  /** preview URLs open the first page only (default `true`); the helper's `previewFirstPage` changes it later */
+  previewFirstPage?: boolean;
   /** at most this many requests in flight at once, including login (default 6; `Infinity` for no limit) */
   maxConcurrentRequests?: number;
   /** milliseconds to wait for a response before rejecting with `FailReason.REQUEST_TIMEOUT` (default 60000; 0 for none) */
@@ -202,7 +203,7 @@ export interface CourseFile {
   id: string;
   /** the id of the stored file (`wjid`), which the download and preview URLs use */
   fileId: string;
-  /** note: will be unset when calling `getFileListByCategory` */
+  /** left out by `getFileListByCategory` (the category is the one asked for), and when the categories can't be fetched */
   category?: FileCategory;
   /** size in byte */
   rawSize: number;
@@ -217,13 +218,19 @@ export interface CourseFile {
   previewUrl: string;
   isNew: boolean;
   markedImportant: boolean;
-  visitCount: number;
-  downloadCount: number;
+  /** left out by the student's `getFileListByCategory`, whose list doesn't have it */
+  visitCount?: number;
+  /** left out by the student's `getFileListByCategory`, whose list doesn't have it */
+  downloadCount?: number;
   fileType: string;
   /** the same file as a `RemoteFile`, the shape attachments have */
   remoteFile: RemoteFile;
-  /** could not get favorite or comment info when using `getFileList` or in TA mode */
+  /**
+   * From the student's `getFileListByCategory`, or from `getFileList` with its `favorites` option; left out otherwise
+   * (the file list has no favorite flag) and in the teacher view
+   */
   isFavorite?: boolean;
+  /** only from the student's `getFileListByCategory` */
   comment?: string;
 }
 
@@ -368,8 +375,9 @@ export interface ExcellentHomeworkBase {
   url: string;
   completionType: HomeworkCompletionType;
   author: {
-    id: string;
-    name: string;
+    /** the student number; left out when the list doesn't name the author */
+    id?: string;
+    name?: string;
     anonymous: boolean;
   };
 }
@@ -527,7 +535,13 @@ export interface FavoriteListOptions {
   type?: ContentType;
 }
 
-export interface FileListOptions {
+/** whose view of a course to read */
+export interface CourseTypeOptions {
+  /** default `CourseType.STUDENT` */
+  courseType?: CourseType;
+}
+
+export interface FileListOptions extends CourseTypeOptions {
   /**
    * Fill `isFavorite` (student only). The file list has no favorite flag: `true` adds one request for the course's
    * file favorites (`getFavorites({ courseID, type: ContentType.FILE })`), sent in parallel, and the list rejects if it fails.
@@ -538,6 +552,8 @@ export interface FileListOptions {
 }
 
 export interface HomeworkListOptions {
+  /** `CourseType.TEACHER` gives the teacher's list (`HomeworkTA`; see `TeacherHomeworkListOptions`) */
+  courseType?: CourseType.STUDENT;
   /**
    * Which homework gets its detail (page + description JSON, 2 requests each); default `'none'`.
    * The same as calling `getHomeworkDetail` for those items.
@@ -545,7 +561,11 @@ export interface HomeworkListOptions {
   details?: DetailSelector<HomeworkBase>;
 }
 
-export interface NotificationListOptions {
+export interface TeacherHomeworkListOptions {
+  courseType: CourseType.TEACHER;
+}
+
+export interface NotificationListOptions extends CourseTypeOptions {
   /**
    * Which notices with an attachment get it (1 request each); default `'none'`.
    * The same as calling `getNotificationAttachment` for those items.
@@ -559,40 +579,6 @@ export interface QuestionnaireListOptions {
    * The same as calling `getQuestionnaireDetail` for those items.
    */
   details?: DetailSelector<Questionnaire>;
-}
-
-export interface AllContentsOptions<T extends ContentType> {
-  courseType?: CourseType;
-  /** homework or questionnaire `details`, or notification `attachments`, passed to each course's list */
-  details?: T extends ContentType.HOMEWORK
-    ? DetailSelector<HomeworkBase>
-    : T extends ContentType.NOTIFICATION
-      ? DetailSelector<CourseNotificationBase>
-      : T extends ContentType.QUESTIONNAIRE
-        ? DetailSelector<Questionnaire>
-        : never;
-  /** file `favorites` (see `FileListOptions`), passed to each course's file list */
-  favorites?: T extends ContentType.FILE ? FileListOptions['favorites'] : never;
-}
-
-export interface AllContentsResult<T extends ContentType> {
-  /** content of each course that succeeded */
-  contents: CourseContent<T>;
-  /** the error of each course that failed */
-  errors: { [courseID: string]: unknown };
-}
-
-export type ContentTypeMap = {
-  [ContentType.NOTIFICATION]: CourseNotification;
-  [ContentType.FILE]: CourseFile;
-  [ContentType.HOMEWORK]: Homework;
-  [ContentType.DISCUSSION]: Discussion;
-  [ContentType.QUESTION]: Question;
-  [ContentType.QUESTIONNAIRE]: Questionnaire;
-};
-
-export interface CourseContent<T extends ContentType = ContentType> {
-  [id: string]: ContentTypeMap[T][];
 }
 
 export interface FavoriteItem {
@@ -609,7 +595,7 @@ export interface FavoriteItem {
   pinnedTime?: ServerTime;
   comment?: string;
   addedTime: ServerTime;
-  /** for reference */
+  /** the id of the favorite record itself (`id` is the favorited item's) */
   itemId: string;
 }
 
@@ -622,7 +608,7 @@ export interface CommentItem {
   semesterId: string;
   courseId: string;
   commentTime: ServerTime;
-  /** for reference */
+  /** the id of the comment record itself (`id` is the commented item's) */
   itemId: string;
 }
 
