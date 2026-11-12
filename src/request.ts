@@ -1,6 +1,3 @@
-import fetchCookie from 'fetch-cookie';
-import { CookieJar } from 'tough-cookie';
-
 import type { ApiError, CredentialProvider, Fetch, HelperConfig } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
@@ -19,10 +16,8 @@ export const addCSRFTokenToUrl = (url: string, token: string): string => {
   return newUrl.toString();
 };
 
-function makeFetch(jar?: CookieJar): Fetch {
-  // The global fetch is looked up on each call, so a polyfill installed after this module loads is used too
-  return fetchCookie((input, init) => globalThis.fetch(input, init), jar);
-}
+// The global fetch is looked up on each call, so a polyfill installed after this module loads is used too
+const globalFetch: Fetch = (input, init) => globalThis.fetch(input, init);
 
 /**
  * Let at most `max` calls of `inner` run at once; the rest wait in FIFO order. A slot is freed when the response
@@ -133,7 +128,8 @@ const EXPIRED = Symbol('expired');
  */
 export class Session {
   readonly provider?: CredentialProvider;
-  readonly cookieJar: CookieJar;
+  /** `HelperConfig.clearLoginCookies` */
+  readonly clearLoginCookies?: () => void | Promise<void>;
   /** fetch with cookies, the concurrency cap and the timeout, but no login check */
   readonly rawFetch: TimedFetch;
   #csrfToken = '';
@@ -161,11 +157,9 @@ export class Session {
     this.loginWithProvider = loginWithProvider;
     this.previewFirstPage = config?.generatePreviewUrlForFirstPage ?? true;
     this.provider = config?.provider;
-    this.cookieJar = config?.cookieJar ?? new CookieJar();
+    this.clearLoginCookies = config?.clearLoginCookies;
     this.rawFetch = limitConcurrency(
-      withNetworkError(
-        withTimeout(config?.fetch ?? makeFetch(this.cookieJar), config?.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT),
-      ),
+      withNetworkError(withTimeout(config?.fetch ?? globalFetch, config?.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT)),
       config?.maxConcurrentRequests ?? DEFAULT_MAX_CONCURRENT_REQUESTS,
     );
   }
@@ -294,6 +288,16 @@ export class Session {
     return res.status === 200 && looksLikeLoginPage(text) ? EXPIRED : text;
   };
 
+  /** like `#text`, but any status other than 200 rejects with `UNEXPECTED_STATUS`, also before a re-login */
+  static readonly #page = async (res: Response): Promise<string | typeof EXPIRED> => {
+    if (res.status !== 200) {
+      discard(res);
+      throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status, text: res.statusText });
+    }
+    const text = await res.text();
+    return looksLikeLoginPage(text) ? EXPIRED : text;
+  };
+
   #withToken = async (input: Parameters<Fetch>[0]): Promise<() => string> => {
     if (this.#csrfToken === '') {
       await this.autoRelogin();
@@ -319,6 +323,10 @@ export class Session {
    */
   readonly fetchTextWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<string> =>
     this.#send(await this.#withToken(input), init, Session.#text);
+
+  /** Like `fetchTextWithToken`, but a status other than 200 rejects with `UNEXPECTED_STATUS` instead of being read. */
+  readonly fetchPageWithToken = async (input: Parameters<Fetch>[0], init?: RequestOptions): Promise<string> =>
+    this.#send(await this.#withToken(input), init, Session.#page);
 
   /**
    * Make sure the session works: if there is a CSRF token, fetch the current semester (`probeUrl`) and log in only if

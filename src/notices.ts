@@ -75,6 +75,17 @@ async function getNotificationListKind(
 }
 
 /**
+ * Mark a notice read (1 request): loads its page, as opening it on the website does. Rejects with `UNEXPECTED_STATUS`
+ * for an unknown notice, and logs in again first when the session has expired.
+ */
+export async function markNotificationRead(
+  s: Session,
+  notification: Pick<CourseNotificationBase, 'url'>,
+): Promise<void> {
+  await s.fetchPageWithToken(notification.url);
+}
+
+/**
  * Get the attachment of a notice from its detail page (1 request), or `undefined` without a request if
  * `attachmentName` says it has none, or if the page has no attachment link.
  */

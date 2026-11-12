@@ -1,4 +1,3 @@
-import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
 import { CourseType, FailReason, Language } from '../src/index.ts';
@@ -165,11 +164,28 @@ describe('login', () => {
     await expect(server.helper().login(credential)).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
   });
 
-  it('rejects with ERROR_SETTING_COOKIES when the cookie jar refuses the reset cookie', async () => {
+  it('calls clearLoginCookies before every SSO login, also one it starts for an expired session', async () => {
+    const server = withSemesterList(new FakeServer());
+    const order: string[] = [];
+    const helper = server.helper({
+      provider: () => credential,
+      clearLoginCookies: () => {
+        order.push(`clear before request ${server.requests.length}`);
+      },
+    });
+    await helper.login();
+    server.expireSession();
+    await helper.getSemesterIdList();
+
+    expect(server.loginCount).toBe(2);
+    // each before its login form: the first request, and the one after the expired request
+    expect(order).toEqual(['clear before request 0', 'clear before request 5']);
+    expect(server.requests[5].path).toBe(URLS.ID_LOGIN);
+  });
+
+  it('rejects with ERROR_SETTING_COOKIES when clearLoginCookies fails, without a request', async () => {
     const server = new FakeServer();
-    const cookieJar = new CookieJar();
-    cookieJar.setCookie = () => Promise.reject(new Error('read-only jar'));
-    const helper = server.helper({ cookieJar });
+    const helper = server.helper({ clearLoginCookies: () => Promise.reject(new Error('read-only store')) });
     await expect(helper.login(credential)).rejects.toHaveProperty('reason', FailReason.ERROR_SETTING_COOKIES);
     expect(server.requests).toHaveLength(0);
   });

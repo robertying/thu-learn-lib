@@ -4,7 +4,7 @@ import { config } from './config.ts';
 import { ALLOW_WRITES } from './guard.ts';
 
 describe('helper interaction', () => {
-  const h = new Learn2018Helper(config);
+  const h = new Learn2018Helper(config());
 
   beforeAll(async () => {
     await h.login();

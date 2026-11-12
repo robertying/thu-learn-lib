@@ -27,7 +27,7 @@ const normalize = (name: string) => name.replace(/\s/g, '').replace(/（/g, '(')
 const withoutVideoVersion = (text?: string) => text?.replace(/videoVersion=\d+/g, 'videoVersion=');
 
 describe('helper data retrieval', () => {
-  const h = new Learn2018Helper(config);
+  const h = new Learn2018Helper(config());
 
   beforeAll(async () => {
     await h.login();

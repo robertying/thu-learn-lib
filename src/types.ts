@@ -1,5 +1,3 @@
-import type { CookieJar } from 'tough-cookie';
-
 /**
  * A time as an ISO 8601 string in Beijing time with its offset, e.g. `2026-11-07T18:28:00+08:00`: `new Date(t)` and
  * `dayjs(t)` read it as the right moment in any time zone. (A string the server sent in another shape is passed on as
@@ -18,8 +16,17 @@ export type Credential = {
 export type CredentialProvider = () => Credential | Promise<Credential>;
 export type HelperConfig = {
   provider?: CredentialProvider;
+  /**
+   * sends every request (default: the global `fetch`). It must keep cookies: React Native's and browsers' `fetch` do;
+   * in Node, use `cookieJarConfig()` from `@robertying/thu-learn-lib/cookies`
+   */
   fetch?: Fetch;
-  cookieJar?: CookieJar;
+  /**
+   * called before every SSO login, also the ones the helper starts by itself when the session has expired, to forget
+   * the id.tsinghua.edu.cn cookies: a login sent with an id.tsinghua.edu.cn session left in them (another user's, or one
+   * a web view signed in) isn't answered with a ticket. Rejecting fails the login with `ERROR_SETTING_COOKIES`
+   */
+  clearLoginCookies?: () => void | Promise<void>;
   generatePreviewUrlForFirstPage?: boolean;
   /** at most this many requests in flight at once, including login (default 6; `Infinity` for no limit) */
   maxConcurrentRequests?: number;
