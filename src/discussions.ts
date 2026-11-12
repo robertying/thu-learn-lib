@@ -1,12 +1,10 @@
 // Discussions (课程讨论) and answered questions (课程答疑).
 
-import { Base64 } from 'js-base64';
-
 import type { Session } from './request.ts';
 import type { CourseTypeOptions, Discussion, DiscussionBase, Question } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { decodeHTML, favoriteFields, expectSuccess, toRequiredServerTime } from './utils.ts';
+import { decodeBase64, decodeHTML, favoriteFields, expectSuccess, toRequiredServerTime } from './utils.ts';
 
 export async function getDiscussionList(
   s: Session,
@@ -42,7 +40,7 @@ export async function getAnsweredQuestionList(
     (q) =>
       ({
         ...parseDiscussionBase(q),
-        question: Base64.decode(q.wtnr ?? ''),
+        question: decodeBase64(q.wtnr),
         url: URLS.LEARN_QUESTION_DETAIL(q.wlkcid, q.id, courseType),
       }) satisfies Question,
   );

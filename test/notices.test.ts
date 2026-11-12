@@ -1,13 +1,12 @@
-import { Base64 } from 'js-base64';
 import { describe, expect, it } from 'vitest';
 
 import { ContentType, CourseType, FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
-import { FakeServer, courseIdOf, html, json, success } from './helpers/fake-server.ts';
+import { FakeServer, base64, courseIdOf, html, json, success } from './helpers/fake-server.ts';
 
 const notice = (id: string, overrides: Record<string, unknown> = {}) => ({
   ggid: id,
-  ggnr: Base64.encode(`<p>内容 ${id}</p>`),
+  ggnr: base64(`<p>内容 ${id}</p>`),
   bt: `Title &lt;${id}&gt;`,
   fbrxm: 'Teacher',
   sfyd: '是',
@@ -150,6 +149,16 @@ describe('getNotificationAttachment', () => {
     const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
 
     expect(await helper.getNotificationAttachment({ url, attachmentName: 'gone.pdf' })).toBeUndefined();
+  });
+
+  it('ignores an attachment link that is not a URL', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_NOTIFICATION_DETAIL('', '', CourseType.STUDENT), () =>
+      html('<html><body><a class="ml-10" href="http://[broken">a.pdf</a></body></html>'),
+    );
+    const helper = await server.loggedInHelper();
+    const url = URLS.LEARN_NOTIFICATION_DETAIL('c1', 'n1', CourseType.STUDENT);
+
+    expect(await helper.getNotificationAttachment({ url, attachmentName: 'a.pdf' })).toBeUndefined();
   });
 
   it('ignores an attachment link to another site', async () => {

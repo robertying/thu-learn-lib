@@ -51,7 +51,6 @@
     "cheerio": "^1.2.0",
     "entities": "^9.0.0",
     "fetch-cookie": "^3.2.0",
-    "js-base64": "^3.9.3",
     "sm-crypto": "^0.5.7",
     "tough-cookie": "^6.1.0"
   },

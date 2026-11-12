@@ -46,6 +46,12 @@ describe('semesters', () => {
       type: SemesterType.SPRING,
     });
   });
+
+  it('rejects a current semester answer without success with INVALID_RESPONSE', async () => {
+    const server = new FakeServer().on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'error' }));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getCurrentSemester()).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+  });
 });
 
 const setup = () => {
@@ -77,6 +83,12 @@ describe('getCourseList', () => {
     const helper = await server.loggedInHelper();
     expect(await helper.getCourseTimeAndLocation('c1')).toEqual(['Mon 1-2, 6A101']);
     await expect(helper.getCourseTimeAndLocation('c2')).rejects.toBeDefined();
+  });
+
+  it('rejects a time and location answer that is not a list with INVALID_RESPONSE', async () => {
+    const server = setup().on('GET', URLS.LEARN_COURSE_TIME_LOCATION(''), () => json({ result: 'error' }));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getCourseTimeAndLocation('c1')).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
   });
 
   it('parses courses and fetches time and location per course with timeAndLocation', async () => {

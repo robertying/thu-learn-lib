@@ -1,4 +1,3 @@
-import { Base64 } from 'js-base64';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -10,7 +9,7 @@ import {
   homeworkContentHtml,
 } from '../src/index.ts';
 import type { Request } from './helpers/fake-server.ts';
-import { FakeServer, courseIdOf, field, html, json, success } from './helpers/fake-server.ts';
+import { FakeServer, base64, courseIdOf, field, html, json, success } from './helpers/fake-server.ts';
 import { HOMEWORK_LIST_SOURCES, homeworkSubmitForm } from '../src/homework.ts';
 import * as URLS from '../src/urls.ts';
 
@@ -350,7 +349,7 @@ describe('getHomeworkList (teacher)', () => {
             zyid: 'h1',
             wz: 1,
             bt: 'HW 1',
-            nr: Base64.encode('<p>做这个</p>'),
+            nr: base64('<p>做这个</p>'),
             fbr: 't1',
             fbsj: 1740000000000,
             kssj: 1740003600000,
