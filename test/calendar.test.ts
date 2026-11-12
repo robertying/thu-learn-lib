@@ -82,9 +82,6 @@ describe('getCalendar', () => {
         {
           location: '6A101',
           status: '上课',
-          startTime: '08:00',
-          endTime: '09:35',
-          date: '2025-03-03',
           start: '2025-03-03T08:00:00+08:00',
           end: '2025-03-03T09:35:00+08:00',
           courseName: 'Calculus',
@@ -158,7 +155,7 @@ describe('getCalendar', () => {
     const result = await helper.getCalendar('20250301', '20250509');
 
     expect(calendarRequests(server)).toHaveLength(4);
-    expect(result.events.map((e) => e.date)).toEqual(['20250301', '20250426']);
+    expect(result.events.map((e) => e.courseName)).toEqual(['20250301-20250328', '20250426-20250509']);
     expect(result.failedRanges).toEqual([{ startDate: '20250329', endDate: '20250425' }]);
   });
 
