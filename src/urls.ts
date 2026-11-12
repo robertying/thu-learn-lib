@@ -25,6 +25,9 @@ export const REGISTRAR_PREFIX = 'https://zhjw.cic.tsinghua.edu.cn';
 
 const MAX_SIZE = 200;
 
+/** a value in a URL's path or query (ids are hex today; this keeps a `&`, `/` or `#` from changing the URL) */
+const enc = encodeURIComponent;
+
 export const ID_LOGIN = `${ID_PREFIX}/do/off/ui/auth/login/form/bb5df85216504820be7bba2b0ae1535b/0`;
 
 export const ID_LOGIN_CHECK = `${ID_PREFIX}/do/off/ui/auth/login/check`;
@@ -43,25 +46,25 @@ export const LEARN_CURRENT_SEMESTER = `${LEARN_PREFIX}/b/kc/zhjw_v_code_xnxq/get
 
 export const LEARN_COURSE_LIST = (semester: string, courseType: CourseType, lang: Language) =>
   courseType === CourseType.STUDENT
-    ? `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xkb_kcb_extend/student/loadCourseBySemesterId/${semester}/${lang}`
-    : `${LEARN_PREFIX}/b/kc/v_wlkc_kcb/queryAsorCoCourseList/${semester}/0`;
+    ? `${LEARN_PREFIX}/b/wlxt/kc/v_wlkc_xs_xkb_kcb_extend/student/loadCourseBySemesterId/${enc(semester)}/${lang}`
+    : `${LEARN_PREFIX}/b/kc/v_wlkc_kcb/queryAsorCoCourseList/${enc(semester)}/0`;
 
 export const LEARN_COURSE_PAGE = (courseID: string, courseType: CourseType) =>
-  `${LEARN_PREFIX}/f/wlxt/index/course/${courseType}/course?wlkcid=${courseID}`;
+  `${LEARN_PREFIX}/f/wlxt/index/course/${courseType}/course?wlkcid=${enc(courseID)}`;
 
 export const LEARN_COURSE_TIME_LOCATION = (courseID: string) =>
-  `${LEARN_PREFIX}/b/kc/v_wlkc_xk_sjddb/detail?id=${courseID}`;
+  `${LEARN_PREFIX}/b/kc/v_wlkc_xk_sjddb/detail?id=${enc(courseID)}`;
 
 export const LEARN_FILE_LIST = (courseID: string, courseType: CourseType) =>
   courseType === CourseType.STUDENT
-    ? `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxbByWlkcidAndSizeForStudent?wlkcid=${courseID}&size=${MAX_SIZE}`
-    : `${LEARN_PREFIX}/b/wlxt/kj/v_kjxxb_wjwjb/teacher/queryByWlkcid?wlkcid=${courseID}&size=${MAX_SIZE}`;
+    ? `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxbByWlkcidAndSizeForStudent?wlkcid=${enc(courseID)}&size=${MAX_SIZE}`
+    : `${LEARN_PREFIX}/b/wlxt/kj/v_kjxxb_wjwjb/teacher/queryByWlkcid?wlkcid=${enc(courseID)}&size=${MAX_SIZE}`;
 
 export const LEARN_FILE_CATEGORY_LIST = (courseID: string, courseType: CourseType) =>
-  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjflb/${courseType}/pageList?wlkcid=${courseID}`;
+  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjflb/${courseType}/pageList?wlkcid=${enc(courseID)}`;
 
 export const LEARN_FILE_LIST_BY_CATEGORY_STUDENT = (courseID: string, categoryId: string) =>
-  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxb/${courseID}/${categoryId}`;
+  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/student/kjxxb/${enc(courseID)}/${enc(categoryId)}`;
 
 export const LEARN_FILE_LIST_BY_CATEGORY_TEACHER = `${LEARN_PREFIX}/b/wlxt/kj/v_kjxxb_wjwjb/teacher/pageList`;
 
@@ -78,7 +81,7 @@ export const LEARN_FILE_LIST_BY_CATEGORY_TEACHER_FORM_DATA = (courseID: string, 
 };
 
 export const LEARN_FILE_DOWNLOAD = (fileID: string, courseType: CourseType) =>
-  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/${courseType}/downloadFile?sfgk=0&wjid=${fileID}`;
+  `${LEARN_PREFIX}/b/wlxt/kj/wlkc_kjxxb/${courseType}/downloadFile?sfgk=0&wjid=${enc(fileID)}`;
 
 export const LEARN_FILE_PREVIEW = (
   type: PreviewContentType,
@@ -86,7 +89,7 @@ export const LEARN_FILE_PREVIEW = (
   courseType: CourseType,
   firstPageOnly = false,
 ) =>
-  `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${fileID}&mk=${previewModule(type)}&browser=-1&sfgk=0&pageType=${firstPageOnly ? 'first' : 'all'}`;
+  `${LEARN_PREFIX}/f/wlxt/kc/wj_wjb/${courseType}/beforePlay?wjid=${enc(fileID)}&mk=${previewModule(type)}&browser=-1&sfgk=0&pageType=${firstPageOnly ? 'first' : 'all'}`;
 
 export const LEARN_NOTIFICATION_LIST = (courseType: CourseType, expired: boolean) =>
   `${LEARN_PREFIX}/b/wlxt/kcgg/wlkc_ggb/` +
@@ -95,18 +98,18 @@ export const LEARN_NOTIFICATION_LIST = (courseType: CourseType, expired: boolean
 
 export const LEARN_NOTIFICATION_DETAIL = (courseID: string, notificationID: string, courseType: CourseType) =>
   courseType === CourseType.STUDENT
-    ? `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/student/beforeViewXs?wlkcid=${courseID}&id=${notificationID}`
-    : `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/teacher/beforeViewJs?wlkcid=${courseID}&id=${notificationID}`;
+    ? `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/student/beforeViewXs?wlkcid=${enc(courseID)}&id=${enc(notificationID)}`
+    : `${LEARN_PREFIX}/f/wlxt/kcgg/wlkc_ggb/teacher/beforeViewJs?wlkcid=${enc(courseID)}&id=${enc(notificationID)}`;
 
 export const LEARN_HOMEWORK_LIST_NEW = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListWj`;
 export const LEARN_HOMEWORK_LIST_SUBMITTED = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListYjwg`;
 export const LEARN_HOMEWORK_LIST_GRADED = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/zyListYpg`;
 export const LEARN_HOMEWORK_LIST_EXCELLENT = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/yxzylist`;
 export const LEARN_HOMEWORK_PAGE = (courseID: string, id: string) =>
-  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewCj?wlkcid=${courseID}&xszyid=${id}`;
+  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewCj?wlkcid=${enc(courseID)}&xszyid=${enc(id)}`;
 
 export const LEARN_HOMEWORK_EXCELLENT_PAGE = (courseID: string, id: string) =>
-  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewYxzy?wlkcid=${courseID}&xszyid=${id}`;
+  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/viewYxzy?wlkcid=${enc(courseID)}&xszyid=${enc(id)}`;
 
 export const LEARN_HOMEWORK_DETAIL = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/detail`;
 
@@ -117,17 +120,17 @@ export const LEARN_HOMEWORK_DETAIL_FORM_DATA = (baseId: string) => {
 };
 
 export const LEARN_HOMEWORK_SUBMIT_PAGE = (courseID: string, id: string) =>
-  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${courseID}&xszyid=${id}`;
+  `${LEARN_PREFIX}/f/wlxt/kczy/zy/student/tijiao?wlkcid=${enc(courseID)}&xszyid=${enc(id)}`;
 
 export const LEARN_HOMEWORK_SUBMIT = `${LEARN_PREFIX}/b/wlxt/kczy/zy/student/tjzy`;
 
 export const LEARN_HOMEWORK_LIST_TEACHER = `${LEARN_PREFIX}/b/wlxt/kczy/zy/teacher/pageList`;
 
 export const LEARN_HOMEWORK_DETAIL_TEACHER = (courseID: string, homeworkID: string) =>
-  `${LEARN_PREFIX}/f/wlxt/kczy/xszy/teacher/beforePageList?zyid=${homeworkID}&wlkcid=${courseID}`;
+  `${LEARN_PREFIX}/f/wlxt/kczy/xszy/teacher/beforePageList?zyid=${enc(homeworkID)}&wlkcid=${enc(courseID)}`;
 
 export const LEARN_DISCUSSION_LIST = (courseID: string, courseType: CourseType) =>
-  `${LEARN_PREFIX}/b/wlxt/bbs/bbs_tltb/${courseType}/kctlList?wlkcid=${courseID}&size=${MAX_SIZE}`;
+  `${LEARN_PREFIX}/b/wlxt/bbs/bbs_tltb/${courseType}/kctlList?wlkcid=${enc(courseID)}&size=${MAX_SIZE}`;
 
 export const LEARN_DISCUSSION_DETAIL = (
   courseID: string,
@@ -136,21 +139,21 @@ export const LEARN_DISCUSSION_DETAIL = (
   courseType: CourseType,
   tabId = 1,
 ) =>
-  `${LEARN_PREFIX}/f/wlxt/bbs/bbs_tltb/${courseType}/viewTlById?wlkcid=${courseID}&id=${discussionID}&tabbh=${tabId}&bqid=${boardID}`;
+  `${LEARN_PREFIX}/f/wlxt/bbs/bbs_tltb/${courseType}/viewTlById?wlkcid=${enc(courseID)}&id=${enc(discussionID)}&tabbh=${tabId}&bqid=${enc(boardID)}`;
 
 export const LEARN_QUESTION_LIST_ANSWERED = (courseID: string, courseType: CourseType) =>
-  `${LEARN_PREFIX}/b/wlxt/bbs/bbs_tltb/${courseType}/kcdyList?wlkcid=${courseID}&size=${MAX_SIZE}`;
+  `${LEARN_PREFIX}/b/wlxt/bbs/bbs_tltb/${courseType}/kcdyList?wlkcid=${enc(courseID)}&size=${MAX_SIZE}`;
 
 export const LEARN_QUESTION_DETAIL = (courseID: string, questionID: string, courseType: CourseType) =>
   courseType === CourseType.STUDENT
-    ? `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/student/viewDyById?wlkcid=${courseID}&id=${questionID}`
-    : `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/teacher/beforeEditDy?wlkcid=${courseID}&id=${questionID}`;
+    ? `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/student/viewDyById?wlkcid=${enc(courseID)}&id=${enc(questionID)}`
+    : `${LEARN_PREFIX}/f/wlxt/bbs/bbs_kcdy/teacher/beforeEditDy?wlkcid=${enc(courseID)}&id=${enc(questionID)}`;
 
 export const LEARN_QNR_LIST_ONGOING = `${LEARN_PREFIX}/b/wlxt/kcwj/wlkc_wjb/student/pageListWks`;
 export const LEARN_QNR_LIST_ENDED = `${LEARN_PREFIX}/b/wlxt/kcwj/wlkc_wjb/student/pageListYjs`;
 /** Note: This page is accessible even with an invalid `qnrID` as long as you have access to the given `courseID`. */
 export const LEARN_QNR_SUBMIT_PAGE = (courseID: string, qnrID: string, type: QuestionnaireType) =>
-  `${LEARN_PREFIX}/f/wlxt/kcwj/wlkc_wjb/student/beforeAdd?wlkcid=${courseID}&wjid=${qnrID}&wjlx=${type}&jswj=no`;
+  `${LEARN_PREFIX}/f/wlxt/kcwj/wlkc_wjb/student/beforeAdd?wlkcid=${enc(courseID)}&wjid=${enc(qnrID)}&wjlx=${type}&jswj=no`;
 export const LEARN_QNR_DETAIL = `${LEARN_PREFIX}/b/wlxt/kcwj/wlkc_wjb/student/getWjnr`;
 
 export const LEARN_QNR_DETAIL_FORM = (courseID: string, qnrID: string) => {
@@ -169,10 +172,9 @@ export const LEARN_WEBSITE_LANGUAGE = (lang: Language) =>
   `${LEARN_PREFIX}/f/wlxt/common/language?websiteShowLanguage=${WebsiteShowLanguage[lang]}`;
 
 export const LEARN_FAVORITE_ADD = (type: ContentType, id: string) =>
-  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/add?ywid=${encodeURIComponent(id)}&ywlx=${contentTypeCode(type)}`;
+  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/add?ywid=${enc(id)}&ywlx=${contentTypeCode(type)}`;
 
-export const LEARN_FAVORITE_REMOVE = (id: string) =>
-  `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/delete?ywid=${encodeURIComponent(id)}`;
+export const LEARN_FAVORITE_REMOVE = (id: string) => `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/delete?ywid=${enc(id)}`;
 
 export const LEARN_FAVORITE_LIST = (type?: ContentType) =>
   `${LEARN_PREFIX}/b/xt/wlkc_xsscb/student/pageList?ywlx=${type ? contentTypeCode(type) : 'ALL'}`;
@@ -222,4 +224,4 @@ export const REGISTRAR_AUTH = (ticket: string) =>
 export const REGISTRAR_CALENDAR = (startDate: string, endDate: string, graduate = false, callbackName = 'unknown') =>
   `${REGISTRAR_PREFIX}/jxmh_out.do?m=${
     graduate ? 'yjs' : 'bks'
-  }_jxrl_all&p_start_date=${startDate}&p_end_date=${endDate}&jsoncallback=${callbackName}`;
+  }_jxrl_all&p_start_date=${enc(startDate)}&p_end_date=${enc(endDate)}&jsoncallback=${enc(callbackName)}`;

@@ -1,9 +1,8 @@
-import { Base64 } from 'js-base64';
 import { describe, expect, it } from 'vitest';
 
 import { CourseType, FailReason } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
-import { FakeServer, json, success } from './helpers/fake-server.ts';
+import { FakeServer, base64, json, success } from './helpers/fake-server.ts';
 
 const post = (id: string, overrides: Record<string, unknown> = {}) => ({
   id,
@@ -66,7 +65,7 @@ describe('getAnsweredQuestionList', () => {
 
   it('decodes the question body', async () => {
     const server = new FakeServer().on('GET', URLS.LEARN_QUESTION_LIST_ANSWERED('c1', CourseType.STUDENT), () =>
-      success({ resultsList: [post('q1', { wtnr: Base64.encode('为什么？'), djs: undefined })] }),
+      success({ resultsList: [post('q1', { wtnr: base64('为什么？'), djs: undefined })] }),
     );
     const helper = await server.loggedInHelper();
     const [q] = await helper.getAnsweredQuestionList('c1');

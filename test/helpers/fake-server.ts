@@ -33,6 +33,9 @@ export const credential = { username: USERNAME, password: PASSWORD, fingerPrint:
 
 export const json = (value: unknown) =>
   new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
+/** UTF-8 text as base64, as the server sends notice content */
+export const base64 = (text: string) => Buffer.from(text, 'utf8').toString('base64');
+
 export const html = (text: string, status = 200) =>
   new Response(text, { status, headers: { 'Content-Type': 'text/html' } });
 export const success = (object: unknown) => json({ result: 'success', msg: '', object });

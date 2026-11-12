@@ -14,6 +14,8 @@
   - (_BREAKING CHANGE_) The student's `getFileListByCategory` leaves out `visitCount` and `downloadCount` (both optional now), which its list doesn't have, instead of giving 0. An excellent homework's `author.id` and `author.name` are optional: they are left out when the list names no author
   - `Homework.grade` and `gradeLevel` also read a grade the server sends as a string; teacher homework counts and `index` are numbers
   - Corrected docs: `CourseFile.isFavorite`, `comment` and `category`, `FavoriteItem.itemId` and `CommentItem.itemId`, `logout`
+  - Drops the `js-base64` dependency: base64 content is decoded with `atob`, which Node and React Native's Hermes both have
+  - Ids that go into URLs (course, file, notice, homework, category, questionnaire, discussion) are URL-encoded, like ticket and favorite ids already were
 
 - v7.0.0
   - (_BREAKING CHANGE_) Enums are `as const` objects with a type of the same name: `CourseType.STUDENT` still works as a value and as a type, and the values are the same strings and numbers. The source now runs under Node's type stripping, and `erasableSyntaxOnly` is on. Migration: none for code that uses the members; code that iterated an enum with `Object.values` gets the same values; numeric enums (`HomeworkCompletionType`, `HomeworkSubmissionType`) no longer have reverse mappings (`HomeworkSubmissionType[2]`)

@@ -1,7 +1,5 @@
 // Course notifications (课程公告).
 
-import { Base64 } from 'js-base64';
-
 import { attachmentOf } from './attachments.ts';
 import type { Session } from './request.ts';
 import type {
@@ -16,6 +14,7 @@ import * as URLS from './urls.ts';
 import {
   $,
   YES,
+  decodeBase64,
   decodeHTML,
   expectSuccess,
   favoriteFields,
@@ -65,7 +64,7 @@ async function getNotificationListKind(
     const attachmentName: unknown = courseType === CourseType.STUDENT ? n.fjmc : n.fjbt;
     return {
       id: n.ggid,
-      content: Base64.decode(n.ggnr ?? ''),
+      content: decodeBase64(n.ggnr),
       title: decodeHTML(n.bt),
       url: URLS.LEARN_NOTIFICATION_DETAIL(courseID, n.ggid, courseType),
       publisher: n.fbrxm,

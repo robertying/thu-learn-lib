@@ -5,6 +5,7 @@ import {
   $,
   JSONP_EXTRACTOR_NAME,
   apiError,
+  decodeBase64,
   decodeHTML,
   expectSuccess,
   extractJSONPResult,
@@ -95,6 +96,25 @@ describe('decodeHTML', () => {
   it('gives an empty string for a missing text', () => {
     expect(decodeHTML(null as unknown as string)).toBe('');
     expect(decodeHTML(undefined as unknown as string)).toBe('');
+  });
+});
+
+describe('decodeBase64', () => {
+  it('decodes base64 of UTF-8 text, ignoring whitespace in it', () => {
+    const encoded = Buffer.from('<p>内容 ✓ 😀</p>', 'utf8').toString('base64');
+    expect(decodeBase64(encoded)).toBe('<p>内容 ✓ 😀</p>');
+    expect(decodeBase64(`${encoded.slice(0, 8)}\n${encoded.slice(8)}`)).toBe('<p>内容 ✓ 😀</p>');
+  });
+
+  it("gives '' for a missing value or one that isn't base64", () => {
+    expect(decodeBase64(undefined)).toBe('');
+    expect(decodeBase64(null)).toBe('');
+    expect(decodeBase64('')).toBe('');
+    expect(decodeBase64('%%%')).toBe('');
+  });
+
+  it("gives one character per byte for bytes that aren't UTF-8", () => {
+    expect(decodeBase64(Buffer.from([0x61, 0xff]).toString('base64'))).toBe('a\xff');
   });
 });
 

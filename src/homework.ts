@@ -1,7 +1,5 @@
 // Homework (课程作业), excellent homework and homework submission.
 
-import { Base64 } from 'js-base64';
-
 import { attachmentOf } from './attachments.ts';
 import type { Session } from './request.ts';
 import { addCSRFTokenToUrl } from './request.ts';
@@ -26,6 +24,7 @@ import {
   $,
   YES,
   apiError,
+  decodeBase64,
   decodeHTML,
   favoriteFields,
   expectSuccess,
@@ -83,7 +82,7 @@ async function getTeacherHomeworkList(s: Session, courseID: string): Promise<Hom
         id: d.zyid,
         index: toNumber(d.wz),
         title: decodeHTML(d.bt),
-        description: Base64.decode(d.nr ?? ''),
+        description: decodeBase64(d.nr),
         publisherId: d.fbr,
         publishTime: toRequiredServerTime(d.fbsj),
         startTime: toRequiredServerTime(d.kssj),

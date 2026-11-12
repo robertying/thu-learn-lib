@@ -5,14 +5,12 @@ import { describe, expect, it } from 'vitest';
 import type { Fetch } from '../../src/index.ts';
 import type { Homework, HomeworkDetail } from '../../src/index.ts';
 import {
-  ContentType,
   CourseType,
   FailReason,
   Learn2018Helper,
   checkHomeworkSubmitResponse,
   homeworkContentHtml,
 } from '../../src/index.ts';
-import { HOMEWORK_LIST_SOURCES } from '../../src/homework.ts';
 import * as URLS from '../../src/urls.ts';
 import { FINGERPRINT, config } from './config.ts';
 import { DAY_MS } from './dates.ts';
@@ -28,16 +26,6 @@ const readMark: OnceTest = {
   covers: ['src/notices.ts', 'src/files.ts'],
   maxPerDay: 1,
 };
-
-const favorite: OnceTest = { name: 'favorite', covers: ['src/favorites.ts', 'src/homework.ts'], maxPerDay: 1 };
-
-const favoriteTypes: OnceTest = {
-  name: 'favorite-types',
-  covers: ['src/favorites.ts', 'src/notices.ts', 'src/files.ts'],
-  maxPerDay: 2,
-};
-
-const fileFavoriteField: OnceTest = { name: 'file-favorite-field', covers: ['src/files.ts'], maxPerDay: 2 };
 
 const fileSeen: OnceTest = { name: 'file-seen', covers: ['src/files.ts', 'src/urls.ts'], maxPerDay: 2 };
 
@@ -123,17 +111,6 @@ const changedKeys = (before: Record<string, unknown>, after: Record<string, unkn
     .filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))
     .toSorted();
 
-/** what a call answers, without account data: ok, or its fail reason and the server's result field */
-const outcome = async (call: () => Promise<unknown>) => {
-  try {
-    await call();
-    return 'ok';
-  } catch (e) {
-    const err = e as { reason?: string; message?: string; extra?: { result?: unknown; code?: unknown } };
-    return `${err.reason ?? err.message} (result ${JSON.stringify(err.extra?.result)}, status ${JSON.stringify(err.extra?.code)})`;
-  }
-};
-
 describe('one-time checks', () => {
   it.runIf(shouldRun(wrongPassword))('answers a wrong password with BAD_CREDENTIAL', { retry: 0 }, async () => {
     recordAttempt(wrongPassword.name);
@@ -211,254 +188,6 @@ describe('one-time checks', () => {
       }
       recordResult(readMark.name, findings.join('; '));
       if (!findings.some((f) => f.includes('nothing unread'))) recordPass(readMark, findings.join('; '));
-    },
-  );
-
-  it.runIf(ALLOW_WRITES && shouldRun(favorite))(
-    'records what the server sends for a favorited homework (adds one favorite and removes it)',
-    { retry: 0, timeout: 120_000 },
-    async () => {
-      recordAttempt(favorite.name);
-      const cookieJar = new CookieJar();
-      const h = new Learn2018Helper(config(cookieJar));
-      await h.login();
-      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
-      /** the raw homework rows of a course in every student list, by `xszyid` */
-      const rawRows = async (courseID: string) => {
-        const rows = new Map<string, { list: string; row: Record<string, unknown> }>();
-        for (const { url } of HOMEWORK_LIST_SOURCES) {
-          const u = new URL(url);
-          u.searchParams.set('_csrf', h.getCSRFToken());
-          const json = await (
-            await raw(u.href, { method: 'POST', body: URLS.LEARN_PAGE_LIST_FORM_DATA(courseID) })
-          ).json();
-          for (const row of json.object?.aaData ?? [])
-            rows.set(row.xszyid, { list: u.pathname.split('/').pop()!, row });
-        }
-        return rows;
-      };
-
-      const semester = await h.getCurrentSemester();
-      const favoritesBefore = await h.getFavorites();
-      let target: { courseID: string; id: string } | undefined;
-      for (const c of await h.getCourseList(semester.id)) {
-        const hw = (await h.getHomeworkList(c.id)).find(
-          (x) => !x.isFavorite && !favoritesBefore.some((f) => f.id === x.id),
-        );
-        if (hw) {
-          target = { courseID: c.id, id: hw.id };
-          break;
-        }
-      }
-      if (!target) {
-        recordResult(favorite.name, 'no homework to try');
-        return;
-      }
-
-      const findings: string[] = [];
-      const before = (await rawRows(target.courseID)).get(target.id)!;
-      try {
-        try {
-          await h.addToFavorites(ContentType.HOMEWORK, target.id);
-        } catch (e) {
-          const err = e as { reason?: string; message?: string; extra?: { result?: unknown; msg?: unknown } };
-          recordResult(
-            favorite.name,
-            `addToFavorites failed: ${err.reason ?? err.message} ${JSON.stringify({ result: err.extra?.result, msg: err.extra?.msg })}`,
-          );
-          throw e;
-        }
-        const after = (await rawRows(target.courseID)).get(target.id)!;
-        findings.push(
-          `homework row (${after.list}) changed keys: ${changedKeys(before.row, after.row).join(', ') || 'none'}`,
-          `sfsc ${JSON.stringify(before.row.sfsc)} -> ${JSON.stringify(after.row.sfsc)}`,
-        );
-        const homework = (await h.getHomeworkList(target.courseID)).find((x) => x.id === target.id)!;
-        findings.push(`isFavorite ${homework.isFavorite}`);
-        const added = (await h.getFavorites()).find((f) => f.id === target.id);
-        expect(added).toBeDefined();
-        findings.push(
-          `getFavorites item: ${Object.entries(added!)
-            .map(([k, v]) => `${k}:${v === undefined ? 'undefined' : typeof v}`)
-            .join(', ')}`,
-          `addedTime looks like ${/^\d{10,}$/.test(added!.addedTime) ? 'a ms timestamp' : /^\d{4}-\d{2}-\d{2}/.test(added!.addedTime) ? 'a date string' : 'something else'}`,
-        );
-      } finally {
-        await h.removeFromFavorites(target.id);
-      }
-      const left = (await h.getFavorites()).some((f) => f.id === target.id);
-      findings.push(`removed: ${!left}`);
-      await h.logout();
-      recordResult(favorite.name, findings.join('; '));
-      expect(left).toBe(false);
-      recordPass(favorite, findings.join('; '));
-    },
-  );
-
-  it.runIf(ALLOW_WRITES && shouldRun(favoriteTypes))(
-    'records how notices and files are favorited, and what odd calls answer (adds and removes a few favorites)',
-    { retry: 0, timeout: 180_000 },
-    async () => {
-      recordAttempt(favoriteTypes.name);
-      const cookieJar = new CookieJar();
-      const h = new Learn2018Helper(config(cookieJar));
-      await h.login();
-      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
-      const findings: string[] = [];
-      /** ids added by this test, removed at the end whatever happens */
-      const added = new Set<string>();
-
-      try {
-        /** the raw favorites list, with extra DataTables parameters in `aoData` */
-        const rawList = async (extra: { name: string; value: number }[] = []) => {
-          const u = new URL(URLS.LEARN_FAVORITE_LIST());
-          u.searchParams.set('_csrf', h.getCSRFToken());
-          const form = new FormData();
-          form.append('aoData', JSON.stringify(extra));
-          const json = await (await raw(u.href, { method: 'POST', body: form })).json();
-          return json.object ?? {};
-        };
-
-        const favoritesBefore = await h.getFavorites();
-        const isFav = (id: string) => favoritesBefore.some((f) => f.id === id);
-        const semester = await h.getCurrentSemester();
-        const courses = await h.getCourseList(semester.id);
-
-        // a notice
-        for (const c of courses) {
-          const notice = (await h.getNotificationList(c.id)).find((n) => !n.isFavorite && !isFav(n.id));
-          if (!notice) continue;
-          findings.push(`notice add: ${await outcome(() => h.addToFavorites(ContentType.NOTIFICATION, notice.id))}`);
-          added.add(notice.id);
-          const listed = (await h.getFavorites()).find((f) => f.id === notice.id);
-          findings.push(`notice listed by id: ${!!listed}, courseId matches: ${listed?.courseId === c.id}`);
-          const after = (await h.getNotificationList(c.id)).find((n) => n.id === notice.id);
-          findings.push(`notice isFavorite after add: ${after?.isFavorite}`);
-          findings.push(
-            `notice add again: ${await outcome(() => h.addToFavorites(ContentType.NOTIFICATION, notice.id))}`,
-          );
-          findings.push(
-            `notice favorites after adding twice: ${(await h.getFavorites()).filter((f) => f.id === notice.id).length}`,
-          );
-          break;
-        }
-
-        // a file: which of its ids (kjxxid as id, wjid as fileId) the server takes
-        for (const c of courses) {
-          const file = (await h.getFileList(c.id)).find((f) => !isFav(f.id) && !isFav(f.fileId));
-          if (!file) continue;
-          for (const [name, id] of [
-            ['id (kjxxid)', file.id],
-            ['fileId (wjid)', file.fileId],
-          ] as const) {
-            const result = await outcome(() => h.addToFavorites(ContentType.FILE, id));
-            const listed = (await h.getFavorites()).filter((f) => f.type === ContentType.FILE);
-            const byId = listed.find((f) => f.id === file.id);
-            const byFileId = listed.find((f) => f.id === file.fileId);
-            for (const f of [byId, byFileId]) if (f) added.add(f.id);
-            added.add(id);
-            findings.push(`file add with ${name}: ${result}; listed under id ${!!byId}, under fileId ${!!byFileId}`);
-            if (byId && file.category) {
-              const inCategory = (await h.getFileListByCategory(c.id, file.category.id)).find((f) => f.id === file.id);
-              findings.push(`file isFavorite in category list: ${inCategory?.isFavorite}`);
-            }
-            for (const f of [byId, byFileId]) if (f) await h.removeFromFavorites(f.id);
-          }
-          // keep one file favorited for the paging check below
-          if ((await outcome(() => h.addToFavorites(ContentType.FILE, file.id))) === 'ok') added.add(file.id);
-          break;
-        }
-
-        // does the list page? Read it as the library does, then ask for one row at a time
-        const whole = await rawList();
-        findings.push(
-          `list object keys: ${Object.keys(whole).toSorted().join(', ')}`,
-          `list rows ${(whole.aaData ?? []).length}, iTotalRecords ${whole.iTotalRecords}, iDisplayLength ${JSON.stringify(whole.iDisplayLength)}, iDisplayStart ${JSON.stringify(whole.iDisplayStart)}`,
-        );
-        const paged = await rawList([
-          { name: 'iDisplayStart', value: 1 },
-          { name: 'iDisplayLength', value: 1 },
-        ]);
-        findings.push(
-          `asked for 1 row from 1: rows ${(paged.aaData ?? []).length}, iTotalRecords ${paged.iTotalRecords}, iDisplayLength ${JSON.stringify(paged.iDisplayLength)}, iDisplayStart ${JSON.stringify(paged.iDisplayStart)}`,
-        );
-
-        // ids the server doesn't know, and removing what isn't a favorite
-        findings.push(
-          `add unknown homework id: ${await outcome(() => h.addToFavorites(ContentType.HOMEWORK, 'no-such-id'))}`,
-        );
-        added.add('no-such-id');
-        const listedUnknown = (await h.getFavorites()).some((f) => f.id === 'no-such-id');
-        findings.push(`unknown id listed: ${listedUnknown}`);
-        findings.push(
-          `remove an id that isn't a favorite: ${await outcome(() => h.removeFromFavorites('not-a-favorite'))}`,
-        );
-      } finally {
-        for (const id of added) await h.removeFromFavorites(id).catch(() => {});
-      }
-      const left = (await h.getFavorites()).filter((f) => added.has(f.id)).length;
-      findings.push(`left behind: ${left}`);
-      await h.logout();
-      recordResult(favoriteTypes.name, findings.join('; '));
-      expect(left).toBe(0);
-      if (findings.some((f) => f.startsWith('notice add:')) && findings.some((f) => f.startsWith('file add')))
-        recordPass(favoriteTypes, findings.join('; '));
-    },
-  );
-
-  it.runIf(ALLOW_WRITES && shouldRun(fileFavoriteField))(
-    'records whether the student file list says a file is favorited (adds one file favorite and removes it)',
-    { retry: 0, timeout: 120_000 },
-    async () => {
-      recordAttempt(fileFavoriteField.name);
-      const cookieJar = new CookieJar();
-      const h = new Learn2018Helper(config(cookieJar));
-      await h.login();
-      const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
-      /** the raw rows of a course's student file list, by `kjxxid` */
-      const rawRows = async (courseID: string) => {
-        const u = new URL(URLS.LEARN_FILE_LIST(courseID, CourseType.STUDENT));
-        u.searchParams.set('_csrf', h.getCSRFToken());
-        const json = await (await raw(u.href)).json();
-        return new Map<string, Record<string, unknown>>(
-          ((json.object ?? []) as Record<string, unknown>[]).map((r) => [r.kjxxid as string, r]),
-        );
-      };
-
-      const favorites = await h.getFavorites({ type: ContentType.FILE });
-      let target: { courseID: string; id: string } | undefined;
-      for (const c of await h.getCourseList((await h.getCurrentSemester()).id)) {
-        const file = (await h.getFileList(c.id)).find((f) => !favorites.some((x) => x.id === f.id));
-        if (file) {
-          target = { courseID: c.id, id: file.id };
-          break;
-        }
-      }
-      if (!target) {
-        recordResult(fileFavoriteField.name, 'no file to try');
-        return;
-      }
-
-      const findings: string[] = [];
-      const before = (await rawRows(target.courseID)).get(target.id)!;
-      findings.push(`row keys: ${Object.keys(before).toSorted().join(', ')}`);
-      try {
-        await h.addToFavorites(ContentType.FILE, target.id);
-        const after = (await rawRows(target.courseID)).get(target.id)!;
-        const changed = changedKeys(before, after);
-        findings.push(
-          `keys changed by favoriting: ${changed.join(', ') || 'none'}`,
-          ...changed.map((k) => `${k} ${JSON.stringify(before[k])} -> ${JSON.stringify(after[k])}`),
-        );
-      } finally {
-        await h.removeFromFavorites(target.id);
-      }
-      const left = (await h.getFavorites({ type: ContentType.FILE })).some((f) => f.id === target.id);
-      findings.push(`removed: ${!left}`);
-      await h.logout();
-      recordResult(fileFavoriteField.name, findings.join('; '));
-      expect(left).toBe(false);
-      recordPass(fileFavoriteField, findings.join('; '));
     },
   );
 

@@ -148,6 +148,26 @@ export function formatFileSize(size: number): string {
   return (size / 1024 / 1024 / 1024).toFixed(2) + 'G';
 }
 
+/**
+ * Base64 of UTF-8 text, as the server sends notice content, questions and teacher homework descriptions; `''` when
+ * missing or not base64. Uses `atob` and a percent-decode of the bytes, which Node and Hermes both have, so no
+ * `TextDecoder` is needed; bytes that aren't UTF-8 come back one character per byte.
+ */
+export function decodeBase64(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  let bytes: string;
+  try {
+    bytes = atob(value.replace(/\s/g, ''));
+  } catch {
+    return '';
+  }
+  try {
+    return decodeURIComponent(bytes.replace(/[\s\S]/g, (c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`));
+  } catch {
+    return bytes;
+  }
+}
+
 /** whether `item` is selected by a `DetailSelector` (`undefined` means `'none'`) */
 export const isSelected = <T>(selector: DetailSelector<T> | undefined, item: T): boolean =>
   selector === 'all' || (typeof selector === 'function' && selector(item));
