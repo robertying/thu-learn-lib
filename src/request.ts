@@ -1,8 +1,29 @@
-import type { ApiError, CredentialProvider, Fetch, HelperConfig } from './types.ts';
+import type {
+  ApiError,
+  CredentialProvider,
+  DownloadRequest,
+  DownloadResponse,
+  DownloadTransport,
+  Fetch,
+  HelperConfig,
+} from './types.ts';
 import { FailReason, Language } from './types.ts';
 import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
 
-export const noLogin = (res: Response) => res.url.includes('login_timeout') || res.status === 403;
+export const noLogin = (res: Pick<Response, 'status'> & { url?: string }) =>
+  !!res.url?.includes('login_timeout') || res.status === 403;
+
+/** bodies this long or longer are never an expired session's page */
+const MAX_SESSION_PAGE_SIZE = 4096;
+
+/**
+ * Whether a downloaded body is the tiny page (under 100 characters) that only redirects with a script, which a file
+ * download of an expired session gets instead of the file. Only downloads are checked for it.
+ */
+export const isScriptRedirect = (text: string) =>
+  text.length < 100 && /^\s*<script[^>]*>\s*(window\.)?location(\.href)?\s*=/i.test(text);
+
+const isAbort = (err: unknown) => (err as Error | undefined)?.name === 'AbortError';
 
 /** default for `HelperConfig.maxConcurrentRequests` */
 export const DEFAULT_MAX_CONCURRENT_REQUESTS = 6;
@@ -51,10 +72,78 @@ export function limitConcurrency<F extends (...args: any[]) => Promise<Response>
 }
 
 /** `RequestInit` plus a per-request `timeout` (milliseconds; 0 or `Infinity` for none) */
-export type RequestOptions = RequestInit & { timeout?: number };
+export type RequestOptions = RequestInit & {
+  timeout?: number;
+  /**
+   * called as the request body goes out, with the bytes sent and the total (0 when unknown); the request is then sent
+   * with `XMLHttpRequest` where there is one (React Native, browsers), since `fetch` can't report upload progress
+   */
+  onUploadProgress?: (sent: number, total: number) => void;
+};
 
 /** a `Fetch` whose `init` can also carry a per-request `timeout` */
 export type TimedFetch = (input: Parameters<Fetch>[0], init?: RequestOptions) => Promise<Response>;
+
+/** statuses whose `Response` can't have a body */
+const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
+/**
+ * Send one request with `XMLHttpRequest`, reporting upload progress to `init.onUploadProgress`, and resolve with a
+ * `Response` (its `url` the final one, after redirects), as `fetch` would. It fails like React Native's fetch: a
+ * `TypeError` when no answer comes, and the signal's reason (or an `AbortError`) when it is aborted.
+ */
+export const xhrFetch = (input: Parameters<Fetch>[0], init: RequestOptions = {}): Promise<Response> =>
+  new Promise((resolve, reject) => {
+    const { signal } = init;
+    // a plain `Error` named `AbortError`, as React Native's own clients reject with: `DOMException` may not exist there
+    const aborted = () =>
+      signal?.reason ?? Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' });
+    if (signal?.aborted) {
+      reject(aborted());
+      return;
+    }
+    const xhr = new XMLHttpRequest();
+    xhr.open(init.method ?? 'GET', urlOf(input));
+    new Headers(init.headers).forEach((value, name) => xhr.setRequestHeader(name, value));
+    xhr.withCredentials = true;
+    xhr.upload.addEventListener('progress', (e) => init.onUploadProgress?.(e.loaded, e.lengthComputable ? e.total : 0));
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    const settle = () => signal?.removeEventListener('abort', onAbort);
+    xhr.addEventListener('load', () => {
+      settle();
+      const res = new Response(NULL_BODY_STATUSES.has(xhr.status) ? null : xhr.responseText, {
+        status: xhr.status,
+        statusText: xhr.statusText,
+      });
+      Object.defineProperty(res, 'url', { value: xhr.responseURL });
+      resolve(res);
+    });
+    const failed = () => {
+      settle();
+      reject(new TypeError('Network request failed'));
+    };
+    xhr.addEventListener('error', failed);
+    xhr.addEventListener('timeout', failed);
+    xhr.addEventListener('abort', () => {
+      settle();
+      reject(aborted());
+    });
+    xhr.send((init.body ?? null) as XMLHttpRequestBodyInit | null);
+  });
+
+/**
+ * `inner`, but a request with `onUploadProgress` goes through `xhrFetch` where `XMLHttpRequest` exists (React Native,
+ * browsers); elsewhere (Node) it goes through `inner` and reports no progress.
+ */
+export function withUploadProgress(inner: Fetch): Fetch {
+  return (input, init?: RequestOptions) => {
+    const { onUploadProgress, ...rest } = init ?? {};
+    return onUploadProgress && typeof XMLHttpRequest !== 'undefined'
+      ? xhrFetch(input, { ...rest, onUploadProgress })
+      : inner(input, rest);
+  };
+}
 
 /**
  * Abort a call of `inner` that has no response headers after `ms` milliseconds (or `init.timeout`, which overrides it
@@ -123,6 +212,54 @@ export const discard = (res: Response) => {
 const EXPIRED = Symbol('expired');
 
 /**
+ * Send a download once with `transport` and classify the answer: a transport failure is `NETWORK_ERROR`, a 403, a
+ * redirect to the login timeout page or a small login / script-redirect page is an expired session, any other status
+ * than 2xx is `UNEXPECTED_STATUS`. Every response it doesn't return is discarded.
+ */
+const downloadAttempt = async <T extends DownloadResponse>(
+  transport: DownloadTransport<T>,
+  request: DownloadRequest,
+): Promise<T | typeof EXPIRED> => {
+  let res: T;
+  try {
+    res = await transport(request);
+  } catch (err) {
+    if ((err as ApiError | undefined)?.reason !== undefined || isAbort(err)) throw err;
+    throw apiError(FailReason.NETWORK_ERROR, err);
+  }
+  if (noLogin(res)) {
+    res.discard?.();
+    return EXPIRED;
+  }
+  if (res.status < 200 || res.status >= 300) {
+    res.discard?.();
+    throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status });
+  }
+  if (res.size < MAX_SESSION_PAGE_SIZE) {
+    const text = await res.text();
+    if (looksLikeLoginPage(text) || isScriptRedirect(text)) {
+      res.discard?.();
+      return EXPIRED;
+    }
+  }
+  return res;
+};
+
+/**
+ * Send a download once with `transport`, without the helper's session (no login, CSRF token or retry), and check the
+ * answer as `download` does; an expired-session answer rejects with `NOT_LOGGED_IN`. For a client that emulates the
+ * server, so its downloads fail the same way as real ones.
+ */
+export const sendDownload = async <T extends DownloadResponse>(
+  transport: DownloadTransport<T>,
+  request: DownloadRequest,
+): Promise<T> => {
+  const res = await downloadAttempt(transport, request);
+  if (res === EXPIRED) throw apiError(FailReason.NOT_LOGGED_IN);
+  return res;
+};
+
+/**
  * State shared by every request a `Learn2018Helper` makes: cookies, CSRF token, language and the fetch wrappers.
  * Internal; the helper keeps it in a private field.
  */
@@ -130,6 +267,8 @@ export class Session {
   readonly provider?: CredentialProvider;
   /** `HelperConfig.clearLoginCookies` */
   readonly clearLoginCookies?: () => void | Promise<void>;
+  /** `HelperConfig.cookieHeader` */
+  readonly cookieHeader?: HelperConfig['cookieHeader'];
   /** fetch with cookies, the concurrency cap and the timeout, but no login check */
   readonly rawFetch: TimedFetch;
   #csrfToken = '';
@@ -158,8 +297,14 @@ export class Session {
     this.previewFirstPage = config?.previewFirstPage ?? true;
     this.provider = config?.provider;
     this.clearLoginCookies = config?.clearLoginCookies;
+    this.cookieHeader = config?.cookieHeader;
     this.rawFetch = limitConcurrency(
-      withNetworkError(withTimeout(config?.fetch ?? globalFetch, config?.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT)),
+      withNetworkError(
+        withTimeout(
+          withUploadProgress(config?.fetch ?? globalFetch),
+          config?.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT,
+        ),
+      ),
       config?.maxConcurrentRequests ?? DEFAULT_MAX_CONCURRENT_REQUESTS,
     );
   }
@@ -230,14 +375,22 @@ export class Session {
     init: RequestOptions | undefined,
     read: (res: Response, retry: boolean) => Promise<T | typeof EXPIRED>,
   ): Promise<T> {
-    const attempt = async (retry: boolean): Promise<T | typeof EXPIRED> => {
+    return this.#retryExpired(async (retry) => {
       const res = await this.rawFetch(makeUrl(), init);
       if (noLogin(res)) {
         discard(res);
         return EXPIRED;
       }
       return read(res, retry);
-    };
+    });
+  }
+
+  /**
+   * Run `attempt`; when it finds the session expired (returns `EXPIRED`), log in again and run it once more, as
+   * `#send` describes. Every request that may find the session expired goes through here, downloads sent with another
+   * client (`download`) included, so they all renew it the same way.
+   */
+  async #retryExpired<T>(attempt: (retry: boolean) => Promise<T | typeof EXPIRED>): Promise<T> {
     const generation = this.#generation;
     const first = await attempt(false);
     if (first !== EXPIRED) return first;
@@ -252,6 +405,24 @@ export class Session {
       throw apiError(FailReason.NOT_LOGGED_IN);
     }
     return second;
+  }
+
+  /**
+   * Fetch a Web Learning URL with another client (`transport`), with the session handling of the helper's own requests:
+   * log in first without a CSRF token, add the token (and `cookieHeader`'s cookies) to the request, and take a 403, a
+   * redirect to the login timeout page, or a small body that is a login or script-redirect page as an expired session:
+   * then log in again and send it once more. A transport failure rejects with `NETWORK_ERROR`, a status other than
+   * 2xx with `UNEXPECTED_STATUS`. Every response it doesn't return is discarded.
+   */
+  async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
+    if (this.#csrfToken === '') {
+      await this.autoRelogin();
+    }
+    return this.#retryExpired(async () => {
+      const target = addCSRFTokenToUrl(url, this.#csrfToken);
+      const cookie = await this.cookieHeader?.(target);
+      return downloadAttempt(transport, { url: target, headers: cookie ? { Cookie: cookie } : {} });
+    });
   }
 
   /** the response, but after a re-login only one with status 200 */

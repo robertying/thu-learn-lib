@@ -7,8 +7,10 @@ import * as files from './files.ts';
 import * as homework from './homework.ts';
 import * as notices from './notices.ts';
 import * as questionnaires from './questionnaires.ts';
-import { Session } from './request.ts';
+import { Session, discard } from './request.ts';
 import type {
+  DownloadResponse,
+  DownloadTransport,
   Credential,
   CalendarOptions,
   CalendarResult,
@@ -29,7 +31,6 @@ import type {
   HomeworkDetail,
   HomeworkListOptions,
   HomeworkSubmitOptions,
-  HomeworkSubmitRequest,
   HomeworkTA,
   Language,
   NotificationListOptions,
@@ -48,8 +49,8 @@ import { apiError, parsed } from './utils.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
-export { addCSRFTokenToUrl, isConnectionError } from './request.ts';
-export { checkHomeworkSubmitResponse, homeworkContentHtml } from './homework.ts';
+export { addCSRFTokenToUrl, isConnectionError, sendDownload } from './request.ts';
+export { homeworkContentHtml } from './homework.ts';
 export { CLASS_PERIOD_TIMES, parseCourseMeeting, parseWeeks, semesterWeek } from './timetable.ts';
 export * from './types.ts';
 
@@ -100,6 +101,26 @@ export class Learn2018Helper {
    */
   public async ensureSession(): Promise<void> {
     return parsed(this.#session.ensureSession(URLS.LEARN_CURRENT_SEMESTER));
+  }
+
+  /**
+   * Download a Web Learning file (a `downloadUrl`) with another client, e.g. one that writes it to disk:
+   * `transport` sends the request it is given and reports the answer. The helper does the rest, as for its own
+   * requests: it calls the website's check before a course file (which, with the whole download, marks the file seen),
+   * logs in first without a session, adds the CSRF token (and `HelperConfig.cookieHeader`'s cookies), and when the
+   * answer is an expired session's (a 403, the login page, or a tiny script redirect), logs in again and sends it once
+   * more. It rejects with `NETWORK_ERROR` when the transport got no answer, `UNEXPECTED_STATUS` for a status other than
+   * 2xx, `NOT_LOGGED_IN` when the new session is turned away too, and throws a `TypeError` for a URL off Web Learning.
+   */
+  public async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
+    if (!url.startsWith(`${URLS.LEARN_PREFIX}/`)) {
+      throw new TypeError(`not a Web Learning URL: ${url}`);
+    }
+    const check = files.downloadCheckUrl(url);
+    if (check) {
+      await this.#session.fetchWithToken(check).then(discard, () => {});
+    }
+    return parsed(this.#session.download(url, transport));
   }
 
   /** Log out of Web Learning; the CSRF token is cleared, so the next request logs in again. */
@@ -310,19 +331,11 @@ export class Learn2018Helper {
 
   /**
    * Submit homework `id` (`Homework.id`), the way the website's submit page does; see `HomeworkSubmitOptions`. In
-   * React Native, pass the attachment's `content` as `{ uri, type }`.
+   * React Native, pass the attachment's `content` as `{ uri, type }`. `onProgress` reports the upload's progress where
+   * `XMLHttpRequest` exists. Like every request, an expired session logs in again and the submission is sent once more.
    */
   public async submitHomework(id: string, options?: HomeworkSubmitOptions): Promise<void> {
     return parsed(homework.submitHomework(this.#session, id, options));
-  }
-
-  /**
-   * The request `submitHomework` would send, for sending with another HTTP client (e.g. to show upload progress, which
-   * `fetch` can't): POST `body` to `url`, then pass the answer (parsed JSON or text) to `checkHomeworkSubmitResponse`.
-   * It checks the session first (`ensureSession`), since that request doesn't log in again and retry.
-   */
-  public async getHomeworkSubmitRequest(id: string, options?: HomeworkSubmitOptions): Promise<HomeworkSubmitRequest> {
-    return parsed(homework.getHomeworkSubmitRequest(this.#session, id, options));
   }
 
   public async setLanguage(lang: Language): Promise<void> {

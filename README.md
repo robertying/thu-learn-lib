@@ -169,14 +169,21 @@ await helper.submitHomework(homework.id, {
 });
 ```
 
-`fetch` can't report upload progress. To send the submission with another HTTP client, get the request with `getHomeworkSubmitRequest` (it checks the session first) and read the answer with `checkHomeworkSubmitResponse`:
+Pass `onProgress` to see the upload's progress (0 to 1): the helper then sends the upload with `XMLHttpRequest`, which React Native and browsers have (`fetch` can't report it). Like every request, a submission that finds the session expired logs in again and is sent once more.
 
 ```typescript
-import { checkHomeworkSubmitResponse } from '@robertying/thu-learn-lib';
+await helper.submitHomework(homework.id, { content, attachment, onProgress: (p) => setProgress(p) });
+```
 
-const { url, body } = await helper.getHomeworkSubmitRequest(id, { content, attachment });
-const res = await axios.post(url, body, { onUploadProgress });
-checkHomeworkSubmitResponse(res.data);
+### Downloading files
+
+To save a file with another client (one that writes it to disk, for example), give `download` the file's `downloadUrl` and a transport that sends the request it is handed. The helper does the session work, as for its own requests: it calls the website's check before a course file, which with the whole download marks the file seen; logs in first without a session; adds the CSRF token; and when the answer is an expired session's (a 403, the login page, or a tiny script redirect), logs in again and sends it once more. A transport that doesn't share `fetch`'s cookies gets them from `HelperConfig.cookieHeader`.
+
+```typescript
+const saved = await helper.download(file.downloadUrl, async ({ url, headers }) => {
+  const path = await saveToDisk(url, headers); // throws when no answer comes
+  return { status: 200, size: sizeOf(path), text: () => readText(path), discard: () => remove(path), path };
+});
 ```
 
 ### Errors
