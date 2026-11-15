@@ -7,8 +7,10 @@ import * as files from './files.ts';
 import * as homework from './homework.ts';
 import * as notices from './notices.ts';
 import * as questionnaires from './questionnaires.ts';
-import { Session } from './request.ts';
+import { Session, discard } from './request.ts';
 import type {
+  DownloadResponse,
+  DownloadTransport,
   Credential,
   CalendarOptions,
   CalendarResult,
@@ -29,7 +31,6 @@ import type {
   HomeworkDetail,
   HomeworkListOptions,
   HomeworkSubmitOptions,
-  HomeworkSubmitRequest,
   HomeworkTA,
   Language,
   NotificationListOptions,
@@ -50,8 +51,7 @@ import * as user from './user.ts';
 
 export { addCSRFTokenToUrl, isConnectionError } from './request.ts';
 /** whether a 200 body is the login or redirect page of an expired session rather than what was asked for */
-export { looksLikeLoginPage as isExpiredSessionPage } from './utils.ts';
-export { checkHomeworkSubmitResponse, homeworkContentHtml } from './homework.ts';
+export { homeworkContentHtml } from './homework.ts';
 export { CLASS_PERIOD_TIMES, parseCourseMeeting, parseWeeks, semesterWeek } from './timetable.ts';
 export * from './types.ts';
 
@@ -105,14 +105,20 @@ export class Learn2018Helper {
   }
 
   /**
-   * Send a request with another HTTP client (an upload, a file download) with the same expired-session handling as the
-   * helper's own requests: log in first if needed, and when `send` rejects with `NOT_LOGGED_IN` (as
-   * `checkHomeworkSubmitResponse` does for the login page, or the caller does for a body `isExpiredSessionPage` takes
-   * for one), log in again with the `CredentialProvider` and call `send` once more. Logins are shared and never repeat
-   * a `BAD_CREDENTIAL`, as for every request. Without a provider, an expired session rejects with `NOT_LOGGED_IN`.
+   * Download a Web Learning file (a `downloadUrl`) with another client, e.g. one that writes it to disk:
+   * `transport` sends the request it is given and reports the answer. The helper does the rest, as for its own
+   * requests: it calls the website's check before a course file (which, with the whole download, marks the file seen),
+   * logs in first without a session, adds the CSRF token (and `HelperConfig.cookieHeader`'s cookies), and when the
+   * answer is an expired session's (a 403, the login page, or a tiny script redirect), logs in again and sends it once
+   * more. It rejects with `NETWORK_ERROR` when the transport got no answer, `UNEXPECTED_STATUS` for a status other than
+   * 2xx, `NOT_LOGGED_IN` when the new session is turned away too, and `INVALID_RESPONSE` for a URL off Web Learning.
    */
-  public async withSession<T>(send: () => Promise<T>): Promise<T> {
-    return this.#session.withSession(send);
+  public async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
+    const check = files.downloadCheckUrl(url);
+    if (check) {
+      await this.#session.fetchWithToken(check).then(discard, () => {});
+    }
+    return parsed(this.#session.download(url, transport));
   }
 
   /** Log out of Web Learning; the CSRF token is cleared, so the next request logs in again. */
@@ -323,20 +329,11 @@ export class Learn2018Helper {
 
   /**
    * Submit homework `id` (`Homework.id`), the way the website's submit page does; see `HomeworkSubmitOptions`. In
-   * React Native, pass the attachment's `content` as `{ uri, type }`.
+   * React Native, pass the attachment's `content` as `{ uri, type }`. `onProgress` reports the upload's progress where
+   * `XMLHttpRequest` exists. Like every request, an expired session logs in again and the submission is sent once more.
    */
   public async submitHomework(id: string, options?: HomeworkSubmitOptions): Promise<void> {
     return parsed(homework.submitHomework(this.#session, id, options));
-  }
-
-  /**
-   * The request `submitHomework` would send, for sending with another HTTP client (e.g. to show upload progress, which
-   * `fetch` can't): POST `body` to `url`, then pass the answer (parsed JSON or text) to `checkHomeworkSubmitResponse`.
-   * It checks the session first (`ensureSession`). Get and send it inside `withSession`, so a session that expires
-   * meanwhile logs in again and sends it once more with the new CSRF token.
-   */
-  public async getHomeworkSubmitRequest(id: string, options?: HomeworkSubmitOptions): Promise<HomeworkSubmitRequest> {
-    return parsed(homework.getHomeworkSubmitRequest(this.#session, id, options));
   }
 
   public async setLanguage(lang: Language): Promise<void> {

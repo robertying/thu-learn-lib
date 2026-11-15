@@ -287,14 +287,4 @@ describe('helper data retrieval', () => {
     );
     if (onTeachingDays.length > 0) expect(found.length / onTeachingDays.length).toBeGreaterThanOrEqual(0.75);
   });
-
-  it('builds the homework submit request without sending it', async () => {
-    const request = await h.getHomeworkSubmitRequest('live-test-not-sent', { content: '<p>not sent</p>' });
-    const url = new URL(request.url);
-    expect(url.pathname).toBe('/b/wlxt/kczy/zy/student/tjzy');
-    // the token of a session that the check just found alive
-    expect(url.searchParams.get('_csrf')).toBe(h.getCSRFToken());
-    expect(request.body.get('xszyid')).toBe('live-test-not-sent');
-    expect(request.body.get('fileupload')).toBe('undefined');
-  });
 });

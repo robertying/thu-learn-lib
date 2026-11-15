@@ -33,7 +33,38 @@ export type HelperConfig = {
   maxConcurrentRequests?: number;
   /** milliseconds to wait for a response before rejecting with `FailReason.REQUEST_TIMEOUT` (default 60000; 0 for none) */
   requestTimeout?: number;
+  /**
+   * the `Cookie` header for a Web Learning URL, for `download` transports that don't share `fetch`'s cookies (e.g. a
+   * download client on Android); leave it out when they do (iOS, browsers)
+   */
+  cookieHeader?: (url: string) => string | undefined | Promise<string | undefined>;
 };
+
+/** What `download` asks a `DownloadTransport` to fetch: the URL (with the CSRF token) and the headers to send. */
+export interface DownloadRequest {
+  url: string;
+  headers: Record<string, string>;
+}
+
+/** What a `DownloadTransport` got: enough for the helper to tell a file from an expired session's answer. */
+export interface DownloadResponse {
+  /** the HTTP status */
+  status: number;
+  /** the final URL, after redirects, when known */
+  url?: string;
+  /** the body's size in bytes */
+  size: number;
+  /** the body as text; only read for a small body */
+  text(): Promise<string>;
+  /** called when the helper won't return this response (an expired session, an error status), e.g. to delete a file */
+  discard?(): void;
+}
+
+/**
+ * Sends a `DownloadRequest` with another client (e.g. one that writes the file to disk). It rejects only when no
+ * answer came (the helper rejects with `NETWORK_ERROR` then) or when it was aborted (an `AbortError`, passed through).
+ */
+export type DownloadTransport<T extends DownloadResponse> = (request: DownloadRequest) => Promise<T>;
 
 export const FailReason = {
   NO_CREDENTIAL: 'no credential provided',
@@ -411,14 +442,6 @@ export interface ReactNativeFile {
   type?: string;
 }
 
-/** The request `submitHomework` sends, from `getHomeworkSubmitRequest`, for sending with another HTTP client */
-export interface HomeworkSubmitRequest {
-  /** the submit URL, with the CSRF token */
-  url: string;
-  /** POST it as multipart form data */
-  body: FormData;
-}
-
 export interface HomeworkSubmitOptions {
   /**
    * The whole answer as HTML (the website sends its editor's HTML; default `''`). It replaces the submitted one, so pass
@@ -429,6 +452,11 @@ export interface HomeworkSubmitOptions {
   attachment?: HomeworkSubmitAttachment;
   /** delete the existing attachment; then `content` is ignored and the submitted answer stays */
   removeAttachment?: boolean;
+  /**
+   * called with the share of the upload sent so far, 0 to 1; then the upload goes through `XMLHttpRequest` where there
+   * is one (React Native, browsers), and reports nothing elsewhere (Node)
+   */
+  onProgress?: (progress: number) => void;
 }
 
 export interface HomeworkSubmitAttachment {

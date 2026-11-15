@@ -2,7 +2,6 @@
 
 import { attachmentOf } from './attachments.ts';
 import type { Session } from './request.ts';
-import { addCSRFTokenToUrl } from './request.ts';
 import type {
   ExcellentHomework,
   ExcellentHomeworkBase,
@@ -12,7 +11,6 @@ import type {
   HomeworkListOptions,
   HomeworkStatus,
   HomeworkSubmitOptions,
-  HomeworkSubmitRequest,
   HomeworkTA,
   RemoteFile,
   TeacherHomeworkListOptions,
@@ -23,13 +21,11 @@ import { GRADE_LEVEL_MAP } from './codes.ts';
 import {
   $,
   YES,
-  apiError,
   decodeBase64,
   decodeHTML,
   favoriteFields,
   expectSuccess,
   isSelected,
-  looksLikeLoginPage,
   toRequiredServerTime,
   optionalHtml,
   optionalText,
@@ -252,51 +248,20 @@ function parseHomeworkFile(s: Session, block: Selection): RemoteFile | undefined
   });
 }
 
+/**
+ * Send the submission as the website's submit page does, through the helper's request path (timeouts, network errors,
+ * an expired session logging in again and sending it once more). With `onProgress`, the upload is sent with
+ * `XMLHttpRequest` where there is one, which reports its progress.
+ */
 export async function submitHomework(s: Session, id: string, options: HomeworkSubmitOptions = {}): Promise<void> {
+  const { onProgress } = options;
   const json = await s.fetchJsonWithToken(URLS.LEARN_HOMEWORK_SUBMIT, {
     method: 'POST',
     body: homeworkSubmitForm(id, options),
     // the response only starts after the whole upload, which can take longer than `requestTimeout`
     timeout: options.attachment ? 0 : undefined,
+    onUploadProgress: onProgress && ((sent, total) => onProgress(total > 0 ? Math.min(sent / total, 1) : 0)),
   });
-  checkHomeworkSubmitResponse(json);
-}
-
-/**
- * The request `submitHomework` would send, for sending it with another HTTP client (e.g. one that reports upload
- * progress). Checks the session first (`ensureSession`: one request, and a login only if it has expired), as the
- * request is sent without the helper's re-login and retry. Read the answer with `checkHomeworkSubmitResponse`.
- */
-export async function getHomeworkSubmitRequest(
-  s: Session,
-  id: string,
-  options: HomeworkSubmitOptions = {},
-): Promise<HomeworkSubmitRequest> {
-  await s.ensureSession(URLS.LEARN_CURRENT_SEMESTER);
-  return {
-    url: addCSRFTokenToUrl(URLS.LEARN_HOMEWORK_SUBMIT, s.csrfToken),
-    body: homeworkSubmitForm(id, options),
-  };
-}
-
-/**
- * Check the server's answer to a homework submission: its parsed JSON, or the body as text. Rejects with
- * `NOT_LOGGED_IN` for the login page of an expired session (which the server sends with status 200),
- * `INVALID_RESPONSE` for any other text that isn't JSON, and `OPERATION_FAILED` (with the answer in `extra`) unless
- * `result` is `'success'`.
- */
-export function checkHomeworkSubmitResponse(body: unknown): void {
-  let json = body;
-  if (typeof body === 'string') {
-    try {
-      json = JSON.parse(body);
-    } catch {
-      throw apiError(
-        looksLikeLoginPage(body) ? FailReason.NOT_LOGGED_IN : FailReason.INVALID_RESPONSE,
-        body.slice(0, 200),
-      );
-    }
-  }
   expectSuccess(json, FailReason.OPERATION_FAILED);
 }
 

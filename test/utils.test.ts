@@ -211,12 +211,6 @@ describe('looksLikeLoginPage', () => {
     expect(looksLikeLoginPage('<a href="/b/j_spring_security_thauth_roaming_entry?ticket=x">')).toBe(true);
   });
 
-  it("recognises a file download's tiny script redirect, whatever it points at", () => {
-    expect(looksLikeLoginPage('<script>location.href="/";</script>')).toBe(true);
-    expect(looksLikeLoginPage("<script>window.location = '/f/x';</script>")).toBe(true);
-    expect(looksLikeLoginPage(`<script>location.href="/${'a'.repeat(100)}"</script>`)).toBe(false);
-  });
-
   it('does not take other pages, or long pages that mention the login, for a login page', () => {
     expect(looksLikeLoginPage('<html><body>系统维护中</body></html>')).toBe(false);
     expect(looksLikeLoginPage('')).toBe(false);

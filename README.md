@@ -169,30 +169,20 @@ await helper.submitHomework(homework.id, {
 });
 ```
 
-`fetch` can't report upload progress. To send the submission with another HTTP client, get the request with `getHomeworkSubmitRequest` and read the answer with `checkHomeworkSubmitResponse`, inside `withSession` (see below):
+Pass `onProgress` to see the upload's progress (0 to 1): the helper then sends the upload with `XMLHttpRequest`, which React Native and browsers have (`fetch` can't report it). Like every request, a submission that finds the session expired logs in again and is sent once more.
 
 ```typescript
-import { checkHomeworkSubmitResponse } from '@robertying/thu-learn-lib';
-
-await helper.withSession(async () => {
-  const { url, body } = await helper.getHomeworkSubmitRequest(id, { content, attachment });
-  const res = await axios.post(url, body, { onUploadProgress });
-  checkHomeworkSubmitResponse(res.data);
-});
+await helper.submitHomework(homework.id, { content, attachment, onProgress: (p) => setProgress(p) });
 ```
 
-### Requests sent with another client
+### Downloading files
 
-`withSession(send)` gives a request you send yourself (an upload with progress, a file download to disk) the session handling of the helper's own requests. It logs in first when there is no session yet. When `send` rejects with `NOT_LOGGED_IN`, it logs in again with the `CredentialProvider` and calls `send` once more, so `send` should read the CSRF token (`getCSRFToken`) each time it runs. Logins are shared with the helper's other requests and never retry a password the server turned down. `checkHomeworkSubmitResponse` already rejects with `NOT_LOGGED_IN` for the login page; for anything else, check the body with `isExpiredSessionPage`:
+To save a file with another client (one that writes it to disk, for example), give `download` the file's `downloadUrl` and a transport that sends the request it is handed. The helper does the session work, as for its own requests: it calls the website's check before a course file, which with the whole download marks the file seen; logs in first without a session; adds the CSRF token; and when the answer is an expired session's (a 403, the login page, or a tiny script redirect), logs in again and sends it once more. A transport that doesn't share `fetch`'s cookies gets them from `HelperConfig.cookieHeader`.
 
 ```typescript
-import { FailReason, addCSRFTokenToUrl, isExpiredSessionPage } from '@robertying/thu-learn-lib';
-
-const text = await helper.withSession(async () => {
-  const res = await myFetch(addCSRFTokenToUrl(url, helper.getCSRFToken()));
-  const body = await res.text();
-  if (isExpiredSessionPage(body)) throw { reason: FailReason.NOT_LOGGED_IN };
-  return body;
+const saved = await helper.download(file.downloadUrl, async ({ url, headers }) => {
+  const path = await saveToDisk(url, headers); // throws when no answer comes
+  return { status: 200, size: sizeOf(path), text: () => readText(path), discard: () => remove(path), path };
 });
 ```
 

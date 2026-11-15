@@ -169,3 +169,21 @@ async function getTeacherFileListByCategory(s: Session, courseID: string, catego
 
   return result.map((f) => parseFile(s, f, CourseType.TEACHER));
 }
+
+const COURSE_FILE_DOWNLOAD_PATH = /^\/b\/wlxt\/kj\/wlkc_kjxxb\/(student|teacher)\/downloadFile$/;
+
+/**
+ * The check the website calls before it downloads a course file (`downloadFileBefore`), for a course file's
+ * `downloadUrl`; `undefined` for any other URL. The whole download then marks the file seen on the server.
+ */
+export const downloadCheckUrl = (downloadUrl: string): string | undefined => {
+  let url: URL;
+  try {
+    url = new URL(downloadUrl);
+  } catch {
+    return undefined;
+  }
+  const fileId = url.searchParams.get('wjid');
+  if (url.origin !== URLS.LEARN_PREFIX || !COURSE_FILE_DOWNLOAD_PATH.test(url.pathname) || !fileId) return undefined;
+  return `${url.origin}${url.pathname}Before?wjid=${encodeURIComponent(fileId)}`;
+};

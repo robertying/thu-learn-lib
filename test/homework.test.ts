@@ -1,13 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  ContentType,
-  CourseType,
-  FailReason,
-  HomeworkGradeLevel,
-  checkHomeworkSubmitResponse,
-  homeworkContentHtml,
-} from '../src/index.ts';
+import { ContentType, CourseType, FailReason, HomeworkGradeLevel, homeworkContentHtml } from '../src/index.ts';
 import type { Request } from './helpers/fake-server.ts';
 import { FakeServer, base64, courseIdOf, field, html, json, success } from './helpers/fake-server.ts';
 import { HOMEWORK_LIST_SOURCES, homeworkSubmitForm } from '../src/homework.ts';
@@ -460,74 +453,6 @@ describe('submitHomework with a React Native file', () => {
     const form = homeworkSubmitForm('s-h1', { content: '<p>a</p>', removeAttachment: true });
     expect(form.get('fileupload')).toBe('undefined');
     expect(form.get('isDeleted')).toBe('1');
-  });
-});
-
-const submitServer = () =>
-  new FakeServer()
-    .on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'success', result: {} }))
-    .on('POST', URLS.LEARN_HOMEWORK_SUBMIT, () => json({ result: 'success' }));
-
-describe('getHomeworkSubmitRequest', () => {
-  it('checks the session and returns the URL with the CSRF token and the form', async () => {
-    const server = submitServer();
-    const helper = await server.loggedInHelper();
-    const request = await helper.getHomeworkSubmitRequest('s-h1', {
-      content: '<p>answer</p>',
-      attachment: { filename: 'a.txt', content: new Blob(['hi']) },
-    });
-
-    expect(server.count(URLS.LEARN_CURRENT_SEMESTER)).toBe(1);
-    expect(server.loginCount).toBe(1);
-    const url = new URL(request.url);
-    expect(url.origin + url.pathname).toBe(URLS.LEARN_HOMEWORK_SUBMIT);
-    expect(url.searchParams.get('_csrf')).toBe(server.csrfToken);
-    expect(request.body.get('xszyid')).toBe('s-h1');
-    expect(request.body.get('zynr')).toBe('<p>answer</p>');
-    expect((request.body.get('fileupload') as File).name).toBe('a.txt');
-    expect(request.body.get('isDeleted')).toBe('0');
-    // nothing is submitted by the helper itself
-    expect(server.count(URLS.LEARN_HOMEWORK_SUBMIT)).toBe(0);
-  });
-
-  it('logs in first when the session has expired, so the URL carries the new token', async () => {
-    const server = submitServer();
-    const helper = await server.loggedInHelper();
-    server.expireSession();
-
-    const request = await helper.getHomeworkSubmitRequest('s-h1', { content: '<p>answer</p>' });
-    expect(server.loginCount).toBe(2);
-    expect(new URL(request.url).searchParams.get('_csrf')).toBe('csrf-2');
-  });
-});
-
-describe('checkHomeworkSubmitResponse', () => {
-  it('accepts result success as JSON or as text', () => {
-    expect(() => checkHomeworkSubmitResponse({ result: 'success', msg: '' })).not.toThrow();
-    expect(() => checkHomeworkSubmitResponse('{"result":"success"}')).not.toThrow();
-  });
-
-  it('rejects with OPERATION_FAILED and the answer for anything but success', () => {
-    const answer = { result: 'error', msg: '作业已截止' };
-    expect(() => checkHomeworkSubmitResponse(answer)).toThrow(
-      expect.objectContaining({ reason: FailReason.OPERATION_FAILED, extra: answer }),
-    );
-    expect(() => checkHomeworkSubmitResponse(undefined)).toThrow(
-      expect.objectContaining({ reason: FailReason.OPERATION_FAILED }),
-    );
-  });
-
-  it('rejects with NOT_LOGGED_IN for the login page of an expired session', () => {
-    const loginPage = '<html><head><title>登录超时</title></head><body>您未登录或登录失效</body></html>';
-    expect(() => checkHomeworkSubmitResponse(loginPage)).toThrow(
-      expect.objectContaining({ reason: FailReason.NOT_LOGGED_IN }),
-    );
-  });
-
-  it('rejects with INVALID_RESPONSE for another page', () => {
-    expect(() => checkHomeworkSubmitResponse('<html>maintenance</html>')).toThrow(
-      expect.objectContaining({ reason: FailReason.INVALID_RESPONSE }),
-    );
   });
 });
 

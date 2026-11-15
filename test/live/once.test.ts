@@ -2,15 +2,9 @@ import fetchCookie from 'fetch-cookie';
 import { CookieJar } from 'tough-cookie';
 import { describe, expect, it } from 'vitest';
 
-import type { Fetch } from '../../src/index.ts';
+import type { DownloadRequest, Fetch } from '../../src/index.ts';
 import type { Homework, HomeworkDetail } from '../../src/index.ts';
-import {
-  CourseType,
-  FailReason,
-  Learn2018Helper,
-  checkHomeworkSubmitResponse,
-  homeworkContentHtml,
-} from '../../src/index.ts';
+import { CourseType, FailReason, Learn2018Helper, homeworkContentHtml } from '../../src/index.ts';
 import * as URLS from '../../src/urls.ts';
 import { FINGERPRINT, config } from './config.ts';
 import { DAY_MS } from './dates.ts';
@@ -288,19 +282,19 @@ describe('one-time checks', () => {
   );
 
   it.runIf(ALLOW_WRITES && !!SUBMIT_HOMEWORK && shouldRun(submission))(
-    'submits homework through both APIs, removes and replaces, then puts the earlier submission back',
+    'submits homework with progress, removes and replaces, then puts the earlier submission back',
     { retry: 0, timeout: 300_000 },
     async () => {
       recordAttempt(submission.name);
       const cookieJar = new CookieJar();
       const h = new Learn2018Helper(config(cookieJar));
       await h.login();
-      // what an app with its own HTTP client does with getHomeworkSubmitRequest: same cookies, its own fetch
+      // what an app downloading with another client does: download() with a transport that shares the cookies
       const raw = fetchCookie(fetch, cookieJar) as unknown as Fetch;
-      const withToken = (url: string) => {
-        const u = new URL(url);
-        u.searchParams.set('_csrf', h.getCSRFToken());
-        return u.href;
+      const transport = async ({ url, headers }: DownloadRequest) => {
+        const res = await raw(url, { headers });
+        const blob = await res.blob();
+        return { status: res.status, url: res.url, size: blob.size, text: () => blob.text(), blob };
       };
 
       let target: Homework | undefined;
@@ -324,26 +318,24 @@ describe('one-time checks', () => {
       const before: HomeworkDetail = await detail();
       let previousFile: { filename: string; content: Blob } | undefined;
       if (before.submittedAttachment) {
-        const res = await raw(withToken(before.submittedAttachment.downloadUrl));
-        expect(res.ok).toBe(true);
-        previousFile = { filename: before.submittedAttachment.name, content: await res.blob() };
+        const { blob } = await h.download(before.submittedAttachment.downloadUrl, transport);
+        previousFile = { filename: before.submittedAttachment.name, content: blob };
       }
 
       const stamp = new Date().toISOString();
       const filename = 'thu-learn-lib-live-test.txt';
       const findings: string[] = [`was ${target.submitted ? 'submitted' : 'not submitted'}`];
       try {
-        // 1. getHomeworkSubmitRequest, sent with another client, with an attachment
-        const request = await h.getHomeworkSubmitRequest(id, {
+        // 1. an answer and an attachment, reporting progress (Node has no XMLHttpRequest: fetch, no progress events)
+        await h.submitHomework(id, {
           content: homeworkContentHtml(`live test ${stamp}\nline 2`),
           attachment: { filename, content: new Blob([`thu-learn-lib live test ${stamp}`], { type: 'text/plain' }) },
+          onProgress: () => {},
         });
-        const res = await raw(request.url, { method: 'POST', body: request.body });
-        checkHomeworkSubmitResponse(await res.text());
         const sent = await detail();
         expect(sent.submittedContent).toContain(`live test ${stamp}`);
         expect(sent.submittedAttachment?.name).toBe(filename);
-        findings.push('request API: answer and attachment submitted');
+        findings.push('answer and attachment submitted');
 
         // 2. removing the attachment keeps the answer (the server ignores zynr then)
         await h.submitHomework(id, { removeAttachment: true });
