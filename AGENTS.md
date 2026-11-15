@@ -16,4 +16,4 @@
 
 - `pnpm test:live` uses a real account from `test/live/.env`. Never print or commit its values.
 - The live tests are read-only unless `LIVE_ALLOW_WRITES=1`. Don't set it, or run a `LIVE_ONCE` check that leaves a trace on the account (`test/live/once.test.ts`), without the account owner's OK for that run.
-- Record what a live run finds about the server in [docs/server-behavior.md](docs/server-behavior.md), and keep [TODO.md](TODO.md) to what is still unchecked.
+- Record what a live run finds about the server in [docs/server-behavior.md](docs/server-behavior.md).
