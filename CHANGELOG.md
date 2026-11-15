@@ -1,5 +1,9 @@
 # Changelog
 
+- v8.1.0
+  - `withSession(send)` runs a request sent with another HTTP client (an upload with progress, a file download) with the helper's expired-session handling: it logs in first without a session, and when `send` rejects with `NOT_LOGGED_IN` it logs in again with the `CredentialProvider` and calls `send` once more, sharing logins with the helper's own requests and never retrying a turned-down password. The helper's own requests use the same code
+  - `isExpiredSessionPage(text)` tells whether a 200 body is the login or redirect page of an expired session, as the helper does for its own requests. It also takes the tiny script redirect (under 100 characters) a file download of an expired session gets, which the helper's own requests now recognize too
+
 - v8.0.0
   - (_BREAKING CHANGE_) `HelperConfig.cookieJar` is gone, and the library no longer wraps `fetch` with a cookie jar of its own: it uses the global `fetch` or `HelperConfig.fetch` as it is, which must keep cookies. Node has a separate entry point for that: `cookieJarConfig(cookieJar?)` from `@robertying/thu-learn-lib/cookies` gives a `fetch` with a tough-cookie jar, its `clearLoginCookies` and the `cookieJar`. React Native apps, whose `fetch` keeps cookies, no longer bundle fetch-cookie and tough-cookie. Migration: `new Learn2018Helper({ cookieJar, provider })` → `new Learn2018Helper({ ...cookieJarConfig(cookieJar), provider })`; in Node, `new Learn2018Helper()` → `new Learn2018Helper(cookieJarConfig())`
   - `HelperConfig.clearLoginCookies` runs before every SSO login, including the ones the helper starts by itself when a request finds the session expired or `ensureSession` has no session, so a custom `fetch` with its own cookie store (React Native's) starts each login without a leftover id.tsinghua.edu.cn session. Before, the helper reset `JSESSIONID` only in its own jar, which a custom `fetch` never read. If it rejects, the login fails with `ERROR_SETTING_COOKIES`

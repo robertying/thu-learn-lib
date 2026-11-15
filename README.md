@@ -169,14 +169,31 @@ await helper.submitHomework(homework.id, {
 });
 ```
 
-`fetch` can't report upload progress. To send the submission with another HTTP client, get the request with `getHomeworkSubmitRequest` (it checks the session first) and read the answer with `checkHomeworkSubmitResponse`:
+`fetch` can't report upload progress. To send the submission with another HTTP client, get the request with `getHomeworkSubmitRequest` and read the answer with `checkHomeworkSubmitResponse`, inside `withSession` (see below):
 
 ```typescript
 import { checkHomeworkSubmitResponse } from '@robertying/thu-learn-lib';
 
-const { url, body } = await helper.getHomeworkSubmitRequest(id, { content, attachment });
-const res = await axios.post(url, body, { onUploadProgress });
-checkHomeworkSubmitResponse(res.data);
+await helper.withSession(async () => {
+  const { url, body } = await helper.getHomeworkSubmitRequest(id, { content, attachment });
+  const res = await axios.post(url, body, { onUploadProgress });
+  checkHomeworkSubmitResponse(res.data);
+});
+```
+
+### Requests sent with another client
+
+`withSession(send)` gives a request you send yourself (an upload with progress, a file download to disk) the session handling of the helper's own requests. It logs in first when there is no session yet. When `send` rejects with `NOT_LOGGED_IN`, it logs in again with the `CredentialProvider` and calls `send` once more, so `send` should read the CSRF token (`getCSRFToken`) each time it runs. Logins are shared with the helper's other requests and never retry a password the server turned down. `checkHomeworkSubmitResponse` already rejects with `NOT_LOGGED_IN` for the login page; for anything else, check the body with `isExpiredSessionPage`:
+
+```typescript
+import { FailReason, addCSRFTokenToUrl, isExpiredSessionPage } from '@robertying/thu-learn-lib';
+
+const text = await helper.withSession(async () => {
+  const res = await myFetch(addCSRFTokenToUrl(url, helper.getCSRFToken()));
+  const body = await res.text();
+  if (isExpiredSessionPage(body)) throw { reason: FailReason.NOT_LOGGED_IN };
+  return body;
+});
 ```
 
 ### Errors

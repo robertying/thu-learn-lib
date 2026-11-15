@@ -230,14 +230,22 @@ export class Session {
     init: RequestOptions | undefined,
     read: (res: Response, retry: boolean) => Promise<T | typeof EXPIRED>,
   ): Promise<T> {
-    const attempt = async (retry: boolean): Promise<T | typeof EXPIRED> => {
+    return this.#retryExpired(async (retry) => {
       const res = await this.rawFetch(makeUrl(), init);
       if (noLogin(res)) {
         discard(res);
         return EXPIRED;
       }
       return read(res, retry);
-    };
+    });
+  }
+
+  /**
+   * Run `attempt`; when it finds the session expired (returns `EXPIRED`), log in again and run it once more, as
+   * `#send` describes. Every request that may find the session expired goes through here, the ones the caller sends
+   * itself (`withSession`) included, so they all renew it the same way.
+   */
+  async #retryExpired<T>(attempt: (retry: boolean) => Promise<T | typeof EXPIRED>): Promise<T> {
     const generation = this.#generation;
     const first = await attempt(false);
     if (first !== EXPIRED) return first;
@@ -252,6 +260,26 @@ export class Session {
       throw apiError(FailReason.NOT_LOGGED_IN);
     }
     return second;
+  }
+
+  /**
+   * Run a request the caller sends itself (another HTTP client, a file download) with the session handling of the
+   * helper's own requests: it logs in first if there is no CSRF token yet, and when `send` rejects with
+   * `NOT_LOGGED_IN` (what `checkHomeworkSubmitResponse` and `isExpiredSessionPage` tell), it logs in again and calls
+   * `send` once more, as `#send` describes. Other errors pass through.
+   */
+  async withSession<T>(send: () => Promise<T>): Promise<T> {
+    if (this.#csrfToken === '') {
+      await this.autoRelogin();
+    }
+    return this.#retryExpired(async () => {
+      try {
+        return await send();
+      } catch (err) {
+        if ((err as ApiError | undefined)?.reason === FailReason.NOT_LOGGED_IN) return EXPIRED;
+        throw err;
+      }
+    });
   }
 
   /** the response, but after a re-login only one with status 200 */

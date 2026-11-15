@@ -53,17 +53,22 @@ export const urlOf = (input: Parameters<Fetch>[0]): string =>
 /** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
 const MAX_LOGIN_PAGE_LENGTH = 4096;
 
+/** the longest script-only redirect page taken for an expired session's */
+const MAX_REDIRECT_PAGE_LENGTH = 100;
+
 /**
  * Whether a 200 page is the short login or redirect page of an expired session rather than the page asked for: short,
  * and either Web Learning's "login timeout" page (what the server sends for an HTML page of an expired session, in
  * either website language: title 登录超时, image `log_fail.png`, text 您未登录或登录失效) or a page pointing at the
- * login timeout page or the SSO login.
+ * login timeout page or the SSO login, or a tiny page that only sends the browser elsewhere with a script (what a file
+ * download of an expired session gets, under 100 characters).
  */
 export const looksLikeLoginPage = (text: string) =>
-  text.length < MAX_LOGIN_PAGE_LENGTH &&
-  /登录超时|您未登录或登录失效|log_fail\.png|login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(
-    text,
-  );
+  (text.length < MAX_LOGIN_PAGE_LENGTH &&
+    /登录超时|您未登录或登录失效|log_fail\.png|login_timeout|id\.tsinghua\.edu\.cn\/do\/off\/ui\/auth\/login|j_spring_security_thauth_roaming_entry/.test(
+      text,
+    )) ||
+  (text.length < MAX_REDIRECT_PAGE_LENGTH && /location(\.href)?\s*=/.test(text));
 
 export function decodeHTML(html: string): string {
   const text = _decodeHTML(html ?? '');
