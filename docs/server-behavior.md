@@ -1,6 +1,6 @@
 # Server behavior
 
-What the live tests (`test/live/`) found out about Web Learning and the registrar, beyond what the website shows. The offline fake server (`test/helpers/fake-server.ts`) follows these. Open questions are in [TODO.md](../TODO.md).
+What the live tests (`test/live/`) found out about Web Learning and the registrar, beyond what the website shows. The offline fake server (`test/helpers/fake-server.ts`) follows these.
 
 ## Web Learning (checked in 2026-11)
 
