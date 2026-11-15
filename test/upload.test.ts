@@ -138,9 +138,12 @@ describe('xhrFetch', () => {
         }
       },
     );
+    // React Native may have no DOMException
+    vi.stubGlobal('DOMException', undefined);
     const pending = xhrFetch('https://x');
     xhrs[0].abort();
     await expect(pending).rejects.toHaveProperty('name', 'AbortError');
+    await expect(pending).rejects.toBeInstanceOf(Error);
   });
 });
 

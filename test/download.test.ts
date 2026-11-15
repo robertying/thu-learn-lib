@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { CourseType, FailReason } from '../src/index.ts';
+import { CourseType, FailReason, sendDownload } from '../src/index.ts';
 import type { DownloadRequest } from '../src/index.ts';
 import { isScriptRedirect } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
@@ -171,7 +171,7 @@ describe('download', () => {
     const helper = await fileServer().loggedInHelper();
     const transport = vi.fn<() => Promise<never>>();
     for (const url of ['https://example.com/a.pdf', 'not a url']) {
-      await expect(helper.download(url, transport)).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+      await expect(helper.download(url, transport)).rejects.toThrow(TypeError);
     }
     expect(transport).not.toHaveBeenCalled();
   });
@@ -208,5 +208,43 @@ describe('isScriptRedirect', () => {
     expect(isScriptRedirect('location.href="/"')).toBe(false);
     expect(isScriptRedirect('a text file: location = 1')).toBe(false);
     expect(isScriptRedirect(`<script>location.href="/${'a'.repeat(100)}"</script>`)).toBe(false);
+  });
+});
+
+/** a transport's answer */
+const answer = (status: number, body = FILE) => ({
+  status,
+  size: body.length,
+  text: async () => body,
+  discard: vi.fn<() => void>(),
+});
+
+describe('sendDownload', () => {
+  it('sends once, without a session, and returns a good answer', async () => {
+    const res = answer(200);
+    const transport = vi.fn<() => Promise<typeof res>>(async () => res);
+    await expect(sendDownload(transport, { url: 'https://example.com/a.pdf', headers: {} })).resolves.toBe(res);
+    expect(transport).toHaveBeenCalledWith({ url: 'https://example.com/a.pdf', headers: {} });
+  });
+
+  it('fails as download does', async () => {
+    const request = { url: 'https://example.com/a.pdf', headers: {} };
+    await expect(sendDownload(() => Promise.reject(new Error('offline')), request)).rejects.toHaveProperty(
+      'reason',
+      FailReason.NETWORK_ERROR,
+    );
+    const missing = answer(404);
+    await expect(sendDownload(async () => missing, request)).rejects.toMatchObject({
+      reason: FailReason.UNEXPECTED_STATUS,
+      extra: { code: 404 },
+    });
+    expect(missing.discard).toHaveBeenCalled();
+    for (const expired of [answer(403), answer(200, REDIRECT)]) {
+      await expect(sendDownload(async () => expired, request)).rejects.toHaveProperty(
+        'reason',
+        FailReason.NOT_LOGGED_IN,
+      );
+      expect(expired.discard).toHaveBeenCalled();
+    }
   });
 });

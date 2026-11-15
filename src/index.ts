@@ -49,8 +49,7 @@ import { apiError, parsed } from './utils.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
-export { addCSRFTokenToUrl, isConnectionError } from './request.ts';
-/** whether a 200 body is the login or redirect page of an expired session rather than what was asked for */
+export { addCSRFTokenToUrl, isConnectionError, sendDownload } from './request.ts';
 export { homeworkContentHtml } from './homework.ts';
 export { CLASS_PERIOD_TIMES, parseCourseMeeting, parseWeeks, semesterWeek } from './timetable.ts';
 export * from './types.ts';
@@ -111,9 +110,12 @@ export class Learn2018Helper {
    * logs in first without a session, adds the CSRF token (and `HelperConfig.cookieHeader`'s cookies), and when the
    * answer is an expired session's (a 403, the login page, or a tiny script redirect), logs in again and sends it once
    * more. It rejects with `NETWORK_ERROR` when the transport got no answer, `UNEXPECTED_STATUS` for a status other than
-   * 2xx, `NOT_LOGGED_IN` when the new session is turned away too, and `INVALID_RESPONSE` for a URL off Web Learning.
+   * 2xx, `NOT_LOGGED_IN` when the new session is turned away too, and throws a `TypeError` for a URL off Web Learning.
    */
   public async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
+    if (!url.startsWith(`${URLS.LEARN_PREFIX}/`)) {
+      throw new TypeError(`not a Web Learning URL: ${url}`);
+    }
     const check = files.downloadCheckUrl(url);
     if (check) {
       await this.#session.fetchWithToken(check).then(discard, () => {});

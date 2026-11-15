@@ -1,6 +1,7 @@
 import type {
   ApiError,
   CredentialProvider,
+  DownloadRequest,
   DownloadResponse,
   DownloadTransport,
   Fetch,
@@ -8,7 +9,6 @@ import type {
 } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
-import { LEARN_PREFIX } from './urls.ts';
 
 export const noLogin = (res: Pick<Response, 'status'> & { url?: string }) =>
   !!res.url?.includes('login_timeout') || res.status === 403;
@@ -95,7 +95,9 @@ const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 export const xhrFetch = (input: Parameters<Fetch>[0], init: RequestOptions = {}): Promise<Response> =>
   new Promise((resolve, reject) => {
     const { signal } = init;
-    const aborted = () => signal?.reason ?? new DOMException('Aborted', 'AbortError');
+    // a plain `Error` named `AbortError`, as React Native's own clients reject with: `DOMException` may not exist there
+    const aborted = () =>
+      signal?.reason ?? Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' });
     if (signal?.aborted) {
       reject(aborted());
       return;
@@ -208,6 +210,54 @@ export const discard = (res: Response) => {
 
 /** returned by a read step when the response turned out to be from an expired session */
 const EXPIRED = Symbol('expired');
+
+/**
+ * Send a download once with `transport` and classify the answer: a transport failure is `NETWORK_ERROR`, a 403, a
+ * redirect to the login timeout page or a small login / script-redirect page is an expired session, any other status
+ * than 2xx is `UNEXPECTED_STATUS`. Every response it doesn't return is discarded.
+ */
+const downloadAttempt = async <T extends DownloadResponse>(
+  transport: DownloadTransport<T>,
+  request: DownloadRequest,
+): Promise<T | typeof EXPIRED> => {
+  let res: T;
+  try {
+    res = await transport(request);
+  } catch (err) {
+    if ((err as ApiError | undefined)?.reason !== undefined || isAbort(err)) throw err;
+    throw apiError(FailReason.NETWORK_ERROR, err);
+  }
+  if (noLogin(res)) {
+    res.discard?.();
+    return EXPIRED;
+  }
+  if (res.status < 200 || res.status >= 300) {
+    res.discard?.();
+    throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status });
+  }
+  if (res.size < MAX_SESSION_PAGE_SIZE) {
+    const text = await res.text();
+    if (looksLikeLoginPage(text) || isScriptRedirect(text)) {
+      res.discard?.();
+      return EXPIRED;
+    }
+  }
+  return res;
+};
+
+/**
+ * Send a download once with `transport`, without the helper's session (no login, CSRF token or retry), and check the
+ * answer as `download` does; an expired-session answer rejects with `NOT_LOGGED_IN`. For a client that emulates the
+ * server, so its downloads fail the same way as real ones.
+ */
+export const sendDownload = async <T extends DownloadResponse>(
+  transport: DownloadTransport<T>,
+  request: DownloadRequest,
+): Promise<T> => {
+  const res = await downloadAttempt(transport, request);
+  if (res === EXPIRED) throw apiError(FailReason.NOT_LOGGED_IN);
+  return res;
+};
 
 /**
  * State shared by every request a `Learn2018Helper` makes: cookies, CSRF token, language and the fetch wrappers.
@@ -365,38 +415,13 @@ export class Session {
    * 2xx with `UNEXPECTED_STATUS`. Every response it doesn't return is discarded.
    */
   async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
-    if (!url.startsWith(`${LEARN_PREFIX}/`)) {
-      throw apiError(FailReason.INVALID_RESPONSE, { url });
-    }
     if (this.#csrfToken === '') {
       await this.autoRelogin();
     }
     return this.#retryExpired(async () => {
       const target = addCSRFTokenToUrl(url, this.#csrfToken);
       const cookie = await this.cookieHeader?.(target);
-      let res: T;
-      try {
-        res = await transport({ url: target, headers: cookie ? { Cookie: cookie } : {} });
-      } catch (err) {
-        if ((err as ApiError | undefined)?.reason !== undefined || isAbort(err)) throw err;
-        throw apiError(FailReason.NETWORK_ERROR, err);
-      }
-      if (noLogin(res)) {
-        res.discard?.();
-        return EXPIRED;
-      }
-      if (res.status < 200 || res.status >= 300) {
-        res.discard?.();
-        throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status });
-      }
-      if (res.size < MAX_SESSION_PAGE_SIZE) {
-        const text = await res.text();
-        if (looksLikeLoginPage(text) || isScriptRedirect(text)) {
-          res.discard?.();
-          return EXPIRED;
-        }
-      }
-      return res;
+      return downloadAttempt(transport, { url: target, headers: cookie ? { Cookie: cookie } : {} });
     });
   }
 
