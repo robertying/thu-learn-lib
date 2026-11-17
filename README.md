@@ -7,7 +7,7 @@ A TypeScript client for [Web Learning of Tsinghua University](https://learn.tsin
 
 This is [robertying](https://github.com/robertying)'s fork of [Harry-Chen/thu-learn-lib](https://github.com/Harry-Chen/thu-learn-lib), maintained for [learnX](https://github.com/robertying/learnX) and published as `@robertying/thu-learn-lib`.
 
-This project is licensed under MIT License. See [CHANGELOG.md](CHANGELOG.md) for release notes and [CONTRIBUTING.md](CONTRIBUTING.md) for development, testing and releasing.
+This project is licensed under the MIT License. See [CHANGELOG.md](CHANGELOG.md) for release notes and [CONTRIBUTING.md](CONTRIBUTING.md) for development, testing and releasing.
 
 ## Compatibility
 
@@ -34,11 +34,11 @@ import { cookieJarConfig } from '@robertying/thu-learn-lib/cookies'; // Node onl
 
 // There are three ways of logging in:
 
-// 1. provide a cookie jar with existing cookies (see `tough-cookie`)
+// 1. pass a cookie jar that already has the session's cookies (see `tough-cookie`)
 const helper = new Learn2018Helper(cookieJarConfig(cookieJar));
-// 2. provide only cookies, and call login with your credentials
+// 2. start with a new cookie jar, and call login with your credentials
 const helper = new Learn2018Helper(cookieJarConfig());
-// 3. provide a CredentialProvider function, which can be async
+// 3. pass a CredentialProvider function, which can be async
 const helper = new Learn2018Helper({
   ...cookieJarConfig(),
   provider: () => ({ username, password, fingerPrint }),
@@ -66,9 +66,9 @@ try {
 helper.setCSRFToken(savedToken);
 await helper.ensureSession();
 
-// To reuse cookies elsewhere (e.g. for file download), keep the `cookieJar` that cookieJarConfig returns.
+// To reuse the cookies elsewhere (e.g. to download files), keep the `cookieJar` that cookieJarConfig returns.
 
-// Logout if you want, but the cookie jar will not be cleared.
+// Log out if you want; the cookie jar isn't cleared.
 await helper.logout();
 ```
 
@@ -76,9 +76,9 @@ await helper.logout();
 
 ### Courses and content
 
-We currently support both student and teacher (or TA) version of web learning. The **default behavior of all APIs is to use the student version**. The following APIs take an optional `courseType` in their options; pass `{ courseType: CourseType.TEACHER }` to access the teacher version. You **should use them when you are the teacher / TA** of one course, for you will get nothing from the student version in that case.
+The library supports both the student and the teacher (or TA) views of Web Learning. **Every API uses the student view by default.** The following APIs take an optional `courseType` in their options; pass `{ courseType: CourseType.TEACHER }` for the teacher view. **Use it for a course you teach or TA**, since the student view returns nothing for it.
 
-We do not maintain a global type in `Learn2018Helper` class, for there can be the situation that one can be a student and teacher of the same course simultaneously, on which by using different `CourseType` you can get different results.
+`Learn2018Helper` has no account-wide course type, because one account can be both a student and a teacher of the same course, and each `CourseType` gives different results.
 
 - `getCourseList(semesterID, { courseType, lang, timeAndLocation })`
 - `getNotificationList(courseID, { courseType, attachments })`, `getHomeworkList(courseID, { courseType, details })`
@@ -86,20 +86,20 @@ We do not maintain a global type in `Learn2018Helper` class, for there can be th
 - `getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, { courseType })`, `getFileListByCategory(courseID, categoryID, { courseType })`
 - `getNotificationAttachment(notification, { courseType })`, `getUserInfo({ courseType })`
 
-Note that the teacher version hasn't been checked against the real server, and fetching homework information from it is **partially implemented**.
+Note that the teacher view hasn't been checked against the real server, and its homework support is **incomplete**.
 
 ```typescript
-// get ids of all semesters that current account has access to
+// get the ids of all semesters the current account can access
 const semesters = await helper.getSemesterIdList();
 
-// get semester info
+// get the current semester
 const semester = await helper.getCurrentSemester();
 
 // get courses of this semester
 const courses = await helper.getCourseList(semester.id);
 const course = courses[0];
 
-// get detail information about the course
+// get the course's content
 const discussions = await helper.getDiscussionList(course.id);
 const notifications = await helper.getNotificationList(course.id);
 const files = await helper.getFileList(course.id);
@@ -128,14 +128,14 @@ const attachment = await helper.getNotificationAttachment(notifications[0]);
 ```typescript
 import { ApiError } from '@robertying/thu-learn-lib';
 
-// get course calendar in a period (yyyymmdd, inclusive)
+// get the course calendar for a period (yyyymmdd, inclusive)
 // ranges over 28 days are fetched in windows; windows that still fail are in failedRanges
 try {
   const { events, failedRanges } = await helper.getCalendar('20260914', '20261115', { graduate: false });
 } catch (e) {
   // every window failed, or signing in to the registrar failed
   const error = e as ApiError;
-  // check e.reason and e.extra for information
+  // check error.reason and error.extra for details
 }
 ```
 
