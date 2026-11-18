@@ -1,22 +1,24 @@
-name: Check
+name: CI
 
+# `workflow_call`: the release workflow runs these same checks before publishing.
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
-  group: check-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  js:
-    # Typecheck, lint, format, test and build
-    name: JS
+  check:
+    # On the Node in .node-version
+    name: Check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -60,7 +62,7 @@ jobs:
           pnpm build
           npm pack --dry-run
 
-  node22:
+  test-min-node:
     # The oldest Node in `engines`; the job above covers the one in .node-version
     name: Test (Node 22)
     runs-on: ubuntu-latest

@@ -15,8 +15,13 @@ permissions:
   id-token: write # npm trusted publishing + provenance
 
 jobs:
+  check:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
   release:
     name: Publish
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,13 +48,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Check
-        run: |
-          pnpm typecheck
-          pnpm lint --deny-warnings
-          pnpm format --check
-          pnpm test:coverage
 
       # `prepublishOnly` builds lib/. Uses npm trusted publishing (OIDC), so no token.
       # Skipped when this version is already on npm (e.g. published by hand).
