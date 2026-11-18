@@ -10,6 +10,7 @@
 - Errors are plain `{ reason, extra }` objects with a `FailReason`, not `Error` instances. `Learn2018Helper` methods wrap their module call in `parsed()`, which turns a parser's `TypeError` into `INVALID_RESPONSE`; wrap new ones too.
 - Public API docs live on `Learn2018Helper` in `src/index.ts`; module functions only note what the helper's doc doesn't (request counts, server quirks). Server codes and their meanings go in `src/codes.ts`.
 - Every user-visible change gets an entry under the next version in [CHANGELOG.md](CHANGELOG.md), marked `(_BREAKING CHANGE_)` with a migration note when it breaks callers. Only the maintainer pushes release tags (pushing one publishes to npm).
+- Docs and comments say why, and what isn't plain from the code. They don't restate what the code shows, or keep lists (of files, functions, versions, counts) that a change elsewhere would leave stale: point to where the list lives instead.
 - Test new or changed requests offline against `test/helpers/fake-server.ts`, shaped like the real responses, and check request counts where an API promises them.
 
 ## Live tests
