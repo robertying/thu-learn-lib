@@ -1,6 +1,6 @@
 # thu-learn-lib
 
-[![Check](https://github.com/robertying/thu-learn-lib/actions/workflows/check.yml/badge.svg)](https://github.com/robertying/thu-learn-lib/actions/workflows/check.yml)
+[![CI](https://github.com/robertying/thu-learn-lib/actions/workflows/ci.yml/badge.svg)](https://github.com/robertying/thu-learn-lib/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@robertying/thu-learn-lib)](https://www.npmjs.com/package/@robertying/thu-learn-lib)
 
 A TypeScript client for [Web Learning of Tsinghua University](https://learn.tsinghua.edu.cn) (网络学堂) and the registrar's course calendar.
