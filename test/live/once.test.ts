@@ -6,7 +6,8 @@ import type { DownloadRequest, Fetch } from '../../src/index.ts';
 import type { Homework, HomeworkDetail } from '../../src/index.ts';
 import { CourseType, FailReason, Learn2018Helper, homeworkContentHtml } from '../../src/index.ts';
 import * as URLS from '../../src/urls.ts';
-import { FINGERPRINT, config } from './config.ts';
+import { urlOf } from '../../src/utils.ts';
+import { FINGERPRINT, PASSWORD, USERNAME, config } from './config.ts';
 import { DAY_MS } from './dates.ts';
 import { ALLOW_WRITES } from './guard.ts';
 import { type OnceTest, recordAttempt, recordPass, recordResult, shouldRun } from './once.ts';
@@ -15,6 +16,11 @@ import { cookieJarConfig } from '../../src/cookies.ts';
 // Run these alone, before the other live tests: those fetch notice details too, which may mark notices read.
 
 const wrongPassword: OnceTest = { name: 'wrong-password', covers: ['src/auth.ts'], maxPerDay: 2 };
+/**
+ * What id.tsinghua.edu.cn answers for the right password with a device fingerprint it has never trusted, as for one
+ * that expired or was removed from the account's trusted browsers. It may show the account's owner a sign-in attempt.
+ */
+const untrustedDevice: OnceTest = { name: 'untrusted-device', covers: ['src/auth.ts'], maxPerDay: 1 };
 const readMark: OnceTest = {
   name: 'read-mark',
   covers: ['src/notices.ts', 'src/files.ts'],
@@ -121,6 +127,38 @@ describe('one-time checks', () => {
       `wrong password rejects with BAD_CREDENTIAL, message ${JSON.stringify((err as any).extra)}`,
     );
   });
+
+  it.runIf(shouldRun(untrustedDevice))(
+    'answers a device fingerprint it does not trust with DEVICE_NOT_TRUSTED',
+    { retry: 0 },
+    async () => {
+      recordAttempt(untrustedDevice.name);
+      recordResult(untrustedDevice.name, 'started');
+      // a fingerprint no browser of the account has ever trusted
+      const fingerPrint = globalThis.crypto.randomUUID().replaceAll('-', '');
+      // what the credential check answers, recorded before the helper reads it
+      let answer = '';
+      const jar = cookieJarConfig();
+      const helper = new Learn2018Helper({
+        ...jar,
+        fetch: async (input, init) => {
+          const res = await jar.fetch(input, init);
+          if (urlOf(input).startsWith(URLS.ID_LOGIN_CHECK)) {
+            const body = await res.clone().text();
+            answer = `HTTP ${res.status} at ${res.url}: ${body.replace(/\s+/g, ' ').slice(0, 600)}`;
+          }
+          return res;
+        },
+      });
+      const err = await helper
+        .login({ username: USERNAME, password: PASSWORD, fingerPrint })
+        .then(() => 'logged in')
+        .catch((e: unknown) => e);
+      recordResult(untrustedDevice.name, `${JSON.stringify(err)}; check answered ${answer}`);
+      expect(err).toHaveProperty('reason', FailReason.DEVICE_NOT_TRUSTED);
+      recordPass(untrustedDevice, `an untrusted fingerprint rejects with DEVICE_NOT_TRUSTED; ${answer}`);
+    },
+  );
 
   it.runIf(shouldRun(readMark))(
     'records whether opening a notice or downloading a file marks it read',

@@ -310,6 +310,18 @@ describe('expired sessions that are not a 403', () => {
     });
   });
 
+  it('does not try a device fingerprint again for later requests once it is no longer trusted', async () => {
+    const server = withSemesterList(new FakeServer());
+    server.on('GET', URLS.LEARN_CURRENT_SEMESTER, () => json({ message: 'success', result: {} }));
+    const helper = server.helper({ provider: () => credential });
+    await helper.login();
+    server.on('POST', URLS.ID_LOGIN_CHECK, () => html('<p>请完成二次认证</p>'), { public: true });
+    server.expireSession();
+    await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.DEVICE_NOT_TRUSTED);
+    await expect(helper.ensureSession()).rejects.toHaveProperty('reason', FailReason.DEVICE_NOT_TRUSTED);
+    expect(server.count(URLS.ID_LOGIN_CHECK, 'POST')).toBe(2);
+  });
+
   it('does not log in again for an error page with another status', async () => {
     const server = new FakeServer();
     server.on('GET', URLS.LEARN_SEMESTER_LIST, () => new Response('<html>oops</html>', { status: 500 }));

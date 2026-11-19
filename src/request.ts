@@ -203,6 +203,16 @@ export const isConnectionError = (err: unknown): boolean => {
   return reason === FailReason.NETWORK_ERROR || reason === FailReason.REQUEST_TIMEOUT;
 };
 
+/**
+ * whether a login was refused for its credentials: a wrong password (`BAD_CREDENTIAL`) or a device fingerprint that
+ * id.tsinghua.edu.cn no longer trusts (`DEVICE_NOT_TRUSTED`). Trying the same credentials again won't help, and repeated
+ * wrong passwords may lock the account.
+ */
+export const isRefusedLogin = (err: unknown): boolean => {
+  const reason = (err as ApiError | undefined)?.reason;
+  return reason === FailReason.BAD_CREDENTIAL || reason === FailReason.DEVICE_NOT_TRUSTED;
+};
+
 /** free the connection of a response we won't read */
 export const discard = (res: Response) => {
   res.body?.cancel().catch(() => {});
@@ -276,11 +286,11 @@ export class Session {
   #generation = 0;
   #pendingLogin?: Promise<void>;
   /**
-   * The `BAD_CREDENTIAL` of the last failed `CredentialProvider` login. Automatic logins (an expired session, no CSRF
-   * token yet) reject with it instead of trying the same credentials again, which could lock the account; an explicit
-   * `login`, or a new CSRF token, clears it.
+   * The `BAD_CREDENTIAL` or `DEVICE_NOT_TRUSTED` of the last failed `CredentialProvider` login. Automatic logins (an
+   * expired session, no CSRF token yet) reject with it instead of trying the same credentials again, which could lock
+   * the account and can't get past the second factor; an explicit `login`, or a new CSRF token, clears it.
    */
-  #badCredential?: ApiError;
+  #refusedLogin?: ApiError;
   lang: Language = Language.ZH;
   previewFirstPage: boolean;
   /**
@@ -316,7 +326,7 @@ export class Session {
   set csrfToken(token: string) {
     this.#csrfToken = token;
     this.#generation += 1;
-    this.#badCredential = undefined;
+    this.#refusedLogin = undefined;
   }
 
   /**
@@ -335,21 +345,21 @@ export class Session {
 
   /**
    * Log in with the `CredentialProvider`, or wait for the login already in progress (also one with explicit
-   * credentials) instead of starting another. Called by `login()`, so it tries again after a `BAD_CREDENTIAL`.
+   * credentials) instead of starting another. Called by `login()`, so it tries again after a refused login.
    */
   relogin(): Promise<void> {
-    this.#badCredential = undefined;
+    this.#refusedLogin = undefined;
     return this.autoRelogin();
   }
 
   /**
    * `relogin` for a login nobody asked for (an expired session, no CSRF token yet, the registrar wanting a new
-   * id.tsinghua.edu.cn session), unless the last provider login was turned down with `BAD_CREDENTIAL`: then reject with
-   * that again
+   * id.tsinghua.edu.cn session), unless the last provider login was refused (`BAD_CREDENTIAL`, `DEVICE_NOT_TRUSTED`): then
+   * reject with that again
    */
   autoRelogin(): Promise<void> {
-    return this.#badCredential
-      ? Promise.reject(this.#badCredential)
+    return this.#refusedLogin
+      ? Promise.reject(this.#refusedLogin)
       : (this.#pendingLogin ?? this.runLogin(this.#providerLogin));
   }
 
@@ -357,7 +367,7 @@ export class Session {
     try {
       await this.loginWithProvider();
     } catch (err) {
-      if ((err as ApiError | undefined)?.reason === FailReason.BAD_CREDENTIAL) this.#badCredential = err as ApiError;
+      if (isRefusedLogin(err)) this.#refusedLogin = err as ApiError;
       throw err;
     }
   };
@@ -367,7 +377,7 @@ export class Session {
    * with `read`, which returns `EXPIRED` for a body that shows the session has expired.
    * When the session has expired, it rejects with `NOT_LOGGED_IN` if there is no `CredentialProvider`; otherwise it
    * logs in again (sharing a login already in progress, or skipping it if another request already renewed the
-   * session) and retries once. After a provider login failed with `BAD_CREDENTIAL` it rejects with that instead, until
+   * session) and retries once. After a provider login was refused (`BAD_CREDENTIAL`, `DEVICE_NOT_TRUSTED`) it rejects with that instead, until
    * the next explicit `login`.
    */
   async #send<T>(

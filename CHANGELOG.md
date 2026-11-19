@@ -1,5 +1,10 @@
 # Changelog
 
+- v9.1.0
+  - A login that id.tsinghua.edu.cn answers with its second-factor step, which it asks for when the device fingerprint is unknown or no longer trusted (expired, or removed from the account's trusted browsers), rejects with the new `DEVICE_NOT_TRUSTED` instead of `ERROR_FETCH_FROM_ID`. Logging in again with the same fingerprint can't get past it; a login in a browser that finishes the second factor and trusts a new fingerprint can
+  - Like `BAD_CREDENTIAL`, a `DEVICE_NOT_TRUSTED` from the `CredentialProvider` login is not tried again by the logins the helper starts by itself (an expired session, no CSRF token yet), until the next explicit `login`
+  - `isRefusedLogin(e)` is true for both: a login turned down for its credentials, which trying again won't fix
+
 - v9.0.0
   - (_BREAKING CHANGE_) `getHomeworkSubmitRequest`, `HomeworkSubmitRequest` and `checkHomeworkSubmitResponse` are removed: an upload sent by the app bypassed the helper's request path. `submitHomework` takes `onProgress` instead and sends the upload with `XMLHttpRequest` where there is one (React Native, browsers), through the same timeout, network-error and expired-session handling as every request. Migration: `const { url, body } = await helper.getHomeworkSubmitRequest(id, options); checkHomeworkSubmitResponse((await axios.post(url, body, { onUploadProgress })).data)` → `await helper.submitHomework(id, { ...options, onProgress })`
   - `download(url, transport)` downloads a Web Learning file with another client: the transport only sends the request it is handed, and the helper runs the website's check before a course file, logs in first without a session, adds the CSRF token (and `HelperConfig.cookieHeader`'s cookies), and when the answer is an expired session's (a 403, a redirect to the login timeout page, the login page, or a tiny script redirect), logs in again and sends it once more. A transport failure rejects with `NETWORK_ERROR`, a status other than 2xx with `UNEXPECTED_STATUS`; a URL off Web Learning throws a `TypeError`

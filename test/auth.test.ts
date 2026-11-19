@@ -12,6 +12,19 @@ import {
   withSemesterList,
 } from './helpers/fake-server.ts';
 
+/** a server whose SSO check answers with the second-factor `page`, reached at `url` after redirects */
+const secondFactor = (page: string, url?: string) =>
+  new FakeServer().on(
+    'POST',
+    URLS.ID_LOGIN_CHECK,
+    () => {
+      const res = html(page);
+      if (url) Object.defineProperty(res, 'url', { value: url });
+      return res;
+    },
+    { public: true },
+  );
+
 describe('login', () => {
   it('logs in through SSO and reads the CSRF token and language', async () => {
     const server = new FakeServer();
@@ -94,11 +107,35 @@ describe('login', () => {
   });
 
   it('rejects with ERROR_FETCH_FROM_ID, not BAD_CREDENTIAL, for a page that is neither the ticket nor the login form', async () => {
-    const page = '<html><body><p>请完成二次认证</p><a href="/f/help">help</a><script>var x = 1;</script></body></html>';
+    const page = '<html><body><p>账号已锁定</p><a href="/f/help">help</a><script>var x = 1;</script></body></html>';
     const server = new FakeServer().on('POST', URLS.ID_LOGIN_CHECK, () => html(page), { public: true });
     await expect(server.helper().login(credential)).rejects.toEqual({
       reason: FailReason.ERROR_FETCH_FROM_ID,
-      extra: '请完成二次认证help',
+      extra: '账号已锁定help',
+    });
+  });
+
+  describe('for a device fingerprint id.tsinghua.edu.cn does not trust', () => {
+    it('rejects with DEVICE_NOT_TRUSTED when the check is redirected to the second factor', async () => {
+      const url = `${URLS.ID_PREFIX}/b/doubleAuth/login/view`;
+      const server = secondFactor('<html><body><div id="app"></div></body></html>', url);
+      await expect(server.helper().login(credential)).rejects.toEqual({
+        reason: FailReason.DEVICE_NOT_TRUSTED,
+        extra: url,
+      });
+      expect(server.loginCount).toBe(0);
+    });
+
+    it('rejects with DEVICE_NOT_TRUSTED for a page that sends the browser to the second factor', async () => {
+      const server = secondFactor(
+        '<html><body><script>window.location.href = "/b/doubleAuth/login/view";</script></body></html>',
+      );
+      await expect(server.helper().login(credential)).rejects.toHaveProperty('reason', FailReason.DEVICE_NOT_TRUSTED);
+    });
+
+    it('rejects with DEVICE_NOT_TRUSTED for a page that asks for it in words', async () => {
+      const server = secondFactor('<html><body><p>请完成二次认证</p></body></html>');
+      await expect(server.helper().login(credential)).rejects.toHaveProperty('reason', FailReason.DEVICE_NOT_TRUSTED);
     });
   });
 
