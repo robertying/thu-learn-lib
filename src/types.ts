@@ -70,6 +70,12 @@ export const FailReason = {
   NO_CREDENTIAL: 'no credential provided',
   ERROR_FETCH_FROM_ID: 'could not fetch ticket from id.tsinghua.edu.cn',
   BAD_CREDENTIAL: 'bad credential',
+  /**
+   * id.tsinghua.edu.cn took the password but asks for a second factor: the device fingerprint is unknown or no longer
+   * trusted (it expired, or was removed from the account's trusted browsers). Trying again with it won't help; a login
+   * in a browser that finishes the second factor and trusts a new fingerprint will.
+   */
+  DEVICE_NOT_TRUSTED: 'device not trusted',
   ERROR_ROAMING: 'could not roam to learn.tsinghua.edu.cn',
   NOT_LOGGED_IN: 'not logged in or login timeout',
   NOT_IMPLEMENTED: 'not implemented',
@@ -88,6 +94,7 @@ export declare namespace FailReason {
   type NO_CREDENTIAL = typeof FailReason.NO_CREDENTIAL;
   type ERROR_FETCH_FROM_ID = typeof FailReason.ERROR_FETCH_FROM_ID;
   type BAD_CREDENTIAL = typeof FailReason.BAD_CREDENTIAL;
+  type DEVICE_NOT_TRUSTED = typeof FailReason.DEVICE_NOT_TRUSTED;
   type ERROR_ROAMING = typeof FailReason.ERROR_ROAMING;
   type NOT_LOGGED_IN = typeof FailReason.NOT_LOGGED_IN;
   type NOT_IMPLEMENTED = typeof FailReason.NOT_IMPLEMENTED;

@@ -188,7 +188,7 @@ const saved = await helper.download(file.downloadUrl, async ({ url, headers }) =
 
 ### Errors
 
-Rejected promises carry an `ApiError`: `reason` is a `FailReason` and `extra` holds what the server answered, when there is something useful. For example, a wrong password rejects with `BAD_CREDENTIAL`, an expired session without a `CredentialProvider` with `NOT_LOGGED_IN`, a request that gets no answer (offline, DNS or TLS failure) with `NETWORK_ERROR`, and a slow request with `REQUEST_TIMEOUT`; `isConnectionError(e)` is true for the last two, also for a login. See `src/types.ts` for every reason and the other type definitions.
+Rejected promises carry an `ApiError`: `reason` is a `FailReason` and `extra` holds what the server answered, when there is something useful. For example, a wrong password rejects with `BAD_CREDENTIAL`, a device fingerprint id.tsinghua.edu.cn no longer trusts (it asks for a second factor) with `DEVICE_NOT_TRUSTED` (`isRefusedLogin(e)` is true for both), an expired session without a `CredentialProvider` with `NOT_LOGGED_IN`, a request that gets no answer (offline, DNS or TLS failure) with `NETWORK_ERROR`, and a slow request with `REQUEST_TIMEOUT`; `isConnectionError(e)` is true for the last two, also for a login. See `src/types.ts` for every reason and the other type definitions.
 
 ## Projects using this library
 

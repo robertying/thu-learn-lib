@@ -27,6 +27,7 @@ export async function getRoamingTicket(s: Session, credential: CompleteCredentia
   }
 
   let page: string;
+  let pageUrl: string;
   try {
     const loginForm = await s.rawFetch(URLS.ID_LOGIN);
     const body = $(await loginForm.text());
@@ -49,6 +50,7 @@ export async function getRoamingTicket(s: Session, credential: CompleteCredentia
       throw { code: checkResponse.status, text: checkResponse.statusText };
     }
     page = await checkResponse.text();
+    pageUrl = checkResponse.url;
   } catch (err) {
     // no answer at all: the device is offline or id.tsinghua.edu.cn is unreachable, not a refused login
     if (isConnectionError(err)) throw err;
@@ -63,12 +65,23 @@ export async function getRoamingTicket(s: Session, credential: CompleteCredentia
   if (body('#theform, form[action*="/auth/login/check"]').length > 0 && body('#i_pass').length > 0) {
     throw apiError(FailReason.BAD_CREDENTIAL, textOf(body('#msg_note, .alert-danger')) || undefined);
   }
-  // something else, e.g. a second factor, a locked account or maintenance: not a wrong password
+  if (asksSecondFactor(pageUrl, page, textOf(body.root()))) {
+    throw apiError(FailReason.DEVICE_NOT_TRUSTED, pageUrl || undefined);
+  }
+  // something else, e.g. a locked account or maintenance: not a wrong password
   throw apiError(
     FailReason.ERROR_FETCH_FROM_ID,
     textOf(body('body').clone().find('script, style').remove().end()).slice(0, 200),
   );
 }
+
+/**
+ * Whether the answer is the second-factor step (the pages under `/b/doubleAuth/`, where the browser also asks to be
+ * trusted), which id.tsinghua.edu.cn shows instead of the ticket for a device fingerprint it doesn't trust: by the page's
+ * URL after redirects, a link or script to it, or its wording.
+ */
+const asksSecondFactor = (url: string, page: string, text: string) =>
+  /\/b\/doubleAuth\//i.test(url) || /\/b\/doubleAuth\//i.test(page) || /二次认证|双因素认证|two-factor/i.test(text);
 
 const textOf = (el: { text(): string }) => el.text().replace(/\s+/g, ' ').trim();
 

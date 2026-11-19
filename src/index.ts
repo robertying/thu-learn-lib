@@ -49,7 +49,7 @@ import { apiError, parsed } from './utils.ts';
 import * as URLS from './urls.ts';
 import * as user from './user.ts';
 
-export { addCSRFTokenToUrl, isConnectionError, sendDownload } from './request.ts';
+export { addCSRFTokenToUrl, isConnectionError, isRefusedLogin, sendDownload } from './request.ts';
 export { homeworkContentHtml } from './homework.ts';
 export { CLASS_PERIOD_TIMES, parseCourseMeeting, parseWeeks, semesterWeek } from './timetable.ts';
 export * from './types.ts';
