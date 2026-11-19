@@ -1,6 +1,8 @@
 name: CI
 
 # `workflow_call`: the release workflow runs these same checks before publishing.
+# Actions are pinned to a full commit SHA, with the version it is in a comment
+# beside it; move both when upgrading one.
 on:
   pull_request:
   push:
@@ -23,14 +25,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Version comes from the `packageManager` field in package.json.
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -69,13 +71,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           package-manager-cache: false
