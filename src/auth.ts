@@ -104,8 +104,6 @@ export async function loginWithProvider(s: Session): Promise<void> {
 /** log in through id.tsinghua.edu.cn, then read the CSRF token and the website language from the homepage */
 export async function login(s: Session, credential: CompleteCredential): Promise<void> {
   const ticket = await getRoamingTicket(s, credential);
-  const { fingerPrint, fingerGenPrint = '', fingerGenPrint3 = '' } = credential;
-  s.fingerprints = { fingerPrint, fingerGenPrint, fingerGenPrint3 };
 
   const loginResponse = await s.rawFetch(URLS.LEARN_AUTH_ROAM(ticket));
   // only the status matters
@@ -120,14 +118,21 @@ export async function login(s: Session, credential: CompleteCredential): Promise
     throw apiError(FailReason.INVALID_RESPONSE, 'cannot fetch CSRF token from source');
   }
   s.csrfToken = tokenMatches[0][1];
+  // only now, so a failed login leaves the session it didn't replace with that session's fingerprints
+  const { fingerPrint, fingerGenPrint = '', fingerGenPrint3 = '' } = credential;
+  s.fingerprints = { fingerPrint, fingerGenPrint, fingerGenPrint3 };
   // the homepage loads e.g. `/f/wlxt/common/languagejs?lang=zh_CN&v=845`
   const langRegex = /\/f\/wlxt\/common\/languagejs\?lang=(zh|en)/g;
   const langMatches = [...courseListPageSource.matchAll(langRegex)];
   if (langMatches.length !== 0) s.lang = langMatches[0][1] === 'en' ? Language.EN : Language.ZH;
 }
 
-/**  logout (to make everyone happy); the CSRF token is cleared, so the next request logs in again */
+/**
+ * Log out of Web Learning. The CSRF token and fingerprints are forgotten before the request goes out, so the next
+ * request logs in again even when the logout fails, and a logout answered late never clears a login made since.
+ */
 export async function logout(s: Session): Promise<void> {
-  discard(await s.rawFetch(URLS.LEARN_LOGOUT, { method: 'POST' }));
   s.csrfToken = '';
+  s.fingerprints = undefined;
+  discard(await s.rawFetch(URLS.LEARN_LOGOUT, { method: 'POST' }));
 }

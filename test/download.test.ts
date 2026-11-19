@@ -4,6 +4,7 @@ import { CourseType, FailReason, sendDownload } from '../src/index.ts';
 import type { DownloadRequest } from '../src/index.ts';
 import { isScriptRedirect } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
+import { urlOf } from '../src/utils.ts';
 import { FakeServer, PASSWORD, credential, html } from './helpers/fake-server.ts';
 
 const FILE_URL = URLS.LEARN_FILE_DOWNLOAD('f1', CourseType.STUDENT);
@@ -71,6 +72,37 @@ describe('download', () => {
     const server = new FakeServer().on('GET', FILE_URL, () => new Response(FILE));
     const helper = await server.loggedInHelper();
     await expect(helper.download(FILE_URL, transportOf(server).transport)).resolves.toHaveProperty('body', FILE);
+  });
+
+  it("downloads when the check's answer after a new login is an error status", async () => {
+    let checks = 0;
+    const server = new FakeServer()
+      .on('GET', FILE_URL, () => new Response(FILE))
+      .on('GET', CHECK_PATH, () => new Response('', { status: ++checks === 1 ? 403 : 500 }), { public: true });
+    const helper = await server.loggedInHelper();
+    await expect(helper.download(FILE_URL, transportOf(server).transport)).resolves.toHaveProperty('body', FILE);
+    expect(checks).toBe(2);
+    expect(server.loginCount).toBe(2);
+  });
+
+  it("fails with the check's login error instead of trying that login again", async () => {
+    const server = fileServer();
+    const failure = new TypeError('fetch failed');
+    let logins = 0;
+    const helper = server.helper({
+      provider: () => credential,
+      fetch: (input) => {
+        if (urlOf(input).startsWith(URLS.ID_LOGIN)) logins += 1;
+        return Promise.reject(failure);
+      },
+    });
+    const { transport } = transportOf(server);
+    await expect(helper.download(FILE_URL, transport)).rejects.toEqual({
+      reason: FailReason.NETWORK_ERROR,
+      extra: failure,
+    });
+    expect(logins).toBe(1);
+    expect(transport).not.toHaveBeenCalled();
   });
 
   it('sends the cookies from cookieHeader', async () => {

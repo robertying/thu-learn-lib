@@ -324,7 +324,8 @@ describe('getCalendar', () => {
         await expect(helper.getCalendar('20250301', '20250328')).rejects.toMatchObject({
           reason: FailReason.ERROR_REGISTRAR_AUTH,
         });
-        // (It signs in again and retries once, like any registrar failure.)
+        // not an id.tsinghua.edu.cn refusal: no new login, which would find the same form
+        expect(server.loginCount).toBe(1);
         expect(server.requests.filter((r) => r.path === action)).toEqual([]);
         expect(server.count(`${URLS.ID_PREFIX}/do/off/ui/auth/login/checkSingle`)).toBe(0);
       }
