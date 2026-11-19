@@ -66,9 +66,9 @@ try {
 helper.setCSRFToken(savedToken);
 await helper.ensureSession();
 
-// To reuse the cookies elsewhere (e.g. to download files), keep the `cookieJar` that cookieJarConfig returns.
+// To download files, use `download` (below), which handles the session like every other request.
 
-// Log out if you want; the cookie jar isn't cleared.
+// Log out if you want; the CSRF token is forgotten, but the cookie jar isn't cleared.
 await helper.logout();
 ```
 

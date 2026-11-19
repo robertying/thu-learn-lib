@@ -1,5 +1,11 @@
 # Changelog
 
+- v9.1.1
+  - `logout` forgets the CSRF token (and the login's device fingerprints) before its request goes out, so the next request logs in again even when the logout gets no answer, and a logout answered late no longer clears the token of a login made since
+  - `download` no longer ignores every failure of the course file check: only the check's own error status is ignored. No connection, a failed login or a session that stays expired fails the download at once, instead of after the download tries the same login again
+  - `getCalendar` no longer logs in again and retries when the registrar's sign-in form posts off id.tsinghua.edu.cn: a new login finds the same form
+  - A failed `login` keeps the device fingerprints of the session it didn't replace, which `getCalendar` signs in to the registrar with
+
 - v9.1.0
   - A login that id.tsinghua.edu.cn answers with its second-factor step, which it asks for when the device fingerprint is unknown or no longer trusted (expired, or removed from the account's trusted browsers), rejects with the new `DEVICE_NOT_TRUSTED` instead of `ERROR_FETCH_FROM_ID`. Logging in again with the same fingerprint can't get past it; a login in a browser that finishes the second factor and trusts a new fingerprint can
   - Like `BAD_CREDENTIAL`, a `DEVICE_NOT_TRUSTED` from the `CredentialProvider` login is not tried again by the logins the helper starts by itself (an expired session, no CSRF token yet), until the next explicit `login`

@@ -9,6 +9,7 @@ import * as notices from './notices.ts';
 import * as questionnaires from './questionnaires.ts';
 import { Session, discard } from './request.ts';
 import type {
+  ApiError,
   DownloadResponse,
   DownloadTransport,
   Credential,
@@ -118,12 +119,20 @@ export class Learn2018Helper {
     }
     const check = files.downloadCheckUrl(url);
     if (check) {
-      await this.#session.fetchWithToken(check).then(discard, () => {});
+      // The download doesn't need the check to succeed, so only the check's own error status is ignored. Anything
+      // else (no connection, a failed or refused login, a session that stays expired) would fail the download the
+      // same way, after another login attempt.
+      await this.#session.fetchWithToken(check).then(discard, (err: unknown) => {
+        if ((err as ApiError | undefined)?.reason !== FailReason.UNEXPECTED_STATUS) throw err;
+      });
     }
     return parsed(this.#session.download(url, transport));
   }
 
-  /** Log out of Web Learning; the CSRF token is cleared, so the next request logs in again. */
+  /**
+   * Log out of Web Learning. The CSRF token is cleared first, so the next request logs in again, also when the logout
+   * fails.
+   */
   public async logout(): Promise<void> {
     return parsed(auth.logout(this.#session));
   }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CourseType, FailReason, Language } from '../src/index.ts';
 import * as URLS from '../src/urls.ts';
+import { urlOf } from '../src/utils.ts';
 import {
   FINGERPRINT,
   FakeServer,
@@ -229,5 +230,35 @@ describe('login', () => {
     await helper.getSemesterIdList();
     expect(server.loginCount).toBe(2);
     expect(server.count(URLS.LEARN_SEMESTER_LIST)).toBe(1);
+  });
+
+  it('forgets the CSRF token also when the logout gets no answer', async () => {
+    const server = new FakeServer();
+    const helper = await server.loggedInHelper({
+      fetch: (input, init) =>
+        urlOf(input).startsWith(URLS.LEARN_LOGOUT)
+          ? Promise.reject(new TypeError('fetch failed'))
+          : server.fetch(input, init),
+    });
+    await expect(helper.logout()).rejects.toHaveProperty('reason', FailReason.NETWORK_ERROR);
+    expect(helper.getCSRFToken()).toBe('');
+  });
+
+  it('keeps a login made while a logout is still waiting for its answer', async () => {
+    const server = new FakeServer();
+    let answer!: () => void;
+    const helper = await server.loggedInHelper({
+      fetch: async (input, init) => {
+        if (urlOf(input).startsWith(URLS.LEARN_LOGOUT)) await new Promise<void>((resolve) => (answer = resolve));
+        return server.fetch(input, init);
+      },
+    });
+    const logout = helper.logout();
+    await helper.login();
+    const token = helper.getCSRFToken();
+    expect(token).not.toBe('');
+    answer();
+    await logout;
+    expect(helper.getCSRFToken()).toBe(token);
   });
 });
