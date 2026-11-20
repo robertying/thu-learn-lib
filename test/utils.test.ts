@@ -6,6 +6,7 @@ import {
   JSONP_EXTRACTOR_NAME,
   apiError,
   decodeBase64,
+  decodeUtf8Bytes,
   decodeHTML,
   expectSuccess,
   extractJSONPResult,
@@ -115,6 +116,63 @@ describe('decodeBase64', () => {
 
   it("gives one character per byte for bytes that aren't UTF-8", () => {
     expect(decodeBase64(Buffer.from([0x61, 0xff]).toString('base64'))).toBe('a\xff');
+  });
+
+  it('keeps a leading byte order mark, as text', () => {
+    expect(decodeBase64(Buffer.from('\uFEFFa', 'utf8').toString('base64'))).toBe('\uFEFFa');
+  });
+});
+
+const bytesOf = (values: number[]) => String.fromCharCode(...values);
+
+/** what `decodeURIComponent` (the old decoder) gives for the bytes; `undefined` when it throws */
+const reference = (values: number[]) => {
+  try {
+    return decodeURIComponent(values.map((b) => `%${b.toString(16).padStart(2, '0')}`).join(''));
+  } catch {
+    return undefined;
+  }
+};
+
+describe('decodeUtf8Bytes', () => {
+  it('reads UTF-8 of every length, past one chunk of code units', () => {
+    const text = '<p>内容 ✓ 😀 \u0000 \u07FF \uFFFF \u{10FFFF}</p>'.repeat(2000);
+    expect(decodeUtf8Bytes(Buffer.from(text, 'utf8').toString('latin1'))).toBe(text);
+    expect(decodeUtf8Bytes('')).toBe('');
+  });
+
+  it.each([
+    ['a stray continuation byte', [0x80]],
+    ['a byte UTF-8 never uses', [0xff, 0x41]],
+    ['an overlong form', [0xc0, 0x80]],
+    ['an overlong three-byte form', [0xe0, 0x80, 0x80]],
+    ['an encoded surrogate', [0xed, 0xa0, 0x80]],
+    ['a code point past U+10FFFF', [0xf4, 0x90, 0x80, 0x80]],
+    ['a cut-off sequence', [0xe4, 0xb8]],
+    ['a sequence cut by an ASCII byte', [0xe4, 0x41, 0x80]],
+  ])('gives undefined for %s', (_, values) => {
+    expect(decodeUtf8Bytes(bytesOf(values))).toBeUndefined();
+    expect(reference(values)).toBeUndefined();
+  });
+
+  it('agrees with decodeURIComponent and TextDecoder on random bytes', () => {
+    const strict = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+    let seed = 1;
+    const next = () => (seed = (seed * 16807) % 2147483647);
+    for (let n = 0; n < 5000; n++) {
+      // mostly UTF-8 lead and continuation bytes, so valid and invalid sequences both come up
+      const values = Array.from({ length: 1 + (next() % 8) }, () =>
+        next() % 3 === 0 ? next() % 0x80 : 0x80 + (next() % 0x80),
+      );
+      let expected: string | undefined;
+      try {
+        expected = strict.decode(new Uint8Array(values));
+      } catch {
+        expected = undefined;
+      }
+      expect(decodeUtf8Bytes(bytesOf(values))).toBe(expected);
+      expect(reference(values)).toBe(expected);
+    }
   });
 });
 
