@@ -1,5 +1,8 @@
 # Changelog
 
+- v9.1.3
+  - Base64 text (notice `content`, discussion questions, the teacher homework `description`) is decoded with `TextDecoder` where there is one, and with a plain JavaScript UTF-8 decoder elsewhere, instead of one `decodeURIComponent` escape per byte: about 7× faster on Hermes. The text is the same, bytes that aren't UTF-8 still come back one character per byte, and a leading byte order mark stays
+
 - v9.1.2
   - `markNotificationRead`, `getNotificationAttachment`, `getHomeworkDetail` and `getExcellentHomeworkDetail` reject with a `TypeError` when the item's `url` is off Web Learning (another host, or plain http), as `download` already did, instead of sending the CSRF token there, and over plain http the session's cookies too. Every request that carries the token now checks its URL first, before any login
 
