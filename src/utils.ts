@@ -150,8 +150,8 @@ export function formatFileSize(size: number): string {
 
 /**
  * Base64 of UTF-8 text, as the server sends notice content, questions and teacher homework descriptions; `''` when
- * missing or not base64. Uses `atob` and a percent-decode of the bytes, which Node and Hermes both have, so no
- * `TextDecoder` is needed; bytes that aren't UTF-8 come back one character per byte.
+ * missing or not base64. Uses `atob`, which Node and Hermes both have; bytes that aren't UTF-8 come back one character
+ * per byte.
  */
 export function decodeBase64(value: unknown): string {
   if (typeof value !== 'string' || !value) return '';
@@ -161,11 +161,84 @@ export function decodeBase64(value: unknown): string {
   } catch {
     return '';
   }
+  return decodeUtf8(bytes) ?? bytes;
+}
+
+/**
+ * Strict, so bytes that aren't UTF-8 throw instead of becoming U+FFFD; `ignoreBOM` keeps a leading U+FEFF as text.
+ * `undefined` where there is no `TextDecoder`.
+ */
+const utf8Decoder =
+  typeof TextDecoder === 'function' ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }) : undefined;
+
+/**
+ * `bytes` (one character per byte, as `atob` gives) read as UTF-8, or `undefined` if they aren't UTF-8. Every notice
+ * of every list goes through here, so it uses `TextDecoder` where there is one and `decodeUtf8Bytes` elsewhere, both
+ * several times faster than percent-encoding each byte for `decodeURIComponent`.
+ */
+function decodeUtf8(bytes: string): string | undefined {
+  if (!utf8Decoder) return decodeUtf8Bytes(bytes);
+  const array = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i);
   try {
-    return decodeURIComponent(bytes.replace(/[\s\S]/g, (c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`));
+    return utf8Decoder.decode(array);
   } catch {
-    return bytes;
+    return undefined;
   }
+}
+
+/** how many code units `decodeUtf8Bytes` collects before turning them into a string (well under engines' argument limits) */
+const CHUNK = 8192;
+
+/**
+ * `bytes` (one character per byte) read as UTF-8 in plain JavaScript, or `undefined` if they aren't UTF-8. As strict
+ * as `TextDecoder`'s fatal mode and `decodeURIComponent`: no overlong forms, surrogates, code points past U+10FFFF or
+ * cut-off sequences. Exported for tests.
+ */
+export function decodeUtf8Bytes(bytes: string): string | undefined {
+  let text = '';
+  const units: number[] = [];
+  for (let i = 0; i < bytes.length;) {
+    const lead = bytes.charCodeAt(i);
+    let point: number;
+    if (lead < 0x80) {
+      point = lead;
+      i += 1;
+    } else {
+      // the continuation bytes the lead byte asks for, and the least code point that needs that many
+      let count: number;
+      let least: number;
+      if (lead >= 0xc2 && lead <= 0xdf) {
+        count = 1;
+        least = 0x80;
+      } else if (lead >= 0xe0 && lead <= 0xef) {
+        count = 2;
+        least = 0x800;
+      } else if (lead >= 0xf0 && lead <= 0xf4) {
+        count = 3;
+        least = 0x10000;
+      } else {
+        return undefined;
+      }
+      // the lead byte's payload: the bits after its `count + 1` leading ones and a zero
+      point = lead & (0x3f >> count);
+      if (i + count >= bytes.length) return undefined;
+      for (let k = 1; k <= count; k++) {
+        const next = bytes.charCodeAt(i + k);
+        if ((next & 0xc0) !== 0x80) return undefined;
+        point = (point << 6) | (next & 0x3f);
+      }
+      if (point < least || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) return undefined;
+      i += count + 1;
+    }
+    if (point > 0xffff) units.push(0xd800 + ((point - 0x10000) >> 10), 0xdc00 + ((point - 0x10000) & 0x3ff));
+    else units.push(point);
+    if (units.length >= CHUNK) {
+      text += String.fromCharCode(...units);
+      units.length = 0;
+    }
+  }
+  return text + String.fromCharCode(...units);
 }
 
 /** whether `item` is selected by a `DetailSelector` (`undefined` means `'none'`) */
