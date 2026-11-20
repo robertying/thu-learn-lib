@@ -21,6 +21,15 @@ export const learnUrl = (href: string): string | undefined => {
     return undefined;
   }
 };
+
+/**
+ * Throw a `TypeError` unless `url` is on Web Learning, the only site the session's requests send its CSRF token and
+ * cookies to. A plain prefix check, so every URL parser the request may go through reads the same host.
+ */
+export const assertLearnUrl = (url: string): void => {
+  if (!url.startsWith(`${LEARN_PREFIX}/`)) throw new TypeError(`not a Web Learning URL: ${url}`);
+};
+
 export const REGISTRAR_PREFIX = 'https://zhjw.cic.tsinghua.edu.cn';
 
 const MAX_SIZE = 200;

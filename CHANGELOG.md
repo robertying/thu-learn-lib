@@ -1,5 +1,8 @@
 # Changelog
 
+- v9.1.2
+  - `markNotificationRead`, `getNotificationAttachment`, `getHomeworkDetail` and `getExcellentHomeworkDetail` reject with a `TypeError` when the item's `url` is off Web Learning (another host, or plain http), as `download` already did, instead of sending the CSRF token there, and over plain http the session's cookies too. Every request that carries the token now checks its URL first, before any login
+
 - v9.1.1
   - `logout` forgets the CSRF token (and the login's device fingerprints) before its request goes out, so the next request logs in again even when the logout gets no answer, and a logout answered late no longer clears the token of a login made since
   - `download` no longer ignores every failure of the course file check: only the check's own error status is ignored. No connection, a failed login or a session that stays expired fails the download at once, instead of after the download tries the same login again

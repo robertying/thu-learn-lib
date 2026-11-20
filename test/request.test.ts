@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { FailReason } from '../src/index.ts';
-import { isConnectionError, limitConcurrency, withNetworkError, withTimeout } from '../src/request.ts';
+import { Session, isConnectionError, limitConcurrency, withNetworkError, withTimeout } from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
 import { FakeServer, PASSWORD, credential, html, json, withSemesterList } from './helpers/fake-server.ts';
 
@@ -25,6 +25,50 @@ describe('CSRF token', () => {
     await second.getSemesterIdList();
     expect(server.loginCount).toBe(1);
     expect(second.getCSRFToken()).toBe('csrf-1');
+  });
+
+  // a notice's or homework's `url` comes from the caller, which may have it from anywhere
+  const OFF_SITE = [
+    'https://example.com/f/wlxt/kcgg/wlkc_ggb/student/beforeViewXs',
+    'https://learn.tsinghua.edu.cn.example.com/f/',
+    'https://learn.tsinghua.edu.cn@example.com/f/',
+    'https://learn.tsinghua.edu.cn:8443/f/',
+    'http://learn.tsinghua.edu.cn/f/',
+    '//example.com/f/',
+    'not a url',
+  ];
+
+  it('sends a caller URL off Web Learning nowhere, without logging in', async () => {
+    const server = new FakeServer();
+    const helper = server.helper({ provider: () => credential });
+
+    for (const url of OFF_SITE) {
+      await expect(helper.markNotificationRead({ url })).rejects.toThrow(TypeError);
+      await expect(helper.getNotificationAttachment({ url, attachmentName: 'a.pdf' })).rejects.toThrow(TypeError);
+      await expect(helper.getHomeworkDetail({ url, baseId: 'b' })).rejects.toThrow(TypeError);
+      await expect(helper.getExcellentHomeworkDetail({ url, baseId: 'b' })).rejects.toThrow(TypeError);
+    }
+    expect(server.requests).toEqual([]);
+  });
+
+  it('never adds the token or cookies to a request off Web Learning', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const login = vi.fn<() => Promise<void>>();
+    const cookieHeader = vi.fn<() => string>();
+    const session = new Session({ fetch, cookieHeader }, login);
+    session.csrfToken = 'token';
+    const transport = vi.fn<() => Promise<never>>();
+
+    for (const url of OFF_SITE) {
+      await expect(session.fetchWithToken(url)).rejects.toThrow(TypeError);
+      await expect(session.fetchTextWithToken(new URL(url, 'https://example.com'))).rejects.toThrow(TypeError);
+      await expect(session.fetchJsonWithToken(url)).rejects.toThrow(TypeError);
+      await expect(session.download(url, transport)).rejects.toThrow(TypeError);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+    expect(transport).not.toHaveBeenCalled();
+    expect(cookieHeader).not.toHaveBeenCalled();
+    expect(login).not.toHaveBeenCalled();
   });
 });
 
