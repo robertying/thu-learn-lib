@@ -33,8 +33,8 @@ const fileSeen: OnceTest = { name: 'file-seen', covers: ['src/files.ts', 'src/ur
  * What the website calls when a student opens a course file (from its scripts, `play.js` and the file list's
  * `download_kj`). Run 1 (2026-11-09) found that the preview check `b/kc/wj_wjb/student/beforePlay`, the download check
  * `downloadFileBefore` and the preview page (`previewUrl`) each leave `isNew` (and every other row key) as it was.
- * These are the next guesses: the player page the preview check answers, a whole download, and the course's file
- * list page. Each answers a short description of what the server sent, without account data.
+ * Run 2 tried these three and found that only the whole download marks the file seen (docs/server-behavior.md).
+ * Each answers a short description of what the server sent, without account data.
  */
 type FileSeenTarget = { courseID: string; id: string; fileId: string; downloadUrl: string };
 const FILE_SEEN_CANDIDATES: {
