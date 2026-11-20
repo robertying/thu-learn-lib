@@ -5,8 +5,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { DAY_MS } from './dates.ts';
 
 /**
- * Tests that leave a trace on the account (a failed login, items marked read, a favorite added and removed) run only
- * when named in `LIVE_ONCE` (comma-separated), e.g. `LIVE_ONCE=wrong-password pnpm test:live test/live/once.test.ts`.
+ * Tests that leave a trace on the account (a failed login, a sign-in attempt from a new device, items marked read, a
+ * homework submission) run only when named in `LIVE_ONCE` (comma-separated), e.g.
+ * `LIVE_ONCE=wrong-password pnpm test:live test/live/once.test.ts`.
  * Each covers some source files; after it passes, `test/live/.once.json` (not checked in) keeps a hash of them, and
  * later runs say when the test is due again because that code changed.
  */
