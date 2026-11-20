@@ -8,6 +8,7 @@ import type {
   HelperConfig,
 } from './types.ts';
 import { FailReason, Language } from './types.ts';
+import { assertLearnUrl } from './urls.ts';
 import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
 
 export const noLogin = (res: Pick<Response, 'status'> & { url?: string }) =>
@@ -422,9 +423,11 @@ export class Session {
    * log in first without a CSRF token, add the token (and `cookieHeader`'s cookies) to the request, and take a 403, a
    * redirect to the login timeout page, or a small body that is a login or script-redirect page as an expired session:
    * then log in again and send it once more. A transport failure rejects with `NETWORK_ERROR`, a status other than
-   * 2xx with `UNEXPECTED_STATUS`. Every response it doesn't return is discarded.
+   * 2xx with `UNEXPECTED_STATUS`. Every response it doesn't return is discarded. A URL off Web Learning throws a
+   * `TypeError`, before any login.
    */
   async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
+    assertLearnUrl(url);
     if (this.#csrfToken === '') {
       await this.autoRelogin();
     }
@@ -476,14 +479,19 @@ export class Session {
   };
 
   #withToken = async (input: Parameters<Fetch>[0]): Promise<() => string> => {
+    const url = urlOf(input);
+    // some URLs come from the caller (a notice's or homework's `url`): the token and cookies never go anywhere else
+    assertLearnUrl(url);
     if (this.#csrfToken === '') {
       await this.autoRelogin();
     }
-    const url = urlOf(input);
     return () => addCSRFTokenToUrl(url, this.#csrfToken);
   };
 
-  /** fetch with a login check (see `#send`); logs in first if there is no CSRF token yet and adds it to the URL */
+  /**
+   * fetch with a login check (see `#send`); logs in first if there is no CSRF token yet and adds it to the URL. A URL
+   * off Web Learning throws a `TypeError`, before any login.
+   */
   readonly fetchWithToken: TimedFetch = async (input, init) =>
     this.#send(await this.#withToken(input), init, Session.#response);
 
