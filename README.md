@@ -82,7 +82,7 @@ The library supports both the student and the teacher (or TA) views of Web Learn
 
 - `getCourseList(semesterID, { courseType, lang, timeAndLocation })`
 - `getNotificationList(courseID, { courseType, attachments })`, `getHomeworkList(courseID, { courseType, details })`
-- `getFileList(courseID, { courseType, favorites })` (`favorites: true` also fills `isFavorite`, with one more request)
+- `getFileList(courseID, { courseType, favorites })` (`favorites: true` also fills `isFavorite`, with one more request; or pass the file favorites you already have, from one `getFavorites` for every course, to fill it with none)
 - `getFileCategoryList/getDiscussionList/getAnsweredQuestionList(courseID, { courseType })`, `getFileListByCategory(courseID, categoryID, { courseType })`
 - `getNotificationAttachment(notification, { courseType })`, `getUserInfo({ courseType })`
 
@@ -105,7 +105,7 @@ const notifications = await helper.getNotificationList(course.id);
 const files = await helper.getFileList(course.id);
 const homework = await helper.getHomeworkList(course.id);
 const questions = await helper.getAnsweredQuestionList(course.id);
-// questions are fetched (one request each) only with { details: 'all' } or a predicate
+// a questionnaire's questions are fetched (one request each) only with { details: 'all' } or a predicate
 const questionnaires = await helper.getQuestionnaireList(course.id);
 ```
 
