@@ -114,9 +114,7 @@ export class Learn2018Helper {
    * 2xx, `NOT_LOGGED_IN` when the new session is turned away too, and throws a `TypeError` for a URL off Web Learning.
    */
   public async download<T extends DownloadResponse>(url: string, transport: DownloadTransport<T>): Promise<T> {
-    if (!url.startsWith(`${URLS.LEARN_PREFIX}/`)) {
-      throw new TypeError(`not a Web Learning URL: ${url}`);
-    }
+    URLS.assertLearnUrl(url);
     const check = files.downloadCheckUrl(url);
     if (check) {
       // The download doesn't need the check to succeed, so only the check's own error status is ignored. Anything
@@ -185,19 +183,24 @@ export class Learn2018Helper {
     return parsed(notices.getNotificationList(this.#session, courseID, options));
   }
 
-  /** Get the attachment of a notice (one request), `undefined` if it has none. */
+  /**
+   * Get the attachment of a notice (one request), `undefined` if it has none. Rejects with a `TypeError` for a `url`
+   * off Web Learning.
+   */
   public async getNotificationAttachment(
     notification: Pick<CourseNotification, 'url' | 'attachmentName'>,
     options?: CourseTypeOptions,
   ): Promise<RemoteFile | undefined> {
+    URLS.assertLearnUrl(notification.url);
     return parsed(notices.getNotificationAttachment(this.#session, notification, options));
   }
 
   /**
    * Mark a notice read on the server (one request), as opening it on the website does. Rejects with
-   * `UNEXPECTED_STATUS` when the server can't show it.
+   * `UNEXPECTED_STATUS` when the server can't show it, and with a `TypeError` for a `url` off Web Learning.
    */
   public async markNotificationRead(notification: Pick<CourseNotification, 'url'>): Promise<void> {
+    URLS.assertLearnUrl(notification.url);
     return parsed(notices.markNotificationRead(this.#session, notification));
   }
 
@@ -242,13 +245,18 @@ export class Learn2018Helper {
       : parsed(homework.getHomeworkList(this.#session, courseID, options));
   }
 
-  /** Get the detail (page content, attachments and description) of one homework. */
+  /**
+   * Get the detail (page content, attachments and description) of one homework. Rejects with a `TypeError` for a `url`
+   * off Web Learning.
+   */
   public async getHomeworkDetail(item: Pick<Homework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
+    URLS.assertLearnUrl(item.url);
     return parsed(homework.getHomeworkDetail(this.#session, item));
   }
 
-  /** Get the detail (page content, attachments and description) of one excellent homework; the same requests as `getHomeworkDetail`. */
+  /** Get the detail (page content, attachments and description) of one excellent homework; the same requests and URL check as `getHomeworkDetail`. */
   public async getExcellentHomeworkDetail(item: Pick<ExcellentHomework, 'url' | 'baseId'>): Promise<HomeworkDetail> {
+    URLS.assertLearnUrl(item.url);
     return parsed(homework.getHomeworkDetail(this.#session, item));
   }
 
