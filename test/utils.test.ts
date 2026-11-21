@@ -125,7 +125,7 @@ describe('decodeBase64', () => {
 
 const bytesOf = (values: number[]) => String.fromCharCode(...values);
 
-/** what `decodeURIComponent` (the old decoder) gives for the bytes; `undefined` when it throws */
+/** what `decodeURIComponent`, a strict UTF-8 decoder of its own, gives for the bytes; `undefined` when it throws */
 const reference = (values: number[]) => {
   try {
     return decodeURIComponent(values.map((b) => `%${b.toString(16).padStart(2, '0')}`).join(''));
