@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { FailReason } from '../src/index.ts';
-import { Session, isConnectionError, limitConcurrency, withNetworkError, withTimeout } from '../src/request.ts';
+import {
+  Session,
+  bodyText,
+  discard,
+  isConnectionError,
+  limitConcurrency,
+  withNetworkError,
+  withTimeout,
+} from '../src/request.ts';
 import * as URLS from '../src/urls.ts';
 import { FakeServer, PASSWORD, credential, html, json, withSemesterList } from './helpers/fake-server.ts';
 
@@ -271,6 +279,17 @@ describe('request limits', () => {
     await expect(helper.getSemesterIdList()).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
     expect(server.inFlight).toBe(0);
   });
+
+  it('leaves the CSRF token out of the URL in a REQUEST_TIMEOUT', async () => {
+    const server = new FakeServer();
+    server.on('GET', URLS.LEARN_SEMESTER_LIST, () => new Promise<Response>(() => {}));
+    const helper = await server.loggedInHelper({ requestTimeout: 20 });
+
+    await expect(helper.getSemesterIdList()).rejects.toEqual({
+      reason: FailReason.REQUEST_TIMEOUT,
+      extra: { url: URLS.LEARN_SEMESTER_LIST, timeout: 20 },
+    });
+  });
 });
 
 describe('expired sessions that are not a 403', () => {
@@ -446,6 +465,17 @@ describe('logins never overlap', () => {
   });
 });
 
+/** a response whose headers arrive at once and whose body stalls after its first bytes, as Node's fetch can give */
+const stalledBody: Parameters<typeof withTimeout>[0] = async (_input, init) =>
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('<html>'));
+        init?.signal?.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')));
+      },
+    }),
+  );
+
 describe('withTimeout', () => {
   it('lets the caller cancel reading the body after the headers arrived', async () => {
     let seen: AbortSignal | undefined;
@@ -473,6 +503,26 @@ describe('withTimeout', () => {
     );
     await expect(slow('https://example.com')).rejects.toHaveProperty('reason', FailReason.REQUEST_TIMEOUT);
     await expect(slow('https://example.com', { timeout: 0 })).resolves.toBeInstanceOf(Response);
+  });
+
+  it('rejects with REQUEST_TIMEOUT when the body stalls after the headers', async () => {
+    const res = await withTimeout(stalledBody, 20)('https://example.com/page?_csrf=secret');
+    await expect(bodyText(res)).rejects.toEqual({
+      reason: FailReason.REQUEST_TIMEOUT,
+      extra: { url: 'https://example.com/page', timeout: 20 },
+    });
+  });
+
+  it('stops the timer once the body has been read or discarded', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = withTimeout(async () => new Response('done'), 20);
+      expect(await bodyText(await fetch('https://example.com'))).toBe('done');
+      discard(await fetch('https://example.com'));
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

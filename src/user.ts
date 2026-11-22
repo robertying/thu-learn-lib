@@ -1,8 +1,7 @@
 // User info and website language.
 
 import type { Session } from './request.ts';
-import { discard } from './request.ts';
-import type { CourseTypeOptions, Language, UserInfo } from './types.ts';
+import type { ApiError, CourseTypeOptions, Language, UserInfo } from './types.ts';
 import { CourseType, FailReason } from './types.ts';
 import * as URLS from './urls.ts';
 import { $, apiError } from './utils.ts';
@@ -33,14 +32,16 @@ export async function getUserInfo(
   };
 }
 
+/**
+ * The answer is read like a page (`fetchTextWithToken`), so the 200 login page of an expired session logs in again
+ * instead of passing for a switch the server never made.
+ */
 export async function setLanguage(s: Session, lang: Language): Promise<void> {
-  const response = await s.fetchWithToken(URLS.LEARN_WEBSITE_LANGUAGE(lang), {
-    method: 'POST',
-  });
-  // free the connection; only the status matters
-  discard(response);
-  if (!response.ok) {
-    throw apiError(FailReason.OPERATION_FAILED, { code: response.status, text: response.statusText });
+  try {
+    await s.fetchTextWithToken(URLS.LEARN_WEBSITE_LANGUAGE(lang), { method: 'POST' });
+  } catch (err) {
+    const { reason, extra } = (err ?? {}) as ApiError;
+    throw reason === FailReason.UNEXPECTED_STATUS ? apiError(FailReason.OPERATION_FAILED, extra) : err;
   }
   s.lang = lang;
 }

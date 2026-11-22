@@ -422,6 +422,18 @@ describe('getCalendar', () => {
     });
   });
 
+  it('rejects with ERROR_REGISTRAR_AUTH, without signing in, when the ticket request answers no ticket', async () => {
+    const server = setup(() => jsonp([]));
+    server.on('POST', URLS.REGISTRAR_TICKET, () => html('{"result":"error"}'));
+    const helper = await server.loggedInHelper();
+    await expect(helper.getCalendar('20250301', '20250328')).rejects.toEqual({
+      reason: FailReason.ERROR_REGISTRAR_AUTH,
+      extra: { step: 'ticket' },
+    });
+    expect(server.requests.filter((r) => r.url.searchParams.has('ticket'))).toHaveLength(0);
+    expect(server.loginCount).toBe(1);
+  });
+
   it('rejects with ERROR_REGISTRAR_AUTH when the auth step fails', async () => {
     const server = setup(() => jsonp([]));
     server.on('GET', URLS.REGISTRAR_AUTH(''), () => new Response('', { status: 500 }));

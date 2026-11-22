@@ -9,7 +9,7 @@ import type {
 } from './types.ts';
 import { FailReason, Language } from './types.ts';
 import { assertLearnUrl } from './urls.ts';
-import { apiError, looksLikeLoginPage, urlOf } from './utils.ts';
+import { apiError, looksLikeLoginPage, urlOf, withoutQuery } from './utils.ts';
 
 export const noLogin = (res: Pick<Response, 'status'> & { url?: string }) =>
   !!res.url?.includes('login_timeout') || res.status === 403;
@@ -146,12 +146,16 @@ export function withUploadProgress(inner: Fetch): Fetch {
   };
 }
 
+/** the body timers of `withTimeout`'s responses: `settle` stops one, `timedOut` is its error once it has fired */
+const bodyTimers = new WeakMap<Response, { settle: () => void; timedOut: () => ApiError | undefined }>();
+
 /**
- * Abort a call of `inner` that has no response headers after `ms` milliseconds (or `init.timeout`, which overrides it
- * for one request) and reject it with `FailReason.REQUEST_TIMEOUT`. A caller's own `signal` still works, also while
- * the body is read. Uses only `AbortController` and `setTimeout`, which React Native has (unlike
- * `AbortSignal.timeout` / `AbortSignal.any`). Note that React Native's fetch resolves only after the whole body has
- * arrived, so there the timeout covers the download too.
+ * Abort a call of `inner` that hasn't answered after `ms` milliseconds (or `init.timeout`, which overrides it for one
+ * request) and reject it with `FailReason.REQUEST_TIMEOUT`. The time also covers reading the body with `bodyText`,
+ * which matters on Node, where the headers arrive first; `discard` a body that won't be read, which stops the timer.
+ * A caller's own `signal` still works, also while the body is read. Uses only `AbortController` and `setTimeout`,
+ * which React Native has (unlike `AbortSignal.timeout` / `AbortSignal.any`); its fetch resolves only after the whole
+ * body has arrived anyway.
  */
 export function withTimeout(inner: Fetch, ms: number): TimedFetch {
   return async (input, options) => {
@@ -168,18 +172,35 @@ export function withTimeout(inner: Fetch, ms: number): TimedFetch {
       timedOut = true;
       controller.abort();
     }, timeout);
+    const timeoutError = () => apiError(FailReason.REQUEST_TIMEOUT, { url: withoutQuery(urlOf(input)), timeout });
     try {
-      return await inner(input, { ...init, signal: controller.signal });
+      const res = await inner(input, { ...init, signal: controller.signal });
+      bodyTimers.set(res, {
+        settle: () => clearTimeout(timer),
+        timedOut: () => (timedOut ? timeoutError() : undefined),
+      });
+      return res;
     } catch (err) {
-      outer?.removeEventListener('abort', forward);
-      if (timedOut) {
-        throw apiError(FailReason.REQUEST_TIMEOUT, { url: urlOf(input), timeout });
-      }
-      throw err;
-    } finally {
       clearTimeout(timer);
+      outer?.removeEventListener('abort', forward);
+      throw timedOut ? timeoutError() : err;
     }
   };
+}
+
+/**
+ * The body of a response as text, read within the request's timeout (see `withTimeout`): a body still arriving when
+ * it runs out rejects with `REQUEST_TIMEOUT`.
+ */
+export async function bodyText(res: Response): Promise<string> {
+  const timer = bodyTimers.get(res);
+  try {
+    return await res.text();
+  } catch (err) {
+    throw timer?.timedOut() ?? err;
+  } finally {
+    timer?.settle();
+  }
 }
 
 /**
@@ -216,6 +237,7 @@ export const isRefusedLogin = (err: unknown): boolean => {
 
 /** free the connection of a response we won't read */
 export const discard = (res: Response) => {
+  bodyTimers.get(res)?.settle();
   res.body?.cancel().catch(() => {});
 };
 
@@ -453,7 +475,7 @@ export class Session {
    */
   static readonly #json = async (res: Response, retry: boolean): Promise<any> => {
     await Session.#response(res, retry);
-    const text = await res.text();
+    const text = await bodyText(res);
     try {
       return JSON.parse(text);
     } catch {
@@ -474,7 +496,7 @@ export class Session {
       discard(res);
       throw apiError(FailReason.UNEXPECTED_STATUS, { code: res.status, text: res.statusText });
     }
-    const text = await res.text();
+    const text = await bodyText(res);
     return looksLikeLoginPage(text) ? EXPIRED : text;
   };
 

@@ -3,11 +3,11 @@
 import { sm2 } from 'sm-crypto';
 
 import type { Session } from './request.ts';
-import { discard, isConnectionError } from './request.ts';
+import { bodyText, discard, isConnectionError } from './request.ts';
 import type { Credential } from './types.ts';
 import { CourseType, FailReason, Language } from './types.ts';
 import * as URLS from './urls.ts';
-import { $, apiError } from './utils.ts';
+import { $, apiError, withoutQuery } from './utils.ts';
 
 /** a `Credential` with everything an SSO login needs */
 export type CompleteCredential = Credential & { username: string; password: string; fingerPrint: string };
@@ -30,7 +30,7 @@ export async function getRoamingTicket(s: Session, credential: CompleteCredentia
   let pageUrl: string;
   try {
     const loginForm = await s.rawFetch(URLS.ID_LOGIN);
-    const body = $(await loginForm.text());
+    const body = $(await bodyText(loginForm));
     const sm2publicKey = body('#sm2publicKey').text().trim();
 
     const formData = new FormData();
@@ -47,9 +47,10 @@ export async function getRoamingTicket(s: Session, credential: CompleteCredentia
     });
 
     if (!checkResponse.ok) {
+      discard(checkResponse);
       throw { code: checkResponse.status, text: checkResponse.statusText };
     }
-    page = await checkResponse.text();
+    page = await bodyText(checkResponse);
     pageUrl = checkResponse.url;
   } catch (err) {
     // no answer at all: the device is offline or id.tsinghua.edu.cn is unreachable, not a refused login
@@ -66,7 +67,7 @@ export async function getRoamingTicket(s: Session, credential: CompleteCredentia
     throw apiError(FailReason.BAD_CREDENTIAL, textOf(body('#msg_note, .alert-danger')) || undefined);
   }
   if (asksSecondFactor(pageUrl, page, textOf(body.root()))) {
-    throw apiError(FailReason.DEVICE_NOT_TRUSTED, pageUrl || undefined);
+    throw apiError(FailReason.DEVICE_NOT_TRUSTED, withoutQuery(pageUrl) || undefined);
   }
   // something else, e.g. a locked account or maintenance: not a wrong password
   throw apiError(
@@ -111,7 +112,7 @@ export async function login(s: Session, credential: CompleteCredential): Promise
   if (!loginResponse.ok) {
     throw apiError(FailReason.ERROR_ROAMING);
   }
-  const courseListPageSource: string = await (await s.rawFetch(URLS.LEARN_HOMEPAGE(CourseType.STUDENT))).text();
+  const courseListPageSource: string = await bodyText(await s.rawFetch(URLS.LEARN_HOMEPAGE(CourseType.STUDENT)));
   const tokenRegex = /^.*&_csrf=(\S*)".*$/gm;
   const tokenMatches = [...courseListPageSource.matchAll(tokenRegex)];
   if (tokenMatches.length === 0) {

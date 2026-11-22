@@ -1,5 +1,13 @@
 # Changelog
 
+- v9.1.4
+  - `setLanguage` reads the server's answer like a page, so when the session has expired (Web Learning's 200 login page) it logs in again and switches, instead of resolving and changing `getCurrentLanguage()` while the server kept the old language. A status other than 200 still rejects with `OPERATION_FAILED`
+  - Errors no longer carry the query of a URL: `REQUEST_TIMEOUT`'s `extra.url` left the CSRF token in it, and `DEVICE_NOT_TRUSTED`'s `extra` whatever id.tsinghua.edu.cn put in its second-factor URL. Apps log errors and may send them to crash reporting
+  - `cookieJarConfig`'s `clearLoginCookies` removes every id.tsinghua.edu.cn cookie, of any path and name, instead of blanking only `JSESSIONID` at `/`: a session cookie of a narrower path would still have been sent with the login form
+  - `login` rejects with `INVALID_RESPONSE` instead of a `TypeError` when a page it reads can't be parsed, as the other methods do
+  - On Node, `requestTimeout` also covers reading the body: a server that sends the headers and then stalls rejects with `REQUEST_TIMEOUT` instead of waiting forever. React Native's fetch already resolved only after the whole body
+  - `getCalendar` rejects with `ERROR_REGISTRAR_AUTH` and `extra.step` `'ticket'` when Web Learning answers the registrar ticket request with something other than a ticket, instead of signing in to the registrar with a broken one
+
 - v9.1.3
   - Base64 text (notice `content`, discussion questions, the teacher homework `description`) is decoded with `TextDecoder` where there is one, and with a plain JavaScript UTF-8 decoder elsewhere, instead of one `decodeURIComponent` escape per byte: about 7× faster on Hermes. The text is the same, bytes that aren't UTF-8 still come back one character per byte, and a leading byte order mark stays
 

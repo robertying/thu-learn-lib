@@ -1,11 +1,11 @@
 // Course calendar from the registrar (zhjw.cic.tsinghua.edu.cn).
 
 import type { Session } from './request.ts';
-import { discard } from './request.ts';
+import { bodyText, discard } from './request.ts';
 import type { ApiError, CalendarEvent, CalendarOptions, CalendarRange, CalendarResult, ServerTime } from './types.ts';
 import { FailReason } from './types.ts';
 import * as URLS from './urls.ts';
-import { $, JSONP_EXTRACTOR_NAME, apiError, extractJSONPResult } from './utils.ts';
+import { $, JSONP_EXTRACTOR_NAME, apiError, extractJSONPResult, withoutQuery } from './utils.ts';
 
 /**
  * The registrar often fails for ranges longer than about a month, so longer ranges are fetched in windows of this many
@@ -49,6 +49,8 @@ const isFingerprintField = (name: string): name is (typeof FINGERPRINT_FIELDS)[n
 
 /** `extra.step` of an `ERROR_REGISTRAR_AUTH` that id.tsinghua.edu.cn turned down (rather than the registrar failing) */
 const ID_STEP = 'id.tsinghua.edu.cn';
+/** `step` of an `ERROR_REGISTRAR_AUTH` for an answer to the ticket request that holds no ticket */
+const TICKET_STEP = 'ticket';
 
 const isIdRefusal = (err: unknown) =>
   (err as ApiError | undefined)?.reason === FailReason.ERROR_REGISTRAR_AUTH &&
@@ -64,7 +66,7 @@ const isIdLoginPage = (res: Response, page: string) =>
  * are looked into here, so an undecodable registrar page is as good as an empty one.
  */
 const readText = async (res: Response): Promise<string> => {
-  const text: unknown = await res.text();
+  const text: unknown = await bodyText(res);
   return typeof text === 'string' ? text : '';
 };
 
@@ -91,7 +93,7 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
     // The form carries the login's device fingerprints: only id.tsinghua.edu.cn over https gets them. Not an
     // id.tsinghua.edu.cn refusal (no `step`), so it isn't retried after a new login, which would find the same form.
     if (new URL(action).origin !== URLS.ID_PREFIX) {
-      throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { url: action.split('?')[0] });
+      throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { url: withoutQuery(action) });
     }
     const fingerprints = s.fingerprints ?? (await s.provider?.());
     const data = new FormData();
@@ -111,10 +113,10 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
   }
 
   if (isIdLoginPage(res, page)) {
-    throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { step: ID_STEP, code: res.status, url: res.url.split('?')[0] });
+    throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { step: ID_STEP, code: res.status, url: withoutQuery(res.url) });
   }
   if (!res.ok) {
-    throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { code: res.status, url: res.url.split('?')[0] });
+    throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { code: res.status, url: withoutQuery(res.url) });
   }
 }
 
@@ -125,11 +127,14 @@ async function authenticateRegistrar(s: Session, ticket: string): Promise<void> 
  */
 async function signInToRegistrar(s: Session): Promise<void> {
   const signIn = async () => {
-    const ticket = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET, {
+    const answer = await s.fetchTextWithToken(URLS.REGISTRAR_TICKET, {
       method: 'POST',
       body: URLS.REGISTRAR_TICKET_FORM_DATA(),
     });
-    await authenticateRegistrar(s, ticket.substring(1, ticket.length - 1));
+    // the ticket comes as a JSON string; anything else (an error page) would only fail later, at the registrar
+    const ticket = /^"([^"\s]+)"$/.exec(answer.trim())?.[1];
+    if (!ticket) throw apiError(FailReason.ERROR_REGISTRAR_AUTH, { step: TICKET_STEP });
+    await authenticateRegistrar(s, ticket);
   };
   try {
     await signIn();
@@ -156,7 +161,7 @@ async function fetchWindow(s: Session, range: CalendarRange, graduate: boolean):
     throw apiError(FailReason.INVALID_RESPONSE, { code: response.status, text: response.statusText });
   }
 
-  const result: unknown = extractJSONPResult(await response.text());
+  const result: unknown = extractJSONPResult(await bodyText(response));
   if (!Array.isArray(result)) {
     throw apiError(FailReason.INVALID_RESPONSE, result);
   }

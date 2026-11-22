@@ -90,9 +90,9 @@ export class Learn2018Helper {
    * waits for a login in progress, and requests that find the session expired meanwhile wait for it.
    */
   public async login(credential?: Credential): Promise<void> {
-    if (credential === undefined) return this.#session.relogin();
+    if (credential === undefined) return parsed(this.#session.relogin());
     if (!auth.isComplete(credential)) throw apiError(FailReason.NO_CREDENTIAL);
-    return this.#session.runLogin(() => auth.login(this.#session, credential));
+    return parsed(this.#session.runLogin(() => auth.login(this.#session, credential)));
   }
 
   /**
