@@ -30,12 +30,14 @@ describe('cookieJarConfig', () => {
   it('forgets the id.tsinghua.edu.cn session before a login, keeping other sites', async () => {
     const cookieJar = new CookieJar();
     await cookieJar.setCookie('JSESSIONID=abc; Path=/', URLS.ID_PREFIX);
+    await cookieJar.setCookie('JSESSIONID=def; Path=/do', URLS.ID_LOGIN);
+    await cookieJar.setCookie('route=1; Domain=id.tsinghua.edu.cn; Path=/', URLS.ID_PREFIX);
     await cookieJar.setCookie('XSRF=1; Path=/', URLS.LEARN_PREFIX);
     const { clearLoginCookies } = cookieJarConfig(cookieJar);
 
     await clearLoginCookies();
 
-    expect(await cookieJar.getCookieString(URLS.ID_PREFIX)).toBe('JSESSIONID=');
+    expect(await cookieJar.getCookieString(URLS.ID_LOGIN)).toBe('');
     expect(await cookieJar.getCookieString(URLS.LEARN_PREFIX)).toBe('XSRF=1');
   });
 });

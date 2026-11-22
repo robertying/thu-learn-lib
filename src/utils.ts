@@ -50,6 +50,12 @@ export const YES = '是';
 export const urlOf = (input: Parameters<Fetch>[0]): string =>
   typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
+/**
+ * `url` for an error's `extra`: without its query, which may hold the CSRF token or a sign-in ticket, since apps log
+ * errors and may send them to crash reporting
+ */
+export const withoutQuery = (url: string): string => url.split('?')[0];
+
 /** pages longer than this are taken as real pages, never as the short login / redirect page of an expired session */
 const MAX_LOGIN_PAGE_LENGTH = 4096;
 

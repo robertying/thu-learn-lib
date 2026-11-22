@@ -53,6 +53,18 @@ describe('getUserInfo and setLanguage', () => {
     expect(helper.getCurrentLanguage()).toBe(Language.ZH);
   });
 
+  it('logs in again before switching the language when the session has expired', async () => {
+    const server = new FakeServer().on('POST', URLS.LEARN_WEBSITE_LANGUAGE(Language.EN), () => html(''));
+    const helper = await server.loggedInHelper();
+    server.expiry = 'html';
+    server.expireSession();
+
+    await helper.setLanguage(Language.EN);
+    expect(helper.getCurrentLanguage()).toBe(Language.EN);
+    expect(server.loginCount).toBe(2);
+    expect(server.requests.filter((r) => r.url.pathname.endsWith('/common/language'))).toHaveLength(2);
+  });
+
   it('logs in again when the homepage is the short login page of an expired session', async () => {
     const server = new FakeServer();
     server.homepageBody = '<a class="user-log">张三</a>';

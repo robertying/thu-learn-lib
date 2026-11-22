@@ -26,6 +26,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # no step pushes; keeps the job's token out of .git/config, where install and build scripts could read it
+          persist-credentials: false
 
       # Version comes from the `packageManager` field in package.json.
       - name: Set up pnpm
@@ -72,6 +75,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # no step pushes; keeps the job's token out of .git/config, where install and build scripts could read it
+          persist-credentials: false
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1

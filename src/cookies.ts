@@ -22,8 +22,7 @@ export function cookieJarConfig(
   return {
     cookieJar,
     fetch: fetchCookie(globalFetch, cookieJar),
-    clearLoginCookies: async () => {
-      await cookieJar.setCookie('JSESSIONID=; path=/; HttpOnly', URLS.ID_PREFIX);
-    },
+    // every path and name: tough-cookie would still send a session cookie of a narrower path than `/`
+    clearLoginCookies: () => cookieJar.store.removeCookies(new URL(URLS.ID_PREFIX).hostname, null),
   };
 }

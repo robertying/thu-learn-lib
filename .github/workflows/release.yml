@@ -23,6 +23,8 @@ jobs:
     name: Publish
     needs: check
     runs-on: ubuntu-latest
+    # waits for the maintainer's approval; npm's trusted publisher accepts only this environment
+    environment: npm-publish
     permissions:
       contents: write # create the GitHub release
       id-token: write # npm trusted publishing + provenance
@@ -30,6 +32,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # no step pushes; keeps the job's token out of .git/config, where install and build scripts could read it
+          persist-credentials: false
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1

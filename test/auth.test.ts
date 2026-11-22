@@ -119,7 +119,7 @@ describe('login', () => {
   describe('for a device fingerprint id.tsinghua.edu.cn does not trust', () => {
     it('rejects with DEVICE_NOT_TRUSTED when the check is redirected to the second factor', async () => {
       const url = `${URLS.ID_PREFIX}/b/doubleAuth/login/view`;
-      const server = secondFactor('<html><body><div id="app"></div></body></html>', url);
+      const server = secondFactor('<html><body><div id="app"></div></body></html>', `${url}?state=secret`);
       await expect(server.helper().login(credential)).rejects.toEqual({
         reason: FailReason.DEVICE_NOT_TRUSTED,
         extra: url,
@@ -191,6 +191,22 @@ describe('login', () => {
       public: true,
     });
     await expect(server.helper().login(credential)).rejects.toHaveProperty('reason', FailReason.INVALID_RESPONSE);
+  });
+
+  it('rejects with INVALID_RESPONSE, not a TypeError, when reading the homepage fails', async () => {
+    const server = new FakeServer();
+    const homepage = URLS.LEARN_HOMEPAGE(CourseType.STUDENT);
+    // a body that can't be read as text, as a fetch implementation might answer
+    const fetch: typeof server.fetch = async (input, init) =>
+      urlOf(input) === homepage ? ({ text: undefined } as unknown as Response) : server.fetch(input, init);
+    await expect(server.helper({ fetch }).login(credential)).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
+    await expect(server.helper({ fetch, provider: () => credential }).login()).rejects.toHaveProperty(
+      'reason',
+      FailReason.INVALID_RESPONSE,
+    );
   });
 
   it('calls clearLoginCookies before every SSO login, also one it starts for an expired session', async () => {
