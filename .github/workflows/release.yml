@@ -23,6 +23,8 @@ jobs:
     name: Publish
     needs: check
     runs-on: ubuntu-latest
+    # waits for the maintainer's approval; npm's trusted publisher accepts only this environment
+    environment: npm-publish
     permissions:
       contents: write # create the GitHub release
       id-token: write # npm trusted publishing + provenance

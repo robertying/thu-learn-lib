@@ -25,4 +25,4 @@ The live tests are read-only by default: requests that change something on the s
 
 ## Releasing
 
-Add the release to [CHANGELOG.md](CHANGELOG.md) and bump `version` in `package.json`, merge, then push a matching tag (`git tag v<version> && git push origin v<version>`). The Release workflow checks, builds, publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release.
+Add the release to [CHANGELOG.md](CHANGELOG.md) and bump `version` in `package.json`, merge, then push a matching tag (`git tag v<version> && git push origin v<version>`). The Release workflow checks and builds, then waits for the maintainer's approval in the `npm-publish` environment before it publishes to npm with provenance (npm trusted publishing, no token) and creates a GitHub release. A ruleset lets only repository admins create, move or delete `v*` tags.
