@@ -31,7 +31,7 @@ export type HelperConfig = {
   previewFirstPage?: boolean;
   /** at most this many requests in flight at once, including login (default 6; `Infinity` for no limit) */
   maxConcurrentRequests?: number;
-  /** milliseconds to wait for a response before rejecting with `FailReason.REQUEST_TIMEOUT` (default 60000; 0 for none) */
+  /** milliseconds to wait for a response and its body before rejecting with `FailReason.REQUEST_TIMEOUT` (default 60000; 0 for none) */
   requestTimeout?: number;
   /**
    * the `Cookie` header for a Web Learning URL, for `download` transports that don't share `fetch`'s cookies (e.g. a
